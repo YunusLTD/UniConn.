@@ -1,0 +1,254 @@
+import React, { useEffect, useRef } from 'react';
+import { View, Animated, StyleSheet, ViewStyle, DimensionValue, ScrollView, Dimensions } from 'react-native';
+import { colors, radii, spacing } from '../constants/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface SkeletonProps {
+    width?: DimensionValue;
+    height?: DimensionValue;
+    borderRadius?: number;
+    style?: ViewStyle;
+}
+
+export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
+    const opacity = useRef(new Animated.Value(0.3)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, {
+                    toValue: 0.7,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(opacity, {
+                    toValue: 0.3,
+                    duration: 800,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, [opacity]);
+
+    return (
+        <Animated.View
+            style={[
+                {
+                    width,
+                    height,
+                    borderRadius,
+                    backgroundColor: colors.gray100,
+                    opacity,
+                },
+                style,
+            ]}
+        />
+    );
+}
+
+export function PostSkeleton() {
+    return (
+        <View style={styles.card}>
+            <View style={styles.row}>
+                <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 16 }} />
+                <View style={styles.content}>
+                    <Skeleton width="35%" height={10} borderRadius={5} />
+                    <Skeleton width="80%" height={10} borderRadius={5} style={{ marginTop: 12 }} />
+                    <Skeleton width="60%" height={10} borderRadius={5} style={{ marginTop: 8 }} />
+                    <Skeleton width="100%" height={150} borderRadius={20} style={{ marginTop: 12 }} />
+                </View>
+            </View>
+        </View>
+    );
+}
+
+export function MessageItemSkeleton() {
+    return (
+        <View style={styles.messageItem}>
+            <Skeleton width={48} height={48} borderRadius={24} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+                <Skeleton width="40%" height={14} borderRadius={7} />
+                <Skeleton width="70%" height={10} borderRadius={5} style={{ marginTop: 8 }} />
+            </View>
+        </View>
+    );
+}
+
+export function MarketplaceItemSkeleton() {
+    return (
+        <View style={styles.marketItem}>
+            <Skeleton width={40} height={40} borderRadius={20} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+                <Skeleton width="60%" height={15} borderRadius={8} />
+                <Skeleton width="30%" height={10} borderRadius={5} style={{ marginTop: 6 }} />
+            </View>
+            <Skeleton width={16} height={16} borderRadius={8} />
+        </View>
+    );
+}
+
+export function StudentItemSkeleton() {
+    return (
+        <View style={styles.studentItem}>
+            <Skeleton width={50} height={50} borderRadius={14} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+                <Skeleton width="50%" height={14} borderRadius={7} />
+                <Skeleton width="30%" height={10} borderRadius={5} style={{ marginTop: 8 }} />
+                <Skeleton width="70%" height={10} borderRadius={5} style={{ marginTop: 6 }} />
+            </View>
+            <Skeleton width={80} height={32} borderRadius={radii.md} />
+        </View>
+    );
+}
+
+export function ChatBubbleSkeleton({ isMine }: { isMine: boolean }) {
+    return (
+        <View style={[styles.bubbleWrap, isMine ? { justifyContent: 'flex-end' } : { justifyContent: 'flex-start' }]}>
+            <Skeleton
+                width={isMine ? "60%" : "70%"}
+                height={44}
+                borderRadius={22}
+                style={{ backgroundColor: isMine ? colors.gray200 : colors.gray100 }}
+            />
+        </View>
+    );
+}
+
+export function ProfileHeaderSkeleton() {
+    return (
+        <View style={styles.profileHeader}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 }}>
+                <View style={{ flex: 1, marginRight: 20 }}>
+                    <Skeleton width="80%" height={22} borderRadius={11} />
+                    <Skeleton width="50%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+                </View>
+                <Skeleton width={64} height={64} borderRadius={32} />
+            </View>
+            <Skeleton width="100%" height={32} borderRadius={10} style={{ marginTop: 8 }} />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <Skeleton style={{ flex: 1 }} height={36} borderRadius={18} />
+                <Skeleton style={{ flex: 1 }} height={36} borderRadius={18} />
+            </View>
+        </View>
+    );
+}
+
+export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' }) {
+    if (type === 'messages') {
+        return (
+            <View style={styles.container}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <MessageItemSkeleton key={i} />)}
+            </View>
+        );
+    }
+    if (type === 'marketplace') {
+        return (
+            <View style={styles.container}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <MarketplaceItemSkeleton key={i} />)}
+            </View>
+        );
+    }
+    if (type === 'students') {
+        return (
+            <View style={styles.container}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <StudentItemSkeleton key={i} />)}
+            </View>
+        );
+    }
+    if (type === 'chat') {
+        return (
+            <View style={[styles.container, { paddingBottom: 100 }]}>
+                <ChatBubbleSkeleton isMine={false} />
+                <ChatBubbleSkeleton isMine={true} />
+                <ChatBubbleSkeleton isMine={false} />
+                <ChatBubbleSkeleton isMine={false} />
+                <ChatBubbleSkeleton isMine={true} />
+            </View>
+        );
+    }
+    if (type === 'profile') {
+        return (
+            <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+                <ProfileHeaderSkeleton />
+                <View style={{ marginTop: 24 }}>
+                    <PostSkeleton />
+                    <PostSkeleton />
+                </View>
+            </ScrollView>
+        );
+    }
+    return (
+        <View style={[styles.container, { paddingTop: 24 }]}>
+            {[1, 2, 3, 4].map(i => <PostSkeleton key={i} />)}
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    card: {
+        padding: 20,
+        backgroundColor: colors.white,
+        borderRadius: 20,
+        marginBottom: 16,
+        marginHorizontal: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.gray100,
+    },
+    row: {
+        flexDirection: 'row',
+    },
+    content: {
+        flex: 1,
+        paddingTop: 6,
+    },
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    messageItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.gray100,
+        backgroundColor: colors.white,
+    },
+    marketItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.gray200,
+        backgroundColor: colors.white,
+    },
+    studentItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: spacing.lg,
+        backgroundColor: colors.white,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.gray100,
+    },
+    bubbleWrap: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        paddingHorizontal: spacing.md,
+    },
+    profileHeader: {
+        paddingTop: 40,
+        paddingHorizontal: 20,
+        paddingBottom: 24,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F2F2F2',
+    }
+});

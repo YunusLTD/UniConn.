@@ -3,6 +3,11 @@
     "name": "UniConnectApp",
     "slug": "UniConnectApp",
     "version": "1.0.0",
+    "scheme": "uniconnect",
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
