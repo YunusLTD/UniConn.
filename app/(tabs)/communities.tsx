@@ -4,7 +4,7 @@ import { useRouter, Stack } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { listCommunities } from '../../src/api/communities';
 import { searchUsers } from '../../src/api/users';
-import { createConversation } from '../../src/api/messages';
+import { sendFriendRequest, getFriendshipStatus } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 
@@ -39,7 +39,8 @@ function CommunityCard({ item, onPress }: { item: any; onPress: () => void }) {
                         {isOfficial && <Ionicons name="checkmark-circle" size={16} color={colors.blue} />}
                     </View>
                     <Text style={styles.cardType} numberOfLines={1}>
-                        {item.member_count || 0} members
+                        {item.is_private && <Ionicons name="lock-closed" size={11} color={colors.gray400} />}
+                        {item.is_private ? ' ' : ''}{item.member_count || 0} members
                     </Text>
                 </View>
             </View>
@@ -50,8 +51,17 @@ function CommunityCard({ item, onPress }: { item: any; onPress: () => void }) {
     );
 }
 
-function StudentCard({ item, onPress, onMessage }: { item: any; onPress: () => void; onMessage: () => void }) {
+function StudentCard({ item, onPress, onSendRequest, friendStatus }: { item: any; onPress: () => void; onSendRequest: () => void; friendStatus?: string }) {
     const initial = item.name?.charAt(0).toUpperCase() || '?';
+
+    const getButtonConfig = () => {
+        switch (friendStatus) {
+            case 'accepted': return { label: 'Friends', icon: 'checkmark-circle' as const, style: styles.friendsBtnActive };
+            case 'pending': return { label: 'Requested', icon: 'time-outline' as const, style: styles.friendsBtnPending };
+            default: return { label: 'Add Friend', icon: 'person-add-outline' as const, style: styles.friendsBtn };
+        }
+    };
+    const btnConfig = getButtonConfig();
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -71,12 +81,22 @@ function StudentCard({ item, onPress, onMessage }: { item: any; onPress: () => v
                         {item.universities?.name || 'Academic Institution'}
                     </Text>
                 </View>
-                <TouchableOpacity style={styles.messageBtn} onPress={onMessage}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name="chatbubble-outline" size={16} color={colors.black} />
-                        <Text style={styles.messageText}>Message</Text>
+                {friendStatus !== 'accepted' && friendStatus !== 'pending' && (
+                    <TouchableOpacity style={btnConfig.style} onPress={onSendRequest}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name={btnConfig.icon} size={16} color={friendStatus ? colors.gray500 : colors.black} />
+                            <Text style={[styles.friendsBtnText, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
+                {(friendStatus === 'accepted' || friendStatus === 'pending') && (
+                    <View style={btnConfig.style}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name={btnConfig.icon} size={16} color={friendStatus === 'accepted' ? '#4CAF50' : colors.gray500} />
+                            <Text style={[styles.friendsBtnText, friendStatus === 'accepted' && { color: '#4CAF50' }, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
+                        </View>
                     </View>
-                </TouchableOpacity>
+                )}
             </View>
         </TouchableOpacity>
     );
@@ -89,7 +109,7 @@ export default function CommunitiesScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<ExploreTab>('communities');
-    const [dmLoading, setDmLoading] = useState<string | null>(null);
+    const [friendStatuses, setFriendStatuses] = useState<Record<string, string>>({});
     const router = useRouter();
 
     const loadData = async (isRefresh = false) => {
@@ -98,10 +118,21 @@ export default function CommunitiesScreen() {
         try {
             if (activeTab === 'communities') {
                 const res = await listCommunities(1, 100);
-                if (res?.data) setCommunities(res.data);
+                // Filter out official university communities
+                if (res?.data) setCommunities(res.data.filter((c: any) => !c.is_official));
             } else {
                 const res = await searchUsers(searchQuery);
-                if (res?.data) setStudents(res.data);
+                if (res?.data) {
+                    setStudents(res.data);
+                    // Load friendship statuses from pre-fetched data
+                    const statuses: Record<string, string> = {};
+                    res.data.forEach((student: any) => {
+                        if (student.friend_status) {
+                            statuses[student.id] = student.friend_status;
+                        }
+                    });
+                    setFriendStatuses(statuses);
+                }
             }
         } catch (e) {
             console.log('Fetch error', e);
@@ -123,20 +154,15 @@ export default function CommunitiesScreen() {
         return () => clearTimeout(delay);
     }, [searchQuery]);
 
-    const handleMessage = async (studentId: string) => {
-        setDmLoading(studentId);
+    const handleSendFriendRequest = async (studentId: string) => {
         try {
-            const res = await createConversation({
-                type: 'direct',
-                participant_ids: [studentId]
-            });
-            if (res?.data?.id) {
-                router.push(`/chat/${res.data.id}`);
+            const res = await sendFriendRequest(studentId);
+            if (res?.status === 'success') {
+                setFriendStatuses(prev => ({ ...prev, [studentId]: 'pending' }));
+                Alert.alert('Request Sent', 'Friend request sent successfully!');
             }
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to start conversation');
-        } finally {
-            setDmLoading(null);
+            Alert.alert('Error', e.message || 'Failed to send friend request');
         }
     };
 
@@ -200,7 +226,8 @@ export default function CommunitiesScreen() {
                         <StudentCard
                             item={item}
                             onPress={() => router.push(`/user/${item.id}`)}
-                            onMessage={() => handleMessage(item.id)}
+                            onSendRequest={() => handleSendFriendRequest(item.id)}
+                            friendStatus={friendStatuses[item.id]}
                         />
                     )
                 )}
@@ -214,25 +241,12 @@ export default function CommunitiesScreen() {
                             <Text style={styles.headerSubtitle}>Discover & join communities</Text>
                             <View style={styles.actionRow}>
                                 <TouchableOpacity
-                                    style={styles.createBtn}
+                                    style={[styles.createBtn, { flex: 1 }]}
                                     onPress={() => router.push('/community/create')}
                                     activeOpacity={0.7}
                                 >
                                     <Ionicons name="add" size={18} color={colors.white} />
-                                    <Text style={styles.createBtnText}>Start New</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.requestBtn}
-                                    onPress={() => {
-                                        Alert.alert('Request University', 'Is your university missing? Contact us to add it.', [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { text: 'Submit Request', onPress: () => alert('Request submitted!') }
-                                        ]);
-                                    }}
-                                    activeOpacity={0.7}
-                                >
-                                    <Ionicons name="business-outline" size={18} color={colors.black} />
-                                    <Text style={styles.requestBtnText}>Uni Request</Text>
+                                    <Text style={styles.createBtnText}>Start New Community</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -338,25 +352,10 @@ const styles = StyleSheet.create({
         borderRadius: radii.md,
         gap: spacing.sm,
     },
-    requestBtn: {
-        backgroundColor: colors.gray100,
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 13,
-        borderRadius: radii.md,
-        gap: spacing.sm,
-    },
     createBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
         color: colors.white,
-    },
-    requestBtnText: {
-        fontFamily: fonts.semibold,
-        fontSize: 14,
-        color: colors.black,
     },
     card: {
         backgroundColor: colors.white,
@@ -452,7 +451,13 @@ const styles = StyleSheet.create({
         color: colors.gray400,
         marginTop: 2,
     },
-    messageBtn: {
+    friendsBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: colors.black,
+        borderRadius: 20,
+    },
+    friendsBtnPending: {
         paddingHorizontal: 12,
         paddingVertical: 8,
         backgroundColor: colors.gray50,
@@ -460,10 +465,18 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.gray200,
     },
-    messageText: {
+    friendsBtnActive: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: 'rgba(76,175,80,0.1)',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(76,175,80,0.3)',
+    },
+    friendsBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 12,
-        color: colors.black,
+        color: colors.white,
     },
     emptyState: {
         alignItems: 'center',

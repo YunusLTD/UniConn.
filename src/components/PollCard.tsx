@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image, Share, Clipboard } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { voteInPoll, deletePoll } from '../api/polls';
+import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
+import ActionModal, { ActionOption } from './ActionModal';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -31,6 +33,8 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     const [submitting, setSubmitting] = useState(false);
     const [localTotalVotes, setLocalTotalVotes] = useState<number>(0);
     const [localOptions, setLocalOptions] = useState<any[]>([]);
+    const [actionVisible, setActionVisible] = useState(false);
+    const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const isOwner = user?.id === poll?.created_by;
     const initial = poll?.profiles?.name?.[0]?.toUpperCase() || '?';
 
@@ -104,6 +108,75 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
         ]);
     };
 
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://uni-platform.app/poll/${poll.id}`;
+            await Share.share({
+                title: 'UniConnect Poll',
+                message: `Vote in this poll on Uni Platform: ${shareUrl}`,
+            });
+        } catch (e) {
+            console.error('Share error', e);
+        }
+    };
+
+    const handleCopyLink = () => {
+        const shareUrl = `https://uni-platform.app/poll/${poll.id}`;
+        Clipboard.setString(shareUrl);
+        Alert.alert('Link Copied', 'The poll link has been copied to your clipboard.');
+    };
+
+    const handleMenu = () => {
+        setActionVisible(true);
+    };
+
+    const handleReport = () => {
+        setReportReasonVisible(true);
+    };
+
+    const sendReport = async (reason: string) => {
+        try {
+            await submitReport({ target_type: 'poll', target_id: poll.id, reason });
+            setReportReasonVisible(false);
+            
+            Alert.alert(
+                'Reported',
+                'Thank you. We will review this poll.',
+                [
+                    {
+                        text: 'Hide Poll',
+                        style: 'destructive',
+                        onPress: () => {
+                            if (onDelete && poll.id) onDelete(poll.id);
+                        }
+                    },
+                    {
+                        text: 'Done',
+                        style: 'default',
+                    }
+                ]
+            );
+        } catch (e) {
+            console.log('Report error', e);
+        }
+    };
+
+    const actionOptions: ActionOption[] = [
+        { label: 'Share', icon: 'share-outline', onPress: handleShare },
+        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
+        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+    ];
+
+    if (isOwner) {
+        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+    }
+
+    const reportOptions: ActionOption[] = [
+        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: 'Harassment', icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
+        { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
+    ];
+
     return (
         <View style={styles.card}>
             <View style={styles.row}>
@@ -144,11 +217,9 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                                 )}
                             </View>
                         </View>
-                        {isOwner && showDelete && (
-                            <TouchableOpacity onPress={handleDelete} hitSlop={8}>
-                                <Ionicons name="trash-outline" size={16} color={colors.gray400} />
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity onPress={handleMenu} hitSlop={8}>
+                            <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
+                        </TouchableOpacity>
                     </View>
 
                     <Text style={styles.question}>{poll?.question}</Text>
@@ -208,6 +279,20 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                     </View>
                 </View>
             </View>
+
+            <ActionModal
+                visible={actionVisible}
+                onClose={() => setActionVisible(false)}
+                options={actionOptions}
+                title="Poll Options"
+            />
+
+            <ActionModal
+                visible={reportReasonVisible}
+                onClose={() => setReportReasonVisible(false)}
+                options={reportOptions}
+                title="Why are you reporting?"
+            />
         </View>
     );
 }

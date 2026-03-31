@@ -10,6 +10,7 @@ import { createMarketplaceListing } from '../src/api/marketplace';
 import { createPoll } from '../src/api/polls';
 import { uploadMultipleMedia } from '../src/api/upload';
 import { Ionicons } from '@expo/vector-icons';
+import { Skeleton } from '../src/components/ShadowLoader';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -233,14 +234,18 @@ export default function CreatePostModal() {
                 {creationType !== 'study' && (
                     <View style={[styles.selectorRow, !!params.communityId && { opacity: 0.7 }]}>
                         <Text style={styles.selectorLabel}>in</Text>
-                        <TouchableOpacity
-                            style={styles.selectorPill}
-                            onPress={() => !params.communityId && setShowSelector(!showSelector)}
-                            disabled={!!params.communityId}
-                        >
-                            <Text style={styles.selectorText}>{selectedCommunity?.name || 'Select'}</Text>
-                            {!params.communityId && <Ionicons name={showSelector ? 'chevron-up' : 'chevron-down'} size={14} color={colors.gray500} />}
-                        </TouchableOpacity>
+                        {loading ? (
+                            <Skeleton width={120} height={32} borderRadius={16} />
+                        ) : (
+                            <TouchableOpacity
+                                style={styles.selectorPill}
+                                onPress={() => !params.communityId && setShowSelector(!showSelector)}
+                                disabled={!!params.communityId}
+                            >
+                                <Text style={styles.selectorText}>{selectedCommunity?.is_official ? (selectedCommunity.universities?.name || 'University Feed') : (selectedCommunity?.name?.replace(/ community/gi, '') || 'Select')}</Text>
+                                {!params.communityId && <Ionicons name={showSelector ? 'chevron-up' : 'chevron-down'} size={14} color={colors.gray500} />}
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 
@@ -254,7 +259,7 @@ export default function CreatePostModal() {
                                     onPress={() => { setSelectedCommunity(c); setShowSelector(false); }}
                                 >
                                     <Text style={[styles.dropdownText, selectedCommunity?.id === c.id && styles.dropdownTextActive]}>
-                                        {c.name}
+                                        {c.is_official ? (c.universities?.name || 'University Feed') : c.name?.replace(/ community/gi, '')}
                                     </Text>
                                     {selectedCommunity?.id === c.id && <Ionicons name="checkmark" size={16} color={colors.black} />}
                                 </TouchableOpacity>

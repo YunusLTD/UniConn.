@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
-import { getNotifications, markAsRead } from '../../src/api/notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../../src/context/NotificationContext';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import FriendRequestBanner from '../../src/components/FriendRequestBanner';
+import { markAllAsRead, getNotifications, markAsRead } from '../../src/api/notifications';
+import { useCallback } from 'react';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -26,6 +28,9 @@ const NOTIF_ICONS: Record<string, string> = {
     post: 'document-text-outline',
     like: 'heart-outline',
     comment: 'chatbubble-ellipses-outline',
+    friend_request: 'person-add-outline',
+    friend_accepted: 'people-outline',
+    community_join_request: 'shield-outline',
 };
 
 export default function ActivityScreen() {
@@ -38,7 +43,10 @@ export default function ActivityScreen() {
     const loadData = async () => {
         try {
             const res = await getNotifications();
-            if (res?.data) setNotifications(res.data);
+            if (res?.data) {
+                // Filter out message notifications from the Activity tab
+                setNotifications(res.data.filter((n: any) => n.type !== 'message'));
+            }
         } catch (e) {
             console.log('Error loading notifications', e);
         } finally {
@@ -46,7 +54,22 @@ export default function ActivityScreen() {
         }
     };
 
-    useEffect(() => { loadData(); }, []);
+    useFocusEffect(
+        useCallback(() => {
+            const clearAndLoad = async () => {
+                await loadData();
+                try {
+                    // Optimized: Mark all as read as soon as they view the tab
+                    await markAllAsRead();
+                    setNotifications(prev => prev.map(n => ({...n, read: true})));
+                    refreshUnreadCount();
+                } catch (e) {
+                    console.log('Error clearing notifications', e);
+                }
+            };
+            clearAndLoad();
+        }, [])
+    );
 
     const handleMarkRead = async (notification: any) => {
         const { id, read, type, reference_id } = notification;
@@ -64,6 +87,10 @@ export default function ActivityScreen() {
                 router.push(`/chat/${reference_id}` as any);
             } else if (type === 'post' && reference_id) {
                 router.push(`/post/${reference_id}` as any);
+            } else if (type === 'friend_request') {
+                router.push('/friends/requests');
+            } else if (type === 'friend_accepted' && reference_id) {
+                router.push(`/user/${reference_id}`);
             }
         } catch (e) {
             console.log('Error handling notification click:', e);
@@ -86,6 +113,14 @@ export default function ActivityScreen() {
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
                 showsVerticalScrollIndicator={false}
+                ListHeaderComponent={<FriendRequestBanner />}
+                refreshControl={
+                    <RefreshControl 
+                        refreshing={loading} 
+                        onRefresh={loadData} 
+                        tintColor={colors.primary}
+                    />
+                }
                 renderItem={({ item }) => {
                     const iconName = NOTIF_ICONS[item.type] || 'notifications-outline';
                     return (
@@ -108,7 +143,6 @@ export default function ActivityScreen() {
                                 <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
                                 <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
                             </View>
-                            {!item.read && <View style={styles.dot} />}
                         </TouchableOpacity>
                     );
                 }}

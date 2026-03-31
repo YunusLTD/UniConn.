@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, SafeAreaView, FlatList, Animated, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, SafeAreaView, FlatList, Animated, Share, Clipboard } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { votePost, deletePost } from '../api/posts';
+import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import ActionModal, { ActionOption } from './ActionModal';
 
 let Haptics: any;
 try {
@@ -122,7 +124,7 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
     }
     return (
         <View style={styles.viewerPage}>
-            <Image source={{ uri: url }} style={styles.viewerImage} resizeMode="contain" />
+            <Image source={{ uri: url, cache: 'force-cache' }} style={styles.viewerImage} resizeMode="contain" />
         </View>
     );
 };
@@ -135,6 +137,8 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     const [voteCount, setVoteCount] = useState<number>(post.vote_count || 0);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
+    const [actionVisible, setActionVisible] = useState(false);
+    const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const initial = post.profiles?.name?.[0]?.toUpperCase() || '?';
 
     // Animation values
@@ -156,6 +160,51 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
     const isOwner = user?.id === post.user_id;
 
+    const handleMenu = () => {
+        if (Haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setActionVisible(true);
+    };
+
+    const handleCopyLink = () => {
+        const shareUrl = `https://uni-platform.app/post/${post.id}`;
+        Clipboard.setString(shareUrl);
+        Alert.alert('Link Copied', 'The post link has been copied to your clipboard.');
+    };
+
+    const handleReport = () => {
+        setReportReasonVisible(true);
+    };
+
+    const sendReport = async (reason: string) => {
+        try {
+            await submitReport({ target_type: 'post', target_id: post.id, reason });
+            setReportReasonVisible(false);
+            
+            if (Haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            Alert.alert(
+                'Reported',
+                'Thank you. We will review this post.',
+                [
+                    {
+                        text: 'Hide Post',
+                        style: 'destructive',
+                        onPress: () => {
+                            if (onDelete) onDelete(post.id);
+                        }
+                    },
+                    {
+                        text: 'Done',
+                        style: 'default',
+                    }
+                ]
+            );
+        } catch (e) {
+            console.log('Report error', e);
+            Alert.alert('Error', 'Failed to submit report. Please try again.');
+        }
+    };
+
     const handleDelete = () => {
         Alert.alert('Delete Post', 'Remove this post permanently?', [
             { text: 'Cancel', style: 'cancel' },
@@ -172,6 +221,35 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
             }
         ]);
     };
+
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://uni-platform.app/post/${post.id}`;
+            await Share.share({
+                title: 'UniConnect Post',
+                message: `Check out this post on Uni Platform: ${shareUrl}`,
+                url: shareUrl,
+            });
+        } catch (e) {
+            console.error('Share error', e);
+        }
+    };
+
+    const actionOptions: ActionOption[] = [
+        { label: 'Share', icon: 'share-outline', onPress: handleShare },
+        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
+        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+    ];
+
+    if (isOwner) {
+        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+    }
+
+    const reportOptions: ActionOption[] = [
+        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: 'Harassment', icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
+        { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
+    ];
 
     const handleVote = async (value: number) => {
         // 1. Optimistic Update
@@ -212,17 +290,6 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     const media_types = (post.media_types && post.media_types.length > 0)
         ? post.media_types
         : (post.image_url ? ['image'] : []);
-    const handleShare = async () => {
-        try {
-            const shareUrl = `https://uni-platform.app/post/${post.id}`;
-            await Share.share({
-                title: 'Check out this post on Uni!',
-                message: `${post.content || 'Check out this post!'}\n\nView more on Uni Hub: ${shareUrl}`,
-            });
-        } catch (error) {
-            console.error('Share error:', error);
-        }
-    };
 
     return (
         <View style={styles.card}>
@@ -261,14 +328,16 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                 <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
                             </View>
                             {post.communities?.name && (
-                                <Text style={styles.communityTag}>{post.communities.name}</Text>
+                                <Text style={styles.communityTag}>
+                                    {post.communities.is_official 
+                                        ? (post.universities?.name || post.communities.name.replace(/ community/gi, ''))
+                                        : post.communities.name.replace(/ community/gi, '')}
+                                </Text>
                             )}
                         </View>
-                        {isOwner && showDelete && (
-                            <TouchableOpacity onPress={handleDelete} hitSlop={8}>
-                                <Ionicons name="trash-outline" size={16} color={colors.gray400} />
-                            </TouchableOpacity>
-                        )}
+                        <TouchableOpacity onPress={handleMenu} hitSlop={8} style={styles.menuBtn}>
+                            <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
+                        </TouchableOpacity>
                     </View>
 
                     {/* Content */}
@@ -364,33 +433,24 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
             {/* Image Viewer Modal */}
             <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
-                <View style={styles.viewerContainer}>
-                    <SafeAreaView style={styles.viewerSafeArea}>
-                        <View style={styles.viewerHeader}>
-                            <TouchableOpacity onPress={() => setViewerVisible(false)} hitSlop={10} style={styles.viewerClose}>
-                                <Ionicons name="close" size={28} color={colors.white} />
-                            </TouchableOpacity>
-                            <Text style={styles.viewerCount}>{viewerIndex + 1} / {media.length}</Text>
-                        </View>
-                        <FlatList
-                            data={media}
-                            horizontal
-                            pagingEnabled
-                            showsHorizontalScrollIndicator={false}
-                            initialScrollIndex={viewerIndex}
-                            getItemLayout={(data, index) => ({ length: width, offset: width * index, index })}
-                            onMomentumScrollEnd={(e) => {
-                                const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-                                setViewerIndex(newIndex);
-                            }}
-                            keyExtractor={(_, index) => index.toString()}
-                            renderItem={({ item, index }) => (
-                                <MediaViewerItem url={item} type={media_types[index]} />
-                            )}
-                        />
-                    </SafeAreaView>
-                </View>
+                ...
             </Modal>
+
+            {/* Actions Bottom Sheet */}
+            <ActionModal
+                visible={actionVisible}
+                onClose={() => setActionVisible(false)}
+                options={actionOptions}
+                title="Post Options"
+            />
+
+            {/* Report Reasons Sheet */}
+            <ActionModal
+                visible={reportReasonVisible}
+                onClose={() => setReportReasonVisible(false)}
+                options={reportOptions}
+                title="Why are you reporting?"
+            />
         </View>
     );
 }
@@ -611,5 +671,9 @@ const styles = StyleSheet.create({
         fontSize: 10,
         color: colors.blue,
         includeFontPadding: false,
+    },
+    menuBtn: {
+        padding: 4,
+        marginLeft: 8,
     },
 });

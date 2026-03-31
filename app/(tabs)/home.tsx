@@ -10,6 +10,7 @@ import PollCard from '../../src/components/PollCard';
 import JobCard from '../../src/components/JobCard';
 import MarketCard from '../../src/components/MarketCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
+import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -86,11 +87,13 @@ export default function HomeScreen() {
                 data={posts}
                 keyExtractor={item => `${item.feed_type}_${item.id}`}
                 renderItem={renderItem}
+                ListHeaderComponent={<FriendRequestBanner />}
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
                 onEndReached={handleLoadMore}
                 onEndReachedThreshold={0.5}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.gray300} style={{ marginBottom: spacing.md }} />

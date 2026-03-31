@@ -14,3 +14,9 @@ export const createMarketplaceListing = async (communityId: string, data: any) =
         body: JSON.stringify(data),
     });
 };
+
+export const deleteMarketplaceListing = async (id: string) => {
+    return await apiFetch(`/marketplace/${id}`, {
+        method: 'DELETE',
+    });
+};

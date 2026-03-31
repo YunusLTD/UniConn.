@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,6 +24,7 @@ export default function ChatScreen() {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const [mediaUri, setMediaUri] = useState<string | null>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [peerTyping, setPeerTyping] = useState(false);
     const typingTimeoutRef = useRef<any>(null);
     const flatListRef = useRef<FlatList>(null);
@@ -335,7 +336,12 @@ export default function ChatScreen() {
                                             <Ionicons name="play-circle" size={48} color={colors.white} />
                                         </View>
                                     ) : (
-                                        <Image source={{ uri: item.media_url_local || item.media_url }} style={styles.attachedMedia} />
+                                        <TouchableOpacity onPress={() => setPreviewImage(item.media_url_local || item.media_url)} activeOpacity={0.9}>
+                                            <Image 
+                                                source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }} 
+                                                style={styles.attachedMedia} 
+                                            />
+                                        </TouchableOpacity>
                                     )
                                 )}
 
@@ -413,6 +419,22 @@ export default function ChatScreen() {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+
+            {/* Image Preview Modal */}
+            <Modal visible={!!previewImage} transparent={true} animationType="fade">
+                <View style={styles.modalBg}>
+                    <TouchableOpacity style={styles.closePreview} onPress={() => setPreviewImage(null)}>
+                        <Ionicons name="close" size={30} color={colors.white} />
+                    </TouchableOpacity>
+                    {previewImage && (
+                        <Image 
+                            source={{ uri: previewImage, cache: 'force-cache' }} 
+                            style={styles.fullImage} 
+                            resizeMode="contain"
+                        />
+                    )}
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -491,4 +513,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     sendBtnDisabled: { backgroundColor: colors.gray200 },
+    modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
+    closePreview: { position: 'absolute', top: 60, right: 20, zIndex: 10 },
+    fullImage: { width: '100%', height: '80%' },
 });

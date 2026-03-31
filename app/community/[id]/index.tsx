@@ -130,10 +130,13 @@ export default function CommunityDetailScreen() {
 
     const filteredPosts = posts.filter(p => {
         if (isStudyGroup) return true;
-        if (activeTab === 'events') return p.feed_type?.toLowerCase() === 'event';
-        if (activeTab === 'jobs') return p.feed_type?.toLowerCase() === 'job';
-        if (activeTab === 'study') return p.feed_type?.toLowerCase() === 'study_group';
-        if (activeTab === 'market') return p.feed_type?.toLowerCase() === 'market';
+        const type = p.feed_type?.toLowerCase();
+        if (activeTab === 'events') return type === 'event';
+        if (activeTab === 'jobs') return type === 'job';
+        if (activeTab === 'study') return type === 'study_group';
+        if (activeTab === 'market') return type === 'market';
+        // 'all' tab: only show posts and polls (other types have dedicated tabs)
+        if (activeTab === 'all') return type === 'post' || type === 'poll' || !type;
         return true;
     });
 
@@ -192,7 +195,7 @@ export default function CommunityDetailScreen() {
                                 </View>
                             )}
                         </View>
-                        <Text style={styles.coverTitle}>{community.name}</Text>
+                        <Text style={styles.coverTitle}>{community.name?.replace(/ community/gi, '')}</Text>
 
                         <View style={styles.metaInfoRow}>
                             <TouchableOpacity
@@ -222,9 +225,14 @@ export default function CommunityDetailScreen() {
                 )}
 
                 <View style={styles.mainActionsColumn}>
-                    <TouchableOpacity style={[styles.chatBtn, { backgroundColor: colors.black }]} onPress={handleOpenChat} activeOpacity={0.8}>
+                    <TouchableOpacity 
+                        style={[styles.chatBtn, { backgroundColor: colors.black }, (!community.is_member && community.is_private) && { opacity: 0.5 }]} 
+                        onPress={handleOpenChat} 
+                        activeOpacity={0.8}
+                        disabled={!community.is_member && community.is_private}
+                    >
                         <Ionicons name="chatbubbles" size={20} color={colors.white} />
-                        <Text style={styles.chatBtnText}>{community.is_member ? 'Enter Chat Room' : 'Join to Chat'}</Text>
+                        <Text style={styles.chatBtnText}>{community.is_member ? 'Enter Chat Room' : (community.is_private ? 'Members Only' : 'Join to Chat')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.secondaryActionRow}>
@@ -240,8 +248,8 @@ export default function CommunityDetailScreen() {
                             style={[styles.joinBtn, community.is_member && styles.leaveBtn]}
                             onPress={handleJoinLeave}
                         >
-                            <Text style={[styles.joinBtnText, community.is_member && styles.leaveBtnText]}>
-                                {community.is_member ? 'Member' : 'Join Hub'}
+                            <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && styles.leaveBtnText]}>
+                                {community.is_member ? 'Member' : (community.membership_status === 'pending' ? 'Requested' : (community.is_private ? 'Request' : 'Join Hub'))}
                             </Text>
                         </TouchableOpacity>
 
@@ -336,6 +344,21 @@ export default function CommunityDetailScreen() {
                     }
                     showsVerticalScrollIndicator={false}
                 />
+            ) : community.is_private && !community.is_member ? (
+                <View style={styles.lockedState}>
+                    <View style={styles.lockedIconCircle}>
+                        <Ionicons name="lock-closed" size={42} color={colors.gray400} />
+                    </View>
+                    <Text style={styles.lockedTitle}>Private Community</Text>
+                    <Text style={styles.lockedText}>
+                        Join this community to see its feed and connect with students. Content is hidden to protect privacy.
+                    </Text>
+                    {community.membership_status !== 'pending' && (
+                        <TouchableOpacity style={styles.requestButton} onPress={handleJoinLeave}>
+                            <Text style={styles.requestButtonText}>Request to Join</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             ) : (
                 <FlatList
                     data={filteredPosts}
@@ -401,5 +424,13 @@ const styles = StyleSheet.create({
     toggleText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.gray500 },
     emptyWrap: { paddingVertical: 80, alignItems: 'center', paddingHorizontal: spacing.xl },
     emptyText: { fontFamily: fonts.medium, fontSize: 15, color: colors.gray400, marginTop: 16, textAlign: 'center' },
+    lockedState: { flex: 1, padding: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+    lockedIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.gray50, justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: colors.gray100 },
+    lockedTitle: { fontFamily: fonts.bold, fontSize: 22, color: colors.black, marginBottom: 16 },
+    lockedText: { fontFamily: fonts.regular, fontSize: 15, color: colors.gray500, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+    requestButton: { backgroundColor: colors.black, paddingHorizontal: 32, paddingVertical: 14, borderRadius: radii.full },
+    requestButtonText: { fontFamily: fonts.bold, color: colors.white, fontSize: 15 },
+    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 200, paddingVertical: 40 },
+    emptyMessage: { fontFamily: fonts.medium, fontSize: 16, color: colors.gray300, marginTop: 16, textAlign: 'center' },
+    listContent: { paddingBottom: 100 },
 });
-

@@ -32,3 +32,9 @@ export const createStudyAnswer = async (questionId: string, data: { content: str
         body: JSON.stringify(data),
     });
 };
+
+export const deleteStudyQuestion = async (id: string) => {
+    return await apiFetch(`/study/questions/${id}`, {
+        method: 'DELETE',
+    });
+};

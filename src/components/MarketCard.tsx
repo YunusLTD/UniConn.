@@ -1,15 +1,109 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Share, Clipboard, Alert } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../context/AuthContext';
+import { deleteMarketplaceListing } from '../api/marketplace';
+import { submitReport } from '../api/reports';
+import ActionModal, { ActionOption } from './ActionModal';
 
 interface MarketCardProps {
     item: any;
 }
 
-export default function MarketCard({ item }: MarketCardProps) {
+export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (id: string) => void }) {
     const router = useRouter();
+    const { user } = useAuth();
+    const [actionVisible, setActionVisible] = useState(false);
+    const [reportReasonVisible, setReportReasonVisible] = useState(false);
+    const isOwner = user?.id === item.user_id || user?.id === item.seller_id;
+
+    const handleDelete = () => {
+        Alert.alert('Delete Item', 'Remove this listing permanently?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Delete', style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await deleteMarketplaceListing(item.id);
+                        if (onDelete) onDelete(item.id);
+                    } catch (e) {
+                        Alert.alert('Error', 'Failed to delete listing.');
+                    }
+                }
+            }
+        ]);
+    };
+
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://uni-platform.app/marketplace/${item.id}`;
+            await Share.share({
+                title: item.title,
+                message: `Check out this listing on Uni Marketplace: ${item.title} - ${shareUrl}`,
+            });
+        } catch (e) {
+            console.error('Share error', e);
+        }
+    };
+
+    const handleCopyLink = () => {
+        const shareUrl = `https://uni-platform.app/marketplace/${item.id}`;
+        Clipboard.setString(shareUrl);
+        Alert.alert('Link Copied', 'The listing link has been copied to your clipboard.');
+    };
+
+    const handleMenu = () => {
+        setActionVisible(true);
+    };
+
+    const handleReport = () => {
+        setReportReasonVisible(true);
+    };
+
+    const sendReport = async (reason: string) => {
+        try {
+            await submitReport({ target_type: 'marketplace', target_id: item.id, reason });
+            setReportReasonVisible(false);
+            
+            Alert.alert(
+                'Reported',
+                'Thank you. We will review this item.',
+                [
+                    {
+                        text: 'Hide Item',
+                        style: 'destructive',
+                        onPress: () => {
+                            if (onDelete) onDelete(item.id);
+                        }
+                    },
+                    {
+                        text: 'Done',
+                        style: 'default',
+                    }
+                ]
+            );
+        } catch (e) {
+            console.log('Report error', e);
+        }
+    };
+
+    const actionOptions: ActionOption[] = [
+        { label: 'Share', icon: 'share-outline', onPress: handleShare },
+        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
+        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+    ];
+
+    if (isOwner) {
+        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+    }
+
+    const reportOptions: ActionOption[] = [
+        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: 'Scam', icon: 'ban-outline', onPress: () => sendReport('scam') },
+        { label: 'Other', icon: 'help-circle-outline', onPress: () => sendReport('other') },
+    ];
 
     return (
         <TouchableOpacity
@@ -21,7 +115,12 @@ export default function MarketCard({ item }: MarketCardProps) {
                 <View style={styles.tag}>
                     <Text style={styles.tagText}>MARKETPLACE</Text>
                 </View>
-                <Text style={styles.price}>${item.price?.toLocaleString() || '0'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Text style={styles.price}>${item.price?.toLocaleString() || '0'}</Text>
+                    <TouchableOpacity onPress={handleMenu} hitSlop={8}>
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {item.image_url && (
@@ -53,6 +152,20 @@ export default function MarketCard({ item }: MarketCardProps) {
                     </View>
                 </View>
             </View>
+
+            <ActionModal
+                visible={actionVisible}
+                onClose={() => setActionVisible(false)}
+                options={actionOptions}
+                title="Marketplace Listing"
+            />
+
+            <ActionModal
+                visible={reportReasonVisible}
+                onClose={() => setReportReasonVisible(false)}
+                options={reportOptions}
+                title="Why are you reporting?"
+            />
         </TouchableOpacity>
     );
 }

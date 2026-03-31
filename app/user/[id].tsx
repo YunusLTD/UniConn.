@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share, Alert } from 'react-native';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { getUser } from '../../src/api/users';
@@ -7,15 +7,16 @@ import { getUserPosts } from '../../src/api/posts';
 import { getUserEvents } from '../../src/api/events';
 import { getUserPolls } from '../../src/api/polls';
 import { getUserJobs } from '../../src/api/jobs';
-import { createConversation } from '../../src/api/messages';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { sendFriendRequest, getFriendshipStatus, getFriendsCount, removeFriend } from '../../src/api/friends';
 import PostCard from '../../src/components/PostCard';
 import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
 import JobCard from '../../src/components/JobCard';
 import SkeletonLoader from '../../src/components/SkeletonLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ActionModal from '../../src/components/ActionModal';
 
 import { useToast } from '../../src/context/ToastContext';
 
@@ -36,7 +37,13 @@ export default function UserProfileScreen() {
     const [activeTab, setActiveTab] = useState<TabType>('posts');
     const [content, setContent] = useState<any[]>([]);
     const [contentLoading, setContentLoading] = useState(false);
-    const [messaging, setMessaging] = useState(false);
+    const [friendStatus, setFriendStatus] = useState<string>('none');
+    const [friendshipId, setFriendshipId] = useState<string | null>(null);
+    const [friendCount, setFriendCount] = useState(0);
+    const [sendingRequest, setSendingRequest] = useState(false);
+    const [showActionModal, setShowActionModal] = useState(false);
+    const [actionTitle, setActionTitle] = useState('');
+    const [actionOptions, setActionOptions] = useState<any[]>([]);
     const router = useRouter();
     const { showToast } = useToast();
 
@@ -84,19 +91,101 @@ export default function UserProfileScreen() {
     useEffect(() => { loadProfileData(); }, [id]);
     useEffect(() => { loadTabContent(activeTab); }, [activeTab, id]);
 
-    const handleMessage = async () => {
-        if (!currentUser || currentUser.id === id) return;
-        setMessaging(true);
+    // Load friendship status and friend count
+    useEffect(() => {
+        const loadFriendData = async () => {
+            if (!currentUser || currentUser.id === id) return;
+            try {
+                const statusRes = await getFriendshipStatus(id as string);
+                if (statusRes?.data) {
+                    setFriendStatus(statusRes.data.status || 'none');
+                    setFriendshipId(statusRes.data.id || null);
+                }
+            } catch (e) { /* ignore */ }
+        };
+        loadFriendData();
+    }, [id, currentUser]);
+
+    useEffect(() => {
+        const loadCount = async () => {
+            try {
+                const countRes = await getFriendsCount(id as string);
+                if (countRes?.data) setFriendCount(countRes.data.count || 0);
+            } catch (e) { /* ignore */ }
+        };
+        loadCount();
+    }, [id]);
+
+    const confirmRemoval = async (isPending: boolean) => {
+        setSendingRequest(true);
+        setShowActionModal(false);
         try {
-            const res = await createConversation({ type: 'direct', participant_ids: [id as string] });
-            const session = res?.id || res?.data?.id;
-            if (session) {
-                router.push(`/chat/${session}`);
+            await removeFriend(id as string);
+            setFriendStatus('none');
+            if (!isPending) setFriendCount(prev => Math.max(0, prev - 1));
+            showToast({ 
+                title: isPending ? 'Request Cancelled' : 'Friend Removed', 
+                message: isPending 
+                    ? 'Your connection request has been withdrawn.'
+                    : `You are no longer friends with ${profile?.name}.`, 
+                type: 'info' 
+            });
+        } catch (e) {
+            console.log('Removal error', e);
+            Alert.alert('Error', 'Failed to update connection. Please try again.');
+        } finally {
+            setSendingRequest(false);
+        }
+    };
+
+    const handleFriendRemoval = () => {
+        const isPending = friendStatus === 'pending';
+        setActionTitle(isPending ? 'Manage Request' : 'Manage Friendship');
+        setActionOptions([
+            {
+                label: isPending ? 'Cancel Sent Request' : 'Unfriend Student',
+                icon: 'close-circle-outline',
+                destructive: true,
+                onPress: () => confirmRemoval(isPending)
+            }
+        ]);
+        setShowActionModal(true);
+    };
+
+    const handleFriendAction = async () => {
+        if (!currentUser) return;
+        if (friendStatus === 'accepted' || friendStatus === 'pending') {
+            handleFriendRemoval();
+            return;
+        }
+        if (friendStatus !== 'none') return;
+
+        setSendingRequest(true);
+        try {
+            const res = await sendFriendRequest(id as string);
+            if (res?.status === 'success') {
+                setFriendStatus('pending');
+                showToast({ title: 'Request Sent', message: 'Connection request sent successfully!', type: 'success' });
             }
         } catch (e) {
-            showToast({ title: 'Error', message: 'Could not start conversation', type: 'error' });
+            console.log('Friend request error', e);
         } finally {
-            setMessaging(false);
+            setSendingRequest(false);
+        }
+    };
+
+    const handleMessage = async () => {
+        if (!currentUser || friendStatus !== 'accepted') return;
+        try {
+            // Check if conversation exists, then navigate
+            const { createConversation } = await import('../../src/api/messages');
+            const res = await createConversation({ type: 'direct', participant_ids: [id as string] });
+            if (res?.data?.id) {
+                router.push(`/chat/${res.data.id}`);
+            }
+        } catch (e) {
+            console.log('Failed to start chat', e);
+            Alert.alert('Error', 'Only friends can message each other.');
         }
     };
 
@@ -148,6 +237,10 @@ export default function UserProfileScreen() {
                                     <Ionicons name="flash" size={12} color={colors.black} />
                                     <Text style={styles.scoreText}>{profile?.user_score || 0}</Text>
                                 </TouchableOpacity>
+                                <View style={styles.friendCountBadge}>
+                                    <Ionicons name="people" size={12} color={colors.gray500} />
+                                    <Text style={styles.friendCountText}>{friendCount}</Text>
+                                </View>
                             </View>
                             {profile?.username && (
                                 <Text style={styles.usernameText}>@{profile.username}</Text>
@@ -174,18 +267,52 @@ export default function UserProfileScreen() {
                     <View style={styles.actionRow}>
                         {currentUser?.id !== id && (
                             <TouchableOpacity
-                                style={[styles.actionBtn, styles.messageBtn]}
-                                onPress={handleMessage}
-                                disabled={messaging}
+                                style={[
+                                    styles.actionBtn,
+                                    friendStatus === 'none' ? styles.friendRequestBtn :
+                                    friendStatus === 'pending' ? styles.friendPendingBtn :
+                                    styles.friendAcceptedBtn
+                                ]}
+                                onPress={handleFriendAction}
+                                disabled={sendingRequest}
                             >
-                                {messaging ? (
-                                    <ActivityIndicator size="small" color={colors.white} />
+                                {sendingRequest ? (
+                                    <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.black} />
                                 ) : (
                                     <>
-                                        <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.white} />
-                                        <Text style={styles.messageBtnText}>Message</Text>
+                                        <Ionicons
+                                            name={
+                                                friendStatus === 'accepted' ? 'checkmark-circle' :
+                                                friendStatus === 'pending' ? 'close-circle' :
+                                                'person-add-outline'
+                                            }
+                                            size={18}
+                                            color={
+                                                friendStatus === 'none' ? colors.white :
+                                                friendStatus === 'accepted' ? colors.black :
+                                                colors.danger
+                                            }
+                                        />
+                                        <Text style={[
+                                            styles.friendBtnText,
+                                            friendStatus === 'accepted' && { color: colors.black },
+                                            friendStatus === 'pending' && { color: colors.danger },
+                                        ]}>
+                                            {friendStatus === 'accepted' ? 'Friends' :
+                                             friendStatus === 'pending' ? 'Cancel Request' :
+                                             'Connect'}
+                                        </Text>
                                     </>
                                 )}
+                            </TouchableOpacity>
+                        )}
+                        {currentUser?.id !== id && friendStatus === 'accepted' && (
+                            <TouchableOpacity
+                                style={[styles.actionBtn, styles.messageBtn]}
+                                onPress={handleMessage}
+                            >
+                                <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
+                                <Text style={[styles.messageBtnText]}>Message</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -246,6 +373,13 @@ export default function UserProfileScreen() {
                     )}
                 </View>
             </ScrollView>
+
+            <ActionModal 
+                visible={showActionModal}
+                onClose={() => setShowActionModal(false)}
+                title={actionTitle}
+                options={actionOptions}
+            />
         </SafeAreaView>
     );
 }
@@ -349,11 +483,45 @@ const styles = StyleSheet.create({
     },
     messageBtn: {
         backgroundColor: colors.black,
+        flex: 1,
+    },
+    friendRequestBtn: {
+        backgroundColor: colors.black,
+    },
+    friendPendingBtn: {
+        backgroundColor: colors.gray100,
+        borderWidth: 1,
+        borderColor: colors.gray200,
+    },
+    friendAcceptedBtn: {
+        backgroundColor: colors.gray100,
+        borderWidth: 1,
+        borderColor: colors.gray200,
+        flex: 1,
+    },
+    friendBtnText: {
+        fontFamily: fonts.bold,
+        fontSize: 14,
+        color: colors.white,
     },
     messageBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 15,
         color: colors.white,
+    },
+    friendCountBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.gray100,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: radii.full,
+        gap: 4,
+    },
+    friendCountText: {
+        fontFamily: fonts.bold,
+        fontSize: 12,
+        color: colors.gray500,
     },
     actionBtnSecondary: {
         width: 44,

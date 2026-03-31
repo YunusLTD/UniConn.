@@ -1,19 +1,110 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Clipboard, Alert } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { deleteStudyQuestion } from '../api/study';
+import { submitReport } from '../api/reports';
+import ActionModal, { ActionOption } from './ActionModal';
 
 interface StudyCardProps {
     question: any;
 }
 
-const StudyCard: React.FC<StudyCardProps> = ({ question }) => {
+const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = ({ question, onDelete }) => {
     const router = useRouter();
     const { user } = useAuth();
+    const [actionVisible, setActionVisible] = useState(false);
+    const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const isMe = user?.id === question.user_id;
     const initial = question.profiles?.name?.[0]?.toUpperCase() || '?';
+
+    const handleDelete = () => {
+        Alert.alert('Delete Question', 'Remove this question permanently?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Delete', style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await deleteStudyQuestion(question.id);
+                        if (onDelete) onDelete(question.id);
+                    } catch (e) {
+                        Alert.alert('Error', 'Failed to delete question.');
+                    }
+                }
+            }
+        ]);
+    };
+
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://uni-platform.app/study/${question.id}`;
+            await Share.share({
+                title: question.title,
+                message: `Can you help with this question: ${question.title} - ${shareUrl}`,
+            });
+        } catch (e) {
+            console.error('Share error', e);
+        }
+    };
+
+    const handleCopyLink = () => {
+        const shareUrl = `https://uni-platform.app/study/${question.id}`;
+        Clipboard.setString(shareUrl);
+        Alert.alert('Link Copied', 'The question link has been copied to your clipboard.');
+    };
+
+    const handleMenu = () => {
+        setActionVisible(true);
+    };
+
+    const handleReport = () => {
+        setReportReasonVisible(true);
+    };
+
+    const sendReport = async (reason: string) => {
+        try {
+            await submitReport({ target_type: 'study_question', target_id: question.id, reason });
+            setReportReasonVisible(false);
+            
+            Alert.alert(
+                'Reported',
+                'Thank you. We will review this question.',
+                [
+                    {
+                        text: 'Hide Question',
+                        style: 'destructive',
+                        onPress: () => {
+                            if (onDelete) onDelete(question.id);
+                        }
+                    },
+                    {
+                        text: 'Done',
+                        style: 'default',
+                    }
+                ]
+            );
+        } catch (e) {
+            console.log('Report error', e);
+        }
+    };
+
+    const actionOptions: ActionOption[] = [
+        { label: 'Share', icon: 'share-outline', onPress: handleShare },
+        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
+        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+    ];
+
+    if (isMe) {
+        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+    }
+
+    const reportOptions: ActionOption[] = [
+        { label: 'Academic Dishonesty', icon: 'school-outline', onPress: () => sendReport('cheating') },
+        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
+    ];
 
     return (
         <TouchableOpacity
@@ -36,8 +127,13 @@ const StudyCard: React.FC<StudyCardProps> = ({ question }) => {
                     </View>
                     <Text style={styles.time}>{new Date(question.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {question.subject}</Text>
                 </View>
-                <View style={styles.subjectBadge}>
-                    <Text style={styles.subjectText}>{question.subject}</Text>
+                <View style={styles.badgeRow}>
+                    <View style={styles.subjectBadge}>
+                        <Text style={styles.subjectText}>{question.subject}</Text>
+                    </View>
+                    <TouchableOpacity onPress={handleMenu} hitSlop={8} style={{ marginLeft: 8 }}>
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -61,6 +157,20 @@ const StudyCard: React.FC<StudyCardProps> = ({ question }) => {
                     <Text style={[styles.actionText, { color: colors.black, fontFamily: fonts.bold }]}>Help out</Text>
                     <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                 </View>
+
+                <ActionModal
+                    visible={actionVisible}
+                    onClose={() => setActionVisible(false)}
+                    options={actionOptions}
+                    title="Study Question"
+                />
+
+                <ActionModal
+                    visible={reportReasonVisible}
+                    onClose={() => setReportReasonVisible(false)}
+                    options={reportOptions}
+                    title="Why are you reporting?"
+                />
             </View>
         </TouchableOpacity >
     );
@@ -119,6 +229,10 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         fontSize: 11,
         color: colors.gray500,
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     subjectBadge: {
         backgroundColor: colors.gray50,

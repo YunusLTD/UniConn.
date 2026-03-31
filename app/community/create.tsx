@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { createCommunity } from '../../src/api/communities';
@@ -19,6 +19,7 @@ export default function CreateCommunityScreen() {
     const [description, setDescription] = useState('');
     const [selectedType, setSelectedType] = useState('interest');
     const [image, setImage] = useState<string | null>(null);
+    const [isPrivate, setIsPrivate] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -47,7 +48,8 @@ export default function CreateCommunityScreen() {
                 name: name.trim(),
                 type: selectedType,
                 description: description.trim(),
-                image_url: imageUrl
+                image_url: imageUrl,
+                is_private: isPrivate,
             } as any);
             if (res?.data) router.back();
         } catch (e: any) {
@@ -82,14 +84,14 @@ export default function CreateCommunityScreen() {
                 <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                     {/* Banner */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>BANNER</Text>
+                        <Text style={styles.label}>COMMUNITY BANNER</Text>
                         <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
                             {image ? (
                                 <Image source={{ uri: image }} style={styles.previewImage} />
                             ) : (
                                 <View style={styles.imagePlaceholder}>
                                     <Ionicons name="camera-outline" size={28} color={colors.gray400} />
-                                    <Text style={styles.imagePlaceholderText}>Add cover photo</Text>
+                                    <Text style={styles.imagePlaceholderText}>Add cover photo (displayed on community profile)</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -145,6 +147,32 @@ export default function CreateCommunityScreen() {
                             ))}
                         </View>
                     </View>
+
+                    {/* Privacy Toggle */}
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>PRIVACY</Text>
+                        <View style={styles.privacyRow}>
+                            <View style={styles.privacyInfo}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name={isPrivate ? 'lock-closed' : 'earth'} size={20} color={colors.black} />
+                                    <Text style={styles.privacyTitle}>{isPrivate ? 'Private Community' : 'Public Community'}</Text>
+                                </View>
+                                <Text style={styles.privacyDesc}>
+                                    {isPrivate
+                                        ? 'Only members can see posts and content. Join requests need approval.'
+                                        : 'Anyone can see posts and join freely.'
+                                    }
+                                </Text>
+                            </View>
+                            <Switch
+                                value={isPrivate}
+                                onValueChange={setIsPrivate}
+                                trackColor={{ false: colors.gray200, true: colors.black }}
+                                thumbColor={colors.white}
+                            />
+                        </View>
+                    </View>
+
                     <View style={{ height: 40 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -191,6 +219,19 @@ const styles = StyleSheet.create({
     typeChipActive: { backgroundColor: colors.black, borderColor: colors.black },
     typeLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray600 },
     typeLabelActive: { color: colors.white },
+    privacyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.gray50,
+        padding: 16,
+        borderRadius: radii.md,
+        borderWidth: 1,
+        borderColor: colors.gray200,
+    },
+    privacyInfo: { flex: 1, marginRight: 16 },
+    privacyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
+    privacyDesc: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray500, marginTop: 4, lineHeight: 18 },
     imagePicker: {
         width: '100%',
         height: 140,

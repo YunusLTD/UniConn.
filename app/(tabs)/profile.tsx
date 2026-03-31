@@ -8,6 +8,7 @@ import { getMyPosts } from '../../src/api/posts';
 import { getMyEvents } from '../../src/api/events';
 import { getMyPolls } from '../../src/api/polls';
 import { getMyJobs } from '../../src/api/jobs';
+import { getFriendsCount, getFriendRequests } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import PostCard from '../../src/components/PostCard';
@@ -15,6 +16,7 @@ import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
 import JobCard from '../../src/components/JobCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Modal } from 'react-native';
 
@@ -24,9 +26,7 @@ type TabType = 'posts' | 'events' | 'polls' | 'jobs' | 'settings';
 const TABS: { key: TabType, icon: string }[] = [
     { key: 'posts', icon: 'grid-outline' },
     { key: 'events', icon: 'calendar-outline' },
-    { key: 'polls', icon: 'stats-chart-outline' },
-    { key: 'jobs', icon: 'briefcase-outline' },
-    { key: 'settings', icon: 'ellipsis-horizontal' },
+    { key: 'settings', icon: 'settings-outline' },
 ];
 
 export default function ProfileScreen() {
@@ -41,6 +41,8 @@ export default function ProfileScreen() {
     const [showThemeModal, setShowThemeModal] = useState(false);
     const [showLegalModal, setShowLegalModal] = useState<{ visible: boolean, type: 'privacy' | 'terms' }>({ visible: false, type: 'privacy' });
     const [loggingOut, setLoggingOut] = useState(false);
+    const [friendCount, setFriendCount] = useState(0);
+    const [pendingRequests, setPendingRequests] = useState(0);
     const router = useRouter();
 
     const loadProfileData = async () => {
@@ -76,6 +78,18 @@ export default function ProfileScreen() {
     useFocusEffect(
         useCallback(() => {
             loadProfileData();
+            // Load friend count
+            const loadFriendData = async () => {
+                try {
+                    const [countRes, reqRes] = await Promise.all([
+                        getFriendsCount(),
+                        getFriendRequests()
+                    ]);
+                    if (countRes?.data) setFriendCount(countRes.data.count || 0);
+                    if (reqRes?.data) setPendingRequests(reqRes.data.length || 0);
+                } catch (e) { /* ignore */ }
+            };
+            loadFriendData();
         }, [])
     );
 
@@ -111,16 +125,7 @@ export default function ProfileScreen() {
                 <View style={styles.header}>
                     <View style={styles.topRow}>
                         <Text style={styles.headerTitle}>Profile</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                            <TouchableOpacity onPress={() => setShowLegalModal({ visible: true, type: 'privacy' })}>
-                                <Ionicons name="lock-closed-outline" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                            <TouchableOpacity hitSlop={8} onPress={() => setActiveTab('settings')}>
-                                <Ionicons name="menu-outline" size={26} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
                     </View>
-
                     <View style={styles.profileSection}>
                         <View style={styles.profileInfo}>
                             <View style={styles.nameScoreRow}>
@@ -129,6 +134,14 @@ export default function ProfileScreen() {
                                     <Ionicons name="flash" size={12} color={colors.black} />
                                     <Text style={styles.scoreText}>{profile?.user_score || 0}</Text>
                                 </View>
+                                <TouchableOpacity 
+                                    style={styles.friendCountBadge} 
+                                    onPress={() => router.push('/friends/list')}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons name="people" size={12} color={colors.gray500} />
+                                    <Text style={styles.friendCountText}>{friendCount} friends</Text>
+                                </TouchableOpacity>
                             </View>
                             {profile?.username && (
                                 <Text style={styles.usernameText}>@{profile.username}</Text>
@@ -186,6 +199,8 @@ export default function ProfileScreen() {
                             <Text style={styles.actionBtnText}>Share Profile</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <FriendRequestBanner />
                 </View>
 
                 {/* Tab Bar completely redesigned as horizontal scroll */}
@@ -224,6 +239,19 @@ export default function ProfileScreen() {
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
 
+                            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/friends/requests')}>
+                                <Ionicons name="people-outline" size={20} color={colors.black} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.menuText}>Friend Requests</Text>
+                                </View>
+                                {pendingRequests > 0 && (
+                                    <View style={styles.requestBadge}>
+                                        <Text style={styles.requestBadgeText}>{pendingRequests}</Text>
+                                    </View>
+                                )}
+                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
+                            </TouchableOpacity>
+
                             <TouchableOpacity style={styles.menuItem} onPress={() => setShowLegalModal({ visible: true, type: 'privacy' })}>
                                 <Ionicons name="lock-closed-outline" size={20} color={colors.black} />
                                 <View style={{ flex: 1 }}>
@@ -243,7 +271,7 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.menuItem} onPress={() => setShowThemeModal(true)}>
-                                <Ionicons name="moon-outline" size={20} color={colors.black} />
+                                <Ionicons name="moon-outline" size={24} color={colors.text} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.menuText}>Appearance</Text>
                                     <Text style={styles.menuSubText}>{theme.toUpperCase()}</Text>
@@ -376,10 +404,10 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.white },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white },
-    header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md },
-    headerTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.black },
-    profileSection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
+    header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, paddingTop: spacing.md },
+    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+    headerTitle: { fontFamily: fonts.bold, fontSize: 24, color: colors.black },
+    profileSection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     profileInfo: { flex: 1, marginRight: spacing.lg },
     nameScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     profileName: { fontFamily: fonts.bold, fontSize: 24, color: colors.black },
@@ -424,6 +452,32 @@ const styles = StyleSheet.create({
     deleteBtnText: { fontFamily: fonts.regular, color: colors.gray400, fontSize: 12 },
     emptyState: { alignItems: 'center', marginTop: 80 },
     emptyText: { fontFamily: fonts.regular, color: colors.gray400, fontSize: 14 },
+    friendCountBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.gray100,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: radii.full,
+        gap: 4,
+    },
+    friendCountText: {
+        fontFamily: fonts.bold,
+        fontSize: 12,
+        color: colors.gray500,
+    },
     legalText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 24 },
+    requestBadge: {
+        backgroundColor: colors.danger,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        marginRight: 8,
+    },
+    requestBadgeText: {
+        fontFamily: fonts.bold,
+        fontSize: 10,
+        color: colors.white,
+    },
 });
 
