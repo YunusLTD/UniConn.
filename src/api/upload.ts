@@ -24,3 +24,7 @@ export const uploadMultipleMedia = async (uris: { uri: string, type: string }[])
 
     return response.data;
 };
+export const uploadSingleMedia = async (uri: string, type: 'image' | 'video' = 'image') => {
+    const res = await uploadMultipleMedia([{ uri, type }]);
+    return res && res.length > 0 ? res[0] : null;
+};

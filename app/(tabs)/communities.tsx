@@ -34,7 +34,7 @@ function CommunityCard({ item, onPress }: { item: any; onPress: () => void }) {
                 <View style={styles.cardMain}>
                     <View style={styles.nameRow}>
                         <Text style={styles.cardName} numberOfLines={1}>
-                            {item.name?.replace(/ community/gi, '')}
+                            {item.name?.replace(/Community/gi, '').replace(/University/gi, '').trim()}
                         </Text>
                         {isOfficial && <Ionicons name="checkmark-circle" size={16} color={colors.blue} />}
                     </View>
@@ -52,7 +52,12 @@ function CommunityCard({ item, onPress }: { item: any; onPress: () => void }) {
 }
 
 function StudentCard({ item, onPress, onSendRequest, friendStatus }: { item: any; onPress: () => void; onSendRequest: () => void; friendStatus?: string }) {
-    const initial = item.name?.charAt(0).toUpperCase() || '?';
+    const initials = (() => {
+        if (!item.name) return '?';
+        const parts = item.name.split(' ').filter((p: string) => p.length > 0);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return item.name.substring(0, 2).toUpperCase();
+    })();
 
     const getButtonConfig = () => {
         switch (friendStatus) {
@@ -70,7 +75,7 @@ function StudentCard({ item, onPress, onSendRequest, friendStatus }: { item: any
                     {item.avatar_url ? (
                         <Image source={{ uri: item.avatar_url }} style={styles.cardAvatarImg} />
                     ) : (
-                        <Text style={styles.avatarInitial}>{initial}</Text>
+                        <Text style={styles.avatarInitial}>{initials}</Text>
                     )}
                 </View>
                 <View style={styles.cardMain}>

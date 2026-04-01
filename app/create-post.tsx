@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../src/constants/theme';
 import { getMyCommunities, createCommunity } from '../src/api/communities';
@@ -14,6 +14,7 @@ import { Skeleton } from '../src/components/ShadowLoader';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { getCommunityMembers } from '../src/api/communities';
 
 export default function CreatePostModal() {
     const router = useRouter();
@@ -25,6 +26,9 @@ export default function CreatePostModal() {
     const [loading, setLoading] = useState(true);
     const [posting, setPosting] = useState(false);
     const [showSelector, setShowSelector] = useState(false);
+    const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
+    const [taggingRefInput, setTaggingRefInput] = useState<'content' | 'description' | 'poll' | null>(null);
+    const [members, setMembers] = useState<any[]>([]);
 
     // Normalize plural types from tabs
     const normalizedType = params.type === 'events' ? 'event' : params.type === 'jobs' ? 'job' : params.type;
@@ -56,12 +60,15 @@ export default function CreatePostModal() {
                 const res = await getMyCommunities();
                 if (res?.data) {
                     setCommunities(res.data);
+                    let target = null;
                     if (params.communityId) {
-                        const target = res.data.find((c: any) => c.id === params.communityId);
-                        if (target) setSelectedCommunity(target);
-                        else if (res.data.length > 0) setSelectedCommunity(res.data[0]);
+                        target = res.data.find((c: any) => c.id === params.communityId);
                     } else if (res.data.length > 0) {
-                        setSelectedCommunity(res.data[0]);
+                        target = res.data[0];
+                    }
+                    if (target) {
+                        setSelectedCommunity(target);
+                        loadMembers(target.id);
                     }
                 }
             } catch (error) {
@@ -72,6 +79,13 @@ export default function CreatePostModal() {
         };
         loadMyComms();
     }, [params.communityId]);
+
+    const loadMembers = async (communityId: string) => {
+        try {
+            const res = await getCommunityMembers(communityId);
+            if (res?.data) setMembers(res.data);
+        } catch (e) { }
+    };
 
     const removeAttachment = (index: number) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
@@ -132,15 +146,7 @@ export default function CreatePostModal() {
                     title: jobTitle, description: content,
                     budget: jobBudget ? parseFloat(jobBudget) : null
                 });
-            } else if (creationType === 'study') {
-                // Study Groups are mini-communities now
-                if (!studyTitle.trim()) throw new Error('Specify a group name (e.g. Exam Prep)');
-                const desc = `Topic: ${studyTopic || 'General Study'}\nSchedule: ${studySchedule || 'Anytime'}\n\n${content}`;
-                await createCommunity({
-                    name: studyTitle,
-                    type: 'study_group',
-                    description: desc,
-                });
+
             } else if (creationType === 'market') {
                 if (!marketTitle.trim()) throw new Error('Item name is required');
                 await createMarketplaceListing(selectedCommunity.id, {
@@ -167,7 +173,6 @@ export default function CreatePostModal() {
     const TYPES: { key: typeof creationType, icon: string, label: string }[] = [
         { key: 'post', icon: 'document-text-outline', label: 'Post' },
         { key: 'poll', icon: 'stats-chart-outline', label: 'Poll' },
-        { key: 'study', icon: 'book-outline', label: 'Study' },
         { key: 'event', icon: 'calendar-outline', label: 'Event' },
         { key: 'job', icon: 'briefcase-outline', label: 'Job' },
         { key: 'market', icon: 'cart-outline', label: 'Sell' },
@@ -196,17 +201,44 @@ export default function CreatePostModal() {
     };
 
     const onDateChange = (event: any, selectedDate?: Date) => {
-        // On Android, the picker is a dialog and we should close it when 'dismissed' (cancelled)
-        // or just update state when a date is selected.
         if (Platform.OS === 'android') {
             setShowDatePicker(false);
             if (selectedDate) setEventDate(selectedDate);
             return;
         }
-
-        // On iOS, we keep it open until they hit a 'Done' button or similar
         if (selectedDate) setEventDate(selectedDate);
     };
+
+    const handleInputChange = (text: string, field: 'content' | 'description' | 'poll') => {
+        if (field === 'content') setContent(text);
+        else if (field === 'poll') setPollQuestion(text);
+
+        const lastWord = text.split(' ').pop();
+        if (lastWord?.startsWith('@')) {
+            setTaggingSearch(lastWord.substring(1));
+            setTaggingRefInput(field);
+        } else {
+            setTaggingSearch(null);
+            setTaggingRefInput(null);
+        }
+    };
+
+    const handleSelectTag = (username: string) => {
+        const currentVal = taggingRefInput === 'poll' ? pollQuestion : content;
+        const parts = currentVal.split(' ');
+        parts.pop();
+        const newVal = parts.join(' ') + (parts.length > 0 ? ' ' : '') + '@' + username + ' ';
+        
+        if (taggingRefInput === 'poll') setPollQuestion(newVal);
+        else setContent(newVal);
+        
+        setTaggingSearch(null);
+        setTaggingRefInput(null);
+    };
+
+    const filteredMembers = taggingSearch !== null 
+        ? members.filter(m => m.profiles?.username?.toLowerCase().includes(taggingSearch.toLowerCase()))
+        : [];
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -256,7 +288,11 @@ export default function CreatePostModal() {
                                 <TouchableOpacity
                                     key={c.id}
                                     style={styles.dropdownItem}
-                                    onPress={() => { setSelectedCommunity(c); setShowSelector(false); }}
+                                    onPress={() => { 
+                                        setSelectedCommunity(c); 
+                                        setShowSelector(false); 
+                                        loadMembers(c.id);
+                                    }}
                                 >
                                     <Text style={[styles.dropdownText, selectedCommunity?.id === c.id && styles.dropdownTextActive]}>
                                         {c.is_official ? (c.universities?.name || 'University Feed') : c.name?.replace(/ community/gi, '')}
@@ -265,6 +301,25 @@ export default function CreatePostModal() {
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
+                    </View>
+                )}
+
+                {taggingSearch !== null && filteredMembers.length > 0 && (
+                    <View style={styles.taggingList}>
+                        <FlatList
+                            data={filteredMembers}
+                            keyExtractor={m => m.profiles.id}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username)}>
+                                    <Image source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
+                                    <View>
+                                        <Text style={styles.tagName}>{item.profiles.name}</Text>
+                                        <Text style={styles.tagUsername}>@{item.profiles.username}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                            keyboardShouldPersistTaps="always"
+                        />
                     </View>
                 )}
 
@@ -284,7 +339,7 @@ export default function CreatePostModal() {
                 <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
                     {creationType === 'post' && (
                         <View style={{ flex: 1 }}>
-                            <TextInput style={styles.mainInput} placeholder="What's on your mind?" placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={setContent} />
+                            <TextInput style={styles.mainInput} placeholder="What's on your mind?" placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={t => handleInputChange(t, 'content')} />
                             {attachments.length > 0 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
                                     {attachments.map((item, index) => (
@@ -308,7 +363,7 @@ export default function CreatePostModal() {
                             <TextInput style={styles.formInput} placeholder="Mini Community Name (e.g. Bio 101 Study Room)" placeholderTextColor={colors.gray400} value={studyTitle} onChangeText={setStudyTitle} />
                             <TextInput style={styles.formInput} placeholder="Primary Topic" placeholderTextColor={colors.gray400} value={studyTopic} onChangeText={setStudyTopic} />
                             <TextInput style={styles.formInput} placeholder="Schedule Goal (e.g. Weekends only)" placeholderTextColor={colors.gray400} value={studySchedule} onChangeText={setStudySchedule} />
-                            <TextInput style={[styles.formInput, { height: 80, borderBottomWidth: 0 }]} placeholder="What's this group for?" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={setContent} />
+                            <TextInput style={[styles.formInput, { height: 80, borderBottomWidth: 0 }]} placeholder="What's this group for?" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                         </View>
                     )}
 
@@ -333,7 +388,7 @@ export default function CreatePostModal() {
                                 </View>
                             )}
                             <TextInput style={styles.formInput} placeholder="Location" placeholderTextColor={colors.gray400} value={eventLocation} onChangeText={setEventLocation} />
-                            <TextInput style={[styles.formInput, { height: 100 }]} placeholder="Description" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={setContent} />
+                            <TextInput style={[styles.formInput, { height: 100 }]} placeholder="Description" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                             <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={styles.mediaPickerText}>{attachments.length > 0 ? 'Image selected' : 'Add event banner'}</Text></TouchableOpacity>
                         </View>
                     )}
@@ -342,7 +397,7 @@ export default function CreatePostModal() {
                         <View style={styles.formSection}>
                             <TextInput style={styles.formInput} placeholder="Job title" placeholderTextColor={colors.gray400} value={jobTitle} onChangeText={setJobTitle} />
                             <View style={styles.curRow}><Text style={styles.cur}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0 }]} placeholder="Budget" placeholderTextColor={colors.gray400} value={jobBudget} onChangeText={setJobBudget} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 120 }]} placeholder="Details" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={setContent} />
+                            <TextInput style={[styles.formInput, { height: 120 }]} placeholder="Details" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                         </View>
                     )}
 
@@ -350,14 +405,14 @@ export default function CreatePostModal() {
                         <View style={styles.formSection}>
                             <TextInput style={styles.formInput} placeholder="What are you selling?" placeholderTextColor={colors.gray400} value={marketTitle} onChangeText={setMarketTitle} />
                             <View style={styles.curRow}><Text style={styles.cur}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0 }]} placeholder="Price" placeholderTextColor={colors.gray400} value={marketPrice} onChangeText={setMarketPrice} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 100 }]} placeholder="Item details (Condition, etc.)" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={setContent} />
+                            <TextInput style={[styles.formInput, { height: 100 }]} placeholder="Item details (Condition, etc.)" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                             <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={styles.mediaPickerText}>{attachments.length > 0 ? 'Image selected' : 'Add item image'}</Text></TouchableOpacity>
                         </View>
                     )}
 
                     {creationType === 'poll' && (
                         <View style={styles.formSection}>
-                            <TextInput style={styles.formInput} placeholder="Ask a question..." placeholderTextColor={colors.gray400} value={pollQuestion} onChangeText={setPollQuestion} autoFocus />
+                            <TextInput style={styles.formInput} placeholder="Ask a question..." placeholderTextColor={colors.gray400} value={pollQuestion} onChangeText={t => handleInputChange(t, 'poll')} autoFocus />
                             {pollOptions.map((opt, i) => (
                                 <View key={i} style={styles.pollOptionRow}>
                                     <View style={styles.pollDot} />
@@ -438,4 +493,22 @@ const styles = StyleSheet.create({
     pollDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gray300 },
     addOptionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14 },
     addOptionText: { fontFamily: fonts.medium, fontSize: 14, color: colors.gray500 },
+
+    taggingList: {
+        maxHeight: 200,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray100
+    },
+    memberTag: {
+        flexDirection: 'row',
+        padding: 12,
+        alignItems: 'center',
+        gap: 12,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.gray50
+    },
+    tagAvatar: { width: 32, height: 32, borderRadius: 16 },
+    tagName: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
+    tagUsername: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray400 },
 });

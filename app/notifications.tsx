@@ -24,7 +24,11 @@ const NOTIF_ICONS: Record<string, string> = {
     message: 'chatbubble-outline',
     post: 'document-text-outline',
     like: 'heart-outline',
+    post_upvote: 'arrow-up-circle-outline',
     comment: 'chatbubble-ellipses-outline',
+    comment_reply: 'return-up-back-outline',
+    post_mention: 'at-outline',
+    message_mention: 'at-outline',
 };
 
 export default function NotificationsScreen() {
@@ -59,9 +63,9 @@ export default function NotificationsScreen() {
             }
 
             // Navigate to content
-            if (type === 'message' && reference_id) {
+            if ((type === 'message' || type === 'message_mention') && reference_id) {
                 router.push(`/chat/${reference_id}` as any);
-            } else if (type === 'post' && reference_id) {
+            } else if ((type === 'post' || type === 'post_upvote' || type === 'comment' || type === 'comment_reply' || type === 'post_mention' || type.includes('mention')) && reference_id) {
                 router.push(`/post/${reference_id}` as any);
             }
         } catch (e) {

@@ -19,13 +19,14 @@ export const getMessages = async (conversationId: string) => {
     return await apiFetch(`/messages/${conversationId}/messages`);
 };
 
-export const sendMessage = async (conversationId: string, content: string | null, media_url?: string, media_type?: string) => {
+export const sendMessage = async (conversationId: string, content: string | null, media_url?: string, media_type?: string, reply_to_message_id?: string) => {
     const body: any = {};
     if (content) body.content = content;
     if (media_url) {
         body.media_url = media_url;
         body.media_type = media_type || 'image';
     }
+    if (reply_to_message_id) body.reply_to_message_id = reply_to_message_id;
     return await apiFetch(`/messages/${conversationId}/messages`, {
         method: 'POST',
         body: JSON.stringify(body),

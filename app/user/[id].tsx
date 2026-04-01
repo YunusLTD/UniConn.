@@ -47,11 +47,25 @@ export default function UserProfileScreen() {
     const router = useRouter();
     const { showToast } = useToast();
 
+    const isUUID = (str: string) => {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    };
+
     const loadProfileData = async () => {
         try {
-            const res = await getUser(id as string);
+            let res;
+            if (isUUID(id as string)) {
+                res = await getUser(id as string);
+            } else {
+                const { getByUsername } = await import('../../src/api/users');
+                res = await getByUsername(id as string);
+            }
+            
             if (res?.data) {
                 setProfile(res.data);
+                // Also load friendship status and friend count with THE REAL UUID once we have it
+                loadFriendData(res.data.id);
+                loadCount(res.data.id);
             }
         } catch (e) {
             console.log('Error loading profile', e);
@@ -60,14 +74,15 @@ export default function UserProfileScreen() {
         }
     };
 
-    const loadTabContent = async (tab: TabType) => {
+    const loadTabContent = async (tab: TabType, targetId: string) => {
+        if (!targetId) return;
         setContentLoading(true);
         try {
             let res;
-            if (tab === 'posts') res = await getUserPosts(id as string);
-            else if (tab === 'events') res = await getUserEvents(id as string);
-            else if (tab === 'polls') res = await getUserPolls(id as string);
-            else if (tab === 'jobs') res = await getUserJobs(id as string);
+            if (tab === 'posts') res = await getUserPosts(targetId);
+            else if (tab === 'events') res = await getUserEvents(targetId);
+            else if (tab === 'polls') res = await getUserPolls(targetId);
+            else if (tab === 'jobs') res = await getUserJobs(targetId);
             setContent(res?.data || []);
         } catch (e) {
             console.log('Error loading tab content', e);
@@ -77,34 +92,40 @@ export default function UserProfileScreen() {
     };
 
     const handleShareProfile = async () => {
+        if (!profile?.id) return;
         try {
-            const shareUrl = `https://uni-platform.app/user/${id}`;
+            const shareUrl = `https://uni-platform.app/user/${profile.id}`;
             await Share.share({
-                title: `Check out ${profile?.name}'s profile on Uni!`,
-                message: `Check out ${profile?.name}'s student profile on Uni Hub: ${shareUrl}`,
+                title: `Check out ${profile.name}'s profile on Uni!`,
+                message: `Check out ${profile.name}'s student profile on Uni Hub: ${shareUrl}`,
             });
         } catch (error) {
             console.error('Share error:', error);
         }
     };
 
-    useEffect(() => { loadProfileData(); }, [id]);
-    useEffect(() => { loadTabContent(activeTab); }, [activeTab, id]);
+    const loadFriendData = async (targetId: string) => {
+        if (!currentUser || currentUser.id === targetId) return;
+        try {
+            const statusRes = await getFriendshipStatus(targetId);
+            if (statusRes?.data) {
+                setFriendStatus(statusRes.data.status || 'none');
+                setFriendshipId(statusRes.data.id || null);
+            }
+        } catch (e) { /* ignore */ }
+    };
 
-    // Load friendship status and friend count
-    useEffect(() => {
-        const loadFriendData = async () => {
-            if (!currentUser || currentUser.id === id) return;
-            try {
-                const statusRes = await getFriendshipStatus(id as string);
-                if (statusRes?.data) {
-                    setFriendStatus(statusRes.data.status || 'none');
-                    setFriendshipId(statusRes.data.id || null);
-                }
-            } catch (e) { /* ignore */ }
-        };
-        loadFriendData();
-    }, [id, currentUser]);
+    const loadCount = async (targetId: string) => {
+        try {
+            const countRes = await getFriendsCount(targetId);
+            if (countRes?.data) setFriendCount(countRes.data.count || 0);
+        } catch (e) { /* ignore */ }
+    };
+
+    useEffect(() => { loadProfileData(); }, [id]);
+    useEffect(() => { 
+        if (profile?.id) loadTabContent(activeTab, profile.id); 
+    }, [activeTab, profile?.id]);
 
     useEffect(() => {
         const loadCount = async () => {

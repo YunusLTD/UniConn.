@@ -7,6 +7,7 @@ import { getPost, getComments, addComment } from '../../src/api/posts';
 import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../../src/components/PostCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import { getCommunityMembers } from '../../src/api/communities';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -29,6 +30,8 @@ export default function PostScreen() {
     const [newComment, setNewComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [replyingTo, setReplyingTo] = useState<{ id: string, name: string } | null>(null);
+    const [members, setMembers] = useState<any[]>([]);
+    const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
 
     const loadData = async () => {
@@ -37,13 +40,23 @@ export default function PostScreen() {
                 getPost(id as string),
                 getComments(id as string),
             ]);
-            if (postRes?.data) setPost(postRes.data);
+            if (postRes?.data) {
+                setPost(postRes.data);
+                loadMembers(postRes.data.community_id);
+            }
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
         } catch (e) {
             console.log('Error loading post', e);
         } finally {
             setLoading(false);
         }
+    };
+
+    const loadMembers = async (communityId: string) => {
+        try {
+            const res = await getCommunityMembers(communityId);
+            if (res?.data) setMembers(res.data);
+        } catch (e) {}
     };
 
     useEffect(() => { loadData(); }, [id]);
@@ -100,6 +113,28 @@ export default function PostScreen() {
     const cancelReply = () => {
         setReplyingTo(null);
     };
+
+    const handleInputChange = (text: string) => {
+        setNewComment(text);
+        const lastWord = text.split(' ').pop();
+        if (lastWord?.startsWith('@')) {
+            setTaggingSearch(lastWord.substring(1));
+        } else {
+            setTaggingSearch(null);
+        }
+    };
+
+    const handleSelectTag = (username: string) => {
+        const parts = newComment.split(' ');
+        parts.pop();
+        const newVal = parts.join(' ') + (parts.length > 0 ? ' ' : '') + '@' + username + ' ';
+        setNewComment(newVal);
+        setTaggingSearch(null);
+    };
+
+    const filteredMembers = taggingSearch !== null 
+        ? members.filter(m => m.profiles?.username?.toLowerCase().includes(taggingSearch.toLowerCase()))
+        : [];
 
     return (
         <KeyboardAvoidingView
@@ -173,6 +208,24 @@ export default function PostScreen() {
 
             {!loading && post && (
                 <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+                    {taggingSearch !== null && filteredMembers.length > 0 && (
+                        <View style={styles.taggingList}>
+                            <FlatList
+                                data={filteredMembers}
+                                keyExtractor={m => m.profiles.id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username)}>
+                                        <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
+                                        <View>
+                                            <Text style={styles.tagName}>{item.profiles.name}</Text>
+                                            <Text style={styles.tagUsername}>@{item.profiles.username}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+                                keyboardShouldPersistTaps="always"
+                            />
+                        </View>
+                    )}
                     {replyingTo && (
                         <View style={styles.replyingToBanner}>
                             <Text style={styles.replyingToText}>Replying to {replyingTo.name}</Text>
@@ -187,7 +240,7 @@ export default function PostScreen() {
                             placeholder={replyingTo ? `Reply to ${replyingTo.name}…` : "Write a comment…"}
                             placeholderTextColor={colors.gray400}
                             value={newComment}
-                            onChangeText={setNewComment}
+                            onChangeText={handleInputChange}
                             multiline
                         />
                         <TouchableOpacity
@@ -349,4 +402,22 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 100,
     },
+
+    taggingList: {
+        maxHeight: 200,
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray100
+    },
+    memberTag: {
+        flexDirection: 'row',
+        padding: 12,
+        alignItems: 'center',
+        gap: 12,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.gray50
+    },
+    tagAvatar: { width: 32, height: 32, borderRadius: 16 },
+    tagName: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
+    tagUsername: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray400 },
 });

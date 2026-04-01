@@ -76,14 +76,15 @@ export function MessageItemSkeleton() {
 }
 
 export function MarketplaceItemSkeleton() {
+    const itemWidth = (SCREEN_WIDTH - spacing.lg * 2 - 12) / 2;
     return (
-        <View style={styles.marketItem}>
-            <Skeleton width={40} height={40} borderRadius={20} />
-            <View style={{ flex: 1, marginLeft: 14 }}>
-                <Skeleton width="60%" height={15} borderRadius={8} />
-                <Skeleton width="30%" height={10} borderRadius={5} style={{ marginTop: 6 }} />
+        <View style={[styles.marketCard, { width: itemWidth }]}>
+            <Skeleton width="100%" height={itemWidth} borderRadius={16} />
+            <View style={{ padding: 12 }}>
+                <Skeleton width="40%" height={16} borderRadius={8} />
+                <Skeleton width="80%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+                <Skeleton width="50%" height={10} borderRadius={5} style={{ marginTop: 8 }} />
             </View>
-            <Skeleton width={16} height={16} borderRadius={8} />
         </View>
     );
 }
@@ -144,8 +145,19 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
     }
     if (type === 'marketplace') {
         return (
-            <View style={styles.container}>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <MarketplaceItemSkeleton key={i} />)}
+            <View style={[styles.container, { paddingHorizontal: spacing.lg, paddingTop: 20 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <MarketplaceItemSkeleton />
+                    <MarketplaceItemSkeleton />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                    <MarketplaceItemSkeleton />
+                    <MarketplaceItemSkeleton />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                    <MarketplaceItemSkeleton />
+                    <MarketplaceItemSkeleton />
+                </View>
             </View>
         );
     }
@@ -220,14 +232,12 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.gray100,
         backgroundColor: colors.white,
     },
-    marketItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: spacing.lg,
-        borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
+    marketCard: {
         backgroundColor: colors.white,
+        borderRadius: radii.lg,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.gray100,
     },
     studentItem: {
         flexDirection: 'row',

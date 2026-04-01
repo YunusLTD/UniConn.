@@ -40,8 +40,14 @@ export default function MessagesScreen() {
             renderItem={({ item }) => {
                 const otherParticipant = item.participants?.find((p: any) => p.user_id !== user?.id);
                 const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
-                const displayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : item.name || 'Group';
-                const initial = displayName.charAt(0).toUpperCase();
+                const rawDisplayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : item.name || 'Group';
+                const displayName = rawDisplayName.replace(/Community/gi, '').replace(/University/gi, '').trim();
+                
+                const initials = (() => {
+                    const parts = displayName.split(' ').filter((p: string) => p.length > 0);
+                    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+                    return displayName.substring(0, 2).toUpperCase();
+                })();
 
                 return (
                     <TouchableOpacity
@@ -51,7 +57,7 @@ export default function MessagesScreen() {
                     >
                         <View>
                             <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{initial}</Text>
+                                <Text style={styles.avatarText}>{initials}</Text>
                             </View>
                             {isOnline && <View style={styles.onlineBadge} />}
                         </View>

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform, Switch } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
-import { createCommunity } from '../../src/api/communities';
+import { createCommunity, getCommunity, updateCommunity } from '../../src/api/communities';
 import { uploadMultipleMedia } from '../../src/api/upload';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,13 +15,40 @@ const TYPES = [
 ];
 
 export default function CreateCommunityScreen() {
+    const { edit, id } = useLocalSearchParams();
+    const isEdit = edit === 'true';
+    
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [selectedType, setSelectedType] = useState('interest');
     const [image, setImage] = useState<string | null>(null);
     const [isPrivate, setIsPrivate] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(isEdit);
     const router = useRouter();
+
+    useEffect(() => {
+        if (isEdit && id) {
+            loadCommunityData();
+        }
+    }, [isEdit, id]);
+
+    const loadCommunityData = async () => {
+        try {
+            const res = await getCommunity(id as string);
+            if (res.data) {
+                setName(res.data.name);
+                setDescription(res.data.description || '');
+                setSelectedType(res.data.type);
+                setIsPrivate(res.data.is_private);
+                if (res.data.image_url) setImage(res.data.image_url);
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Failed to load community details');
+        } finally {
+            setFetching(false);
+        }
+    };
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -33,25 +60,34 @@ export default function CreateCommunityScreen() {
         if (!result.canceled) setImage(result.assets[0].uri);
     };
 
-    const handleCreate = async () => {
+    const handleAction = async () => {
         if (!name.trim()) return Alert.alert('Error', 'Community name is required');
         setLoading(true);
         try {
-            let imageUrl = null;
-            if (image) {
+            let imageUrl = image;
+            // Only upload if it's a local file (starting with file://)
+            if (image && image.startsWith('file')) {
                 const uploadRes = await uploadMultipleMedia([{ uri: image, type: 'image' }]);
                 if (uploadRes && uploadRes.length > 0) {
                     imageUrl = uploadRes[0].url;
                 }
             }
-            const res = await createCommunity({
+
+            const data = {
                 name: name.trim(),
                 type: selectedType,
                 description: description.trim(),
                 image_url: imageUrl,
                 is_private: isPrivate,
-            } as any);
-            if (res?.data) router.back();
+            };
+
+            if (isEdit) {
+                await updateCommunity(id as string, data);
+                Alert.alert('Success', 'Community updated successfully');
+            } else {
+                await createCommunity(data as any);
+            }
+            router.back();
         } catch (e: any) {
             Alert.alert('Error', e.message);
         } finally {
@@ -63,19 +99,26 @@ export default function CreateCommunityScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'New Community',
+                    title: isEdit ? 'Edit Community' : 'New Community',
                     headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17 },
                     headerRight: () => (
-                        <TouchableOpacity onPress={handleCreate} disabled={loading || !name.trim()}>
+                        <TouchableOpacity onPress={handleAction} disabled={loading || !name.trim()}>
                             {loading ? (
                                 <ActivityIndicator size="small" color={colors.black} />
                             ) : (
-                                <Text style={[styles.headerAction, !name.trim() && { opacity: 0.3 }]}>Create</Text>
+                                <Text style={[styles.headerAction, !name.trim() && { opacity: 0.3 }]}>
+                                    {isEdit ? 'Save' : 'Create'}
+                                </Text>
                             )}
                         </TouchableOpacity>
                     ),
                 }}
             />
+            {fetching && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'white', zIndex: 10, justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color={colors.black} />
+                </View>
+            )}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}

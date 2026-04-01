@@ -139,7 +139,12 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     const [viewerIndex, setViewerIndex] = useState(0);
     const [actionVisible, setActionVisible] = useState(false);
     const [reportReasonVisible, setReportReasonVisible] = useState(false);
-    const initial = post.profiles?.name?.[0]?.toUpperCase() || '?';
+    const initials = (() => {
+        const name = post.profiles?.name || 'Anonymous';
+        const parts = name.split(' ').filter((p: string) => p.length > 0);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return name.substring(0, 2).toUpperCase();
+    })();
 
     // Animation values
     const upScale = React.useRef(new Animated.Value(1)).current;
@@ -304,7 +309,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                         {post.profiles?.avatar_url ? (
                             <Image source={{ uri: post.profiles.avatar_url }} style={styles.avatarImg} />
                         ) : (
-                            <Text style={styles.avatarText}>{initial}</Text>
+                            <Text style={styles.avatarText}>{initials}</Text>
                         )}
                     </TouchableOpacity>
                     {/* Vertical thread line */}

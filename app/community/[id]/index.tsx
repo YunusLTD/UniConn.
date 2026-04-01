@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, fonts, radii } from '../../../src/constants/theme';
 import { getCommunity, joinCommunity, leaveCommunity, deleteCommunity } from '../../../src/api/communities';
 import { getFeed } from '../../../src/api/feed';
@@ -58,7 +59,11 @@ export default function CommunityDetailScreen() {
         }
     };
 
-    useEffect(() => { loadData(); }, [id]);
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [id])
+    );
 
     const handleJoinLeave = async () => {
         if (!community) return;
