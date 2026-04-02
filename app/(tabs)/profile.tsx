@@ -17,6 +17,7 @@ import PollCard from '../../src/components/PollCard';
 import MarketCard from '../../src/components/MarketCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import FriendRequestBanner from '../../src/components/FriendRequestBanner';
+import ProfileQRModal from '../../src/components/ProfileQRModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Modal } from 'react-native';
 
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
     const [loggingOut, setLoggingOut] = useState(false);
     const [friendCount, setFriendCount] = useState(0);
     const [pendingRequests, setPendingRequests] = useState(0);
+    const [showQRModal, setShowQRModal] = useState(false);
     const router = useRouter();
 
     const loadProfileData = async () => {
@@ -234,7 +236,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.actionBtn, styles.btnLight]}
-                            onPress={() => Alert.alert('Coming Soon', 'Profile sharing is coming soon!')}
+                            onPress={() => setShowQRModal(true)}
                         >
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>Share profile</Text>
                         </TouchableOpacity>
@@ -429,6 +431,18 @@ export default function ProfileScreen() {
                     </View>
                 </TouchableOpacity>
             </Modal>
+
+            <ProfileQRModal
+                visible={showQRModal}
+                onClose={() => setShowQRModal(false)}
+                profile={{
+                    name: profile?.name || 'Student',
+                    username: profile?.username || 'user',
+                    avatar_url: profile?.avatar_url,
+                    university_name: profile?.universities?.name,
+                }}
+                onOpenScanner={() => router.push('/scan')}
+            />
         </SafeAreaView>
     );
 }

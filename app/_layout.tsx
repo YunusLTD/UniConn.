@@ -57,7 +57,8 @@ function RootLayoutNav() {
             }
 
             // Only block redirect if they are on login screen AND DON'T have a token yet
-            const isAddingAccount = segments[0] === '(auth)' && (segments.length > 1 && segments[1] === 'login');
+            const s = segments as string[];
+            const isAddingAccount = s[0] === '(auth)' && (s.length > 1 && s[1] === 'login');
             const shouldRedirect = (inAuthGroup && !isAddingAccount) || inOnboardingGroup || inSetupGroup || !segments[0];
 
             if (shouldRedirect) {
@@ -140,6 +141,10 @@ function RootLayoutNav() {
                 <Stack.Screen
                     name="study/create"
                     options={{ title: 'Ask for Help', presentation: 'modal', headerShown: true }}
+                />
+                <Stack.Screen
+                    name="events/create"
+                    options={{ title: 'Schedule Event', presentation: 'modal', headerShown: true }}
                 />
             </Stack>
         </>

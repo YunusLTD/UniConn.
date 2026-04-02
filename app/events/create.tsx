@@ -1,61 +1,345 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable, DeviceEventEmitter } from 'react-native';
+import { useRouter, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { createEvent } from '../../src/api/events';
+import { getMyCommunities } from '../../src/api/communities';
+import { uploadMultipleMedia } from '../../src/api/upload';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { hapticSelection } from '../../src/utils/haptics';
 
 export default function CreateEventScreen() {
-    const { communityId } = useLocalSearchParams();
+    const router = useRouter();
+    const navigation = useNavigation();
+    const params = useLocalSearchParams();
+
+    const [communities, setCommunities] = useState<any[]>([]);
+    const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [posting, setPosting] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [showSelector, setShowSelector] = useState(false);
+
+    // Form State
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [startTime, setStartTime] = useState('');
     const [location, setLocation] = useState('');
-    const [loading, setLoading] = useState(false);
-    const router = useRouter();
+    const [eventDate, setEventDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-    const handleCreate = async () => {
-        if (!title || !startTime) return Alert.alert('Error', 'Title and Start Date are required');
-        setLoading(true);
-        try {
-            const res = await createEvent(communityId as string, { title, description, start_time: startTime, location });
-            if (res?.data) { Alert.alert('Success', 'Event scheduled!'); router.back(); }
-        } catch (e: any) { Alert.alert('Error', e.message); }
-        finally { setLoading(false); }
+    useEffect(() => {
+        const loadCommunities = async () => {
+            try {
+                const res = await getMyCommunities();
+                if (res?.data) {
+                    setCommunities(res.data);
+                    if (params.communityId) {
+                        const target = res.data.find((c: any) => c.id === params.communityId);
+                        if (target) setSelectedCommunity(target);
+                    } else if (res.data.length > 0) {
+                        setSelectedCommunity(res.data[0]);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadCommunities();
+    }, [params.communityId]);
+
+    const handlePickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets[0].uri) {
+            setUploading(true);
+            try {
+                const res = await uploadMultipleMedia([{ uri: result.assets[0].uri, type: 'image' }]);
+                if (res?.[0]?.url) setImageUrl(res[0].url);
+            } catch (e) {
+                Alert.alert('Upload Failed', 'Could not upload image');
+            } finally {
+                setUploading(false);
+            }
+        }
     };
 
+    const handleCreate = async () => {
+        if (!selectedCommunity) return Alert.alert('Error', 'Please select a community first');
+        if (!title.trim()) return Alert.alert('Error', 'Please enter an event title');
+
+        setPosting(true);
+        try {
+            await createEvent(selectedCommunity.id, {
+                title: title.trim(),
+                description: description.trim(),
+                location: location.trim(),
+                start_time: eventDate.toISOString(),
+                image_url: imageUrl || undefined
+            });
+            DeviceEventEmitter.emit('postCreated');
+            Alert.alert('Success', 'Event scheduled!');
+            router.back();
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to schedule event');
+        } finally {
+            setPosting(false);
+        }
+    };
+
+    const formatSmartDate = (date: Date) => {
+        const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        return `${date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}, ${time}`;
+    };
+
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        if (Platform.OS === 'android') setShowDatePicker(false);
+        if (selectedDate) setEventDate(selectedDate);
+    };
+
+    useLayoutEffect(() => {
+        router.setParams({}); // dummy to ensure router context
+        const isReady = !!title.trim() && !posting;
+
+        navigation.setOptions({
+            headerShown: true,
+            title: 'Schedule Event',
+            headerTitleAlign: 'center',
+            headerBackTitleVisible: false,
+            headerStyle: { backgroundColor: colors.white },
+            headerTintColor: colors.black,
+            headerLeft: () => (
+                <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 16 }}>
+                    <Text style={{ fontFamily: fonts.medium, fontSize: 16, color: colors.gray600 }}>Cancel</Text>
+                </TouchableOpacity>
+            ),
+            headerRight: () => (
+                <Pressable
+                    onPress={() => {
+                        if (isReady) {
+                            hapticSelection();
+                            handleCreate();
+                        }
+                    }}
+                    disabled={!isReady}
+                    style={({ pressed }) => [
+                        { paddingLeft: 16, paddingVertical: 8, opacity: isReady ? (pressed ? 0.7 : 1) : 0.5 },
+                    ]}
+                    hitSlop={20}
+                >
+                    {posting ? <Text style={[styles.doneBtn, { color: colors.gray400 }]}>Sharing</Text> : <Text style={styles.doneBtn}>Share</Text>}
+                </Pressable>
+            )
+        });
+    }, [title, posting]);
+
+    if (loading) {
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator color={colors.black} />
+            </View>
+        );
+    }
+
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Schedule Event</Text>
-            <View style={styles.group}>
-                <Text style={styles.label}>TITLE</Text>
-                <TextInput style={styles.input} placeholder="Event name" placeholderTextColor={colors.gray400} value={title} onChangeText={setTitle} />
-            </View>
-            <View style={styles.group}>
-                <Text style={styles.label}>START TIME</Text>
-                <TextInput style={styles.input} placeholder="YYYY-MM-DD HH:MM" placeholderTextColor={colors.gray400} value={startTime} onChangeText={setStartTime} />
-            </View>
-            <View style={styles.group}>
-                <Text style={styles.label}>LOCATION</Text>
-                <TextInput style={styles.input} placeholder="Venue or link" placeholderTextColor={colors.gray400} value={location} onChangeText={setLocation} />
-            </View>
-            <View style={styles.group}>
-                <Text style={styles.label}>DESCRIPTION</Text>
-                <TextInput style={[styles.input, styles.textArea]} placeholder="What's happening?" placeholderTextColor={colors.gray400} value={description} onChangeText={setDescription} multiline />
-            </View>
-            <TouchableOpacity style={[styles.btn, loading && { opacity: 0.5 }]} onPress={handleCreate} disabled={loading} activeOpacity={0.8}>
-                {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.btnText}>Schedule Event</Text>}
-            </TouchableOpacity>
-        </ScrollView>
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+
+                    {/* Community Picker */}
+                    <TouchableOpacity style={styles.picker} onPress={() => setShowSelector(!showSelector)}>
+                        <View style={styles.pickerLeft}>
+                            <View style={styles.pickerIcon}>
+                                <Ionicons name="people-outline" size={20} color={colors.gray500} />
+                            </View>
+                            <View>
+                                <Text style={styles.pickerSub}>POSTING TO</Text>
+                                <Text style={styles.pickerName}>{selectedCommunity?.name?.replace(/Community/gi, '').trim() || 'Select Community'}</Text>
+                            </View>
+                        </View>
+                        <Ionicons name={showSelector ? "chevron-up" : "chevron-down"} size={20} color={colors.gray400} />
+                    </TouchableOpacity>
+
+                    {showSelector && (
+                        <View style={styles.selector}>
+                            {communities.map(c => (
+                                <TouchableOpacity
+                                    key={c.id}
+                                    style={[styles.selectorItem, selectedCommunity?.id === c.id && styles.selectorActive]}
+                                    onPress={() => { setSelectedCommunity(c); setShowSelector(false); }}
+                                >
+                                    <Text style={[styles.selectorText, selectedCommunity?.id === c.id && styles.selectorTextActive]}>
+                                        {c.name?.replace(/Community/gi, '').trim()}
+                                    </Text>
+                                    {selectedCommunity?.id === c.id && <Ionicons name="checkmark" size={18} color={colors.black} />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Image Upload */}
+                    <TouchableOpacity style={styles.imageZone} onPress={handlePickImage} disabled={uploading}>
+                        {imageUrl ? (
+                            <View style={styles.imagePreviewWrap}>
+                                <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
+                                <View style={styles.imageOverlay}>
+                                    <Ionicons name="camera" size={24} color="white" />
+                                    <Text style={styles.changePhotoText}>Change Cover</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.imagePlaceholder}>
+                                {uploading ? (
+                                    <ActivityIndicator color={colors.gray400} />
+                                ) : (
+                                    <>
+                                        <Ionicons name="image-outline" size={40} color={colors.gray300} />
+                                        <Text style={styles.imageLabel}>Add Event Cover Photo</Text>
+                                    </>
+                                )}
+                            </View>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Form Fields */}
+                    <View style={styles.form}>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>TITLE</Text>
+                            <TextInput
+                                style={styles.titleInput}
+                                placeholder="What's the event?"
+                                placeholderTextColor={colors.gray400}
+                                value={title}
+                                onChangeText={setTitle}
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>WHEN</Text>
+                            <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowDatePicker(true)}>
+                                <Ionicons name="calendar-outline" size={20} color={colors.gray500} />
+                                <Text style={styles.dateText}>{formatSmartDate(eventDate)}</Text>
+                            </TouchableOpacity>
+                            {showDatePicker && (
+                                <View style={styles.pickerContainer}>
+                                    {Platform.OS === 'ios' && (
+                                        <View style={styles.pickerHeader}>
+                                            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                                                <Text style={styles.pickerDoneText}>Done</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <DateTimePicker
+                                        value={eventDate}
+                                        mode="datetime"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={onDateChange}
+                                        textColor="black"
+                                    />
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>WHERE</Text>
+                            <View style={styles.locationWrap}>
+                                <Ionicons name="location-outline" size={20} color={colors.gray500} />
+                                <TextInput
+                                    style={styles.locationInput}
+                                    placeholder="Venue or Link"
+                                    placeholderTextColor={colors.gray400}
+                                    value={location}
+                                    onChangeText={setLocation}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+                            <TextInput
+                                style={styles.descInput}
+                                placeholder="Tell everyone more about it..."
+                                placeholderTextColor={colors.gray400}
+                                value={description}
+                                onChangeText={setDescription}
+                                multiline
+                                numberOfLines={4}
+                            />
+                        </View>
+                    </View>
+
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flexGrow: 1, backgroundColor: colors.white, padding: spacing.lg },
-    title: { fontFamily: fonts.bold, fontSize: 28, color: colors.black, marginBottom: spacing.xl },
-    group: { marginBottom: spacing.md },
-    label: { fontFamily: fonts.semibold, fontSize: 11, color: colors.gray400, letterSpacing: 1, marginBottom: 6 },
-    input: { borderWidth: 1, borderColor: colors.gray200, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radii.md, fontFamily: fonts.regular, fontSize: 15, color: colors.black, backgroundColor: colors.gray50 },
-    textArea: { minHeight: 120, textAlignVertical: 'top' },
-    btn: { backgroundColor: colors.black, paddingVertical: 14, borderRadius: radii.md, alignItems: 'center', marginTop: spacing.lg },
-    btnText: { fontFamily: fonts.semibold, color: colors.white, fontSize: 16 },
+    container: { flex: 1, backgroundColor: colors.white },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    scrollContent: { padding: spacing.lg, paddingBottom: 100 },
+    doneBtn: { fontFamily: fonts.bold, fontSize: 16, color: colors.black, marginRight: spacing.md },
+
+    picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: colors.gray50, borderRadius: 16, marginBottom: 12 },
+    pickerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    pickerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center' },
+    pickerSub: { fontFamily: fonts.semibold, fontSize: 10, color: colors.gray400, letterSpacing: 1 },
+    pickerName: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
+
+    selector: { backgroundColor: colors.white, borderRadius: 16, padding: 8, marginBottom: 16, borderWidth: 1, borderColor: colors.gray100 },
+    selectorItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: 10 },
+    selectorActive: { backgroundColor: colors.gray50 },
+    selectorText: { fontFamily: fonts.medium, fontSize: 14, color: colors.gray600 },
+    selectorTextActive: { color: colors.black, fontFamily: fonts.bold },
+
+    imageZone: { width: '100%', height: 180, borderRadius: 20, backgroundColor: colors.gray50, marginBottom: 24, overflow: 'hidden', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.gray200 },
+    imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    imageLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray400, marginTop: 8 },
+    imagePreviewWrap: { flex: 1, position: 'relative' },
+    imagePreview: { width: '100%', height: '100%' },
+    imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+    changePhotoText: { fontFamily: fonts.bold, color: 'white', marginTop: 4 },
+
+    form: { gap: 20 },
+    inputGroup: { gap: 8 },
+    fieldLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.gray400, letterSpacing: 1 },
+    titleInput: { fontFamily: fonts.bold, fontSize: 24, color: colors.black, paddingVertical: 8 },
+    datePickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.gray50, padding: 16, borderRadius: 16 },
+    dateText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
+    locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.gray50, padding: 16, borderRadius: 16 },
+    locationInput: { flex: 1, fontFamily: fonts.medium, fontSize: 15, color: colors.black },
+    descInput: { fontFamily: fonts.regular, fontSize: 16, color: colors.black, backgroundColor: colors.gray50, padding: 16, borderRadius: 16, minHeight: 120, textAlignVertical: 'top' },
+    pickerContainer: {
+        backgroundColor: colors.gray50,
+        borderRadius: 16,
+        marginTop: 8,
+        overflow: 'hidden',
+    },
+    pickerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        padding: 12,
+        backgroundColor: colors.gray100,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray200,
+    },
+    pickerDoneText: {
+        fontFamily: fonts.bold,
+        fontSize: 15,
+        color: colors.black,
+    },
 });

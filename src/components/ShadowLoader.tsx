@@ -9,9 +9,10 @@ interface SkeletonProps {
     height?: DimensionValue;
     borderRadius?: number;
     style?: ViewStyle;
+    dark?: boolean;
 }
 
-export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
+export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style, dark }: SkeletonProps) {
     const opacity = useRef(new Animated.Value(0.3)).current;
 
     useEffect(() => {
@@ -38,7 +39,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
                     width,
                     height,
                     borderRadius,
-                    backgroundColor: colors.gray100,
+                    backgroundColor: dark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
                     opacity,
                 },
                 style,
@@ -47,16 +48,16 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
     );
 }
 
-export function PostSkeleton({ style }: { style?: ViewStyle }) {
+export function PostSkeleton({ style, dark }: { style?: ViewStyle; dark?: boolean }) {
     return (
-        <View style={[styles.card, style]}>
+        <View style={[styles.card, dark && styles.cardDark, style]}>
             <View style={styles.row}>
-                <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 16 }} />
+                <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 16 }} dark={dark} />
                 <View style={styles.content}>
-                    <Skeleton width="35%" height={10} borderRadius={5} />
-                    <Skeleton width="80%" height={10} borderRadius={5} style={{ marginTop: 12 }} />
-                    <Skeleton width="60%" height={10} borderRadius={5} style={{ marginTop: 8 }} />
-                    <Skeleton width="100%" height={150} borderRadius={20} style={{ marginTop: 12 }} />
+                    <Skeleton width="35%" height={10} borderRadius={5} dark={dark} />
+                    <Skeleton width="80%" height={10} borderRadius={5} style={{ marginTop: 12 }} dark={dark} />
+                    <Skeleton width="60%" height={10} borderRadius={5} style={{ marginTop: 8 }} dark={dark} />
+                    <Skeleton width="100%" height={150} borderRadius={20} style={{ marginTop: 12 }} dark={dark} />
                 </View>
             </View>
         </View>
@@ -176,7 +177,7 @@ export function ProfileHeaderSkeleton() {
     );
 }
 
-export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' | 'study' }) {
+export default function ShadowLoader({ type = 'feed', dark = false }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' | 'study', dark?: boolean }) {
     if (type === 'messages') {
         return (
             <View style={styles.container}>
@@ -246,8 +247,8 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
         );
     }
     return (
-        <View style={[styles.container, { paddingTop: 24 }]}>
-            {[1, 2, 3, 4].map(i => <PostSkeleton key={i} />)}
+        <View style={[styles.container, dark && styles.containerDark, { paddingTop: 24 }]}>
+            {[1, 2, 3, 4].map(i => <PostSkeleton key={i} dark={dark} />)}
         </View>
     );
 }
@@ -265,6 +266,13 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.md,
         borderWidth: 1,
         borderColor: colors.gray100,
+    },
+    cardDark: {
+        backgroundColor: '#1a1a2e',
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    containerDark: {
+        backgroundColor: '#0f0f1a',
     },
     row: {
         flexDirection: 'row',

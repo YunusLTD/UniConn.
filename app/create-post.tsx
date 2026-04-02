@@ -199,7 +199,6 @@ export default function CreatePostModal() {
     const TYPES: { key: typeof creationType, icon: string, label: string }[] = [
         { key: 'post', icon: 'document-text-outline', label: 'Post' },
         { key: 'poll', icon: 'stats-chart-outline', label: 'Poll' },
-        { key: 'event', icon: 'calendar-outline', label: 'Event' },
         { key: 'job', icon: 'briefcase-outline', label: 'Job' },
         { key: 'market', icon: 'cart-outline', label: 'Sell' },
     ];

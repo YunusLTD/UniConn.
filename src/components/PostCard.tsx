@@ -9,12 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ActionModal, { ActionOption } from './ActionModal';
 
-let Haptics: any;
-try {
-    Haptics = require('expo-haptics');
-} catch (e) {
-    // Haptics not installed yet
-}
+import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
 const GRID_GAP = 2;
@@ -186,7 +181,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     const isOwner = user?.id === post.user_id;
 
     const handleMenu = () => {
-        if (Haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticLight();
         setActionVisible(true);
     };
 
@@ -203,9 +198,8 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     const sendReport = async (reason: string) => {
         try {
             await submitReport({ target_type: 'post', target_id: post.id, reason });
+            hapticSuccess();
             setReportReasonVisible(false);
-            
-            if (Haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
             Alert.alert(
                 'Reported',
@@ -300,9 +294,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
         setVoteCount(prev => prev + countDiff);
 
         // Feedback
-        if (Haptics) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
+        hapticMedium();
         animateVote(value === 1 ? 'up' : 'down');
 
         try {

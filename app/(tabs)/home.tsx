@@ -11,6 +11,7 @@ import JobCard from '../../src/components/JobCard';
 import MarketCard from '../../src/components/MarketCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
 import FriendRequestBanner from '../../src/components/FriendRequestBanner';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -95,7 +96,11 @@ export default function HomeScreen() {
                 data={posts}
                 keyExtractor={item => `${item.feed_type}_${item.id}`}
                 renderItem={renderItem}
-                ListHeaderComponent={<FriendRequestBanner />}
+                ListHeaderComponent={
+                    <View style={{ marginBottom: spacing.md }}>
+                        <FriendRequestBanner />
+                    </View>
+                }
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
                 onEndReached={handleLoadMore}
@@ -158,24 +163,25 @@ const styles = StyleSheet.create({
     },
     emptyBody: {
         fontFamily: fonts.regular,
-        fontSize: 14,
+        fontSize: 15,
         color: colors.gray500,
         textAlign: 'center',
-        lineHeight: 20,
+        marginHorizontal: 32,
+        marginBottom: spacing.xl,
+        lineHeight: 22,
     },
     footer: {
         paddingVertical: spacing.xl,
         alignItems: 'center',
     },
     exploreBtn: {
-        marginTop: spacing.xl,
         backgroundColor: colors.black,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: 24,
         paddingVertical: 14,
-        borderRadius: 25,
+        borderRadius: 24,
     },
     exploreBtnText: {
-        fontFamily: fonts.bold,
+        fontFamily: fonts.semibold,
         color: colors.white,
         fontSize: 15,
     },

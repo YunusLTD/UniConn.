@@ -307,6 +307,7 @@ export default function ChatScreen() {
 
     const handleSend = async () => {
         if ((!input.trim() && !mediaUri) || sending) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         const content = input.trim();
         const media = mediaUri;
@@ -365,6 +366,7 @@ export default function ChatScreen() {
 
     const handleDeleteMessage = async (messageId: string) => {
         try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             // Optimistic update
             setMessages(prev => prev.map(m => 
                 m.id === messageId 

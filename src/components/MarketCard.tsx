@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { deleteMarketplaceListing } from '../api/marketplace';
 import { submitReport } from '../api/reports';
 import ActionModal, { ActionOption } from './ActionModal';
+import { hapticLight, hapticSuccess } from '../utils/haptics';
 
 interface MarketCardProps {
     item: any;
@@ -55,6 +56,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     };
 
     const handleMenu = () => {
+        hapticLight();
         setActionVisible(true);
     };
 
@@ -65,6 +67,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     const sendReport = async (reason: string) => {
         try {
             await submitReport({ target_type: 'marketplace', target_id: item.id, reason });
+            hapticSuccess();
             setReportReasonVisible(false);
             
             Alert.alert(
@@ -109,14 +112,27 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
         <TouchableOpacity
             style={styles.card}
             activeOpacity={0.9}
-            onPress={() => router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } })}
+            onPress={() => {
+                hapticLight();
+                router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } });
+            }}
         >
             <View style={styles.header}>
-                <View style={styles.tag}>
-                    <Text style={styles.tagText}>MARKETPLACE</Text>
+                <View style={[styles.tag, item.listing_type === 'request' && { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                    <Text style={[styles.tagText, item.listing_type === 'request' && { color: colors.blue }]}>
+                        {item.listing_type === 'request' ? 'REQUESTED' : 'MARKETPLACE'}
+                    </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Text style={styles.price}>${item.price?.toLocaleString() || '0'}</Text>
+                    {item.listing_type === 'request' ? (
+                        <Text style={[styles.price, { color: colors.blue }]}>
+                            {item.price ? `Willing to pay: $${item.price}` : 'Looking For'}
+                        </Text>
+                    ) : (
+                        <Text style={[styles.price, (!item.price || item.price === 0) && { color: '#10B981', fontFamily: fonts.bold }]}>
+                            {(!item.price || item.price === 0) ? 'FREE' : `$${item.price.toLocaleString()}`}
+                        </Text>
+                    )}
                     <TouchableOpacity onPress={handleMenu} hitSlop={8}>
                         <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
                     </TouchableOpacity>
@@ -147,8 +163,8 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                         <MaterialCommunityIcons name="account-circle-outline" size={14} color={colors.gray400} />
                         <Text style={styles.sellerName}>{item.profiles?.name || 'Student'}</Text>
                     </TouchableOpacity>
-                    <View style={styles.actionBtn}>
-                        <Text style={styles.actionText}>View Item</Text>
+                    <View style={[styles.actionBtn, item.listing_type === 'request' && { backgroundColor: colors.blue }]}>
+                        <Text style={styles.actionText}>{item.listing_type === 'request' ? 'Help Source' : 'View Item'}</Text>
                     </View>
                 </View>
             </View>

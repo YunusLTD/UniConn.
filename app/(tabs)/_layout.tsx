@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { useNotifications } from '../../src/context/NotificationContext';
+import { hapticLight, hapticSelection } from '../../src/utils/haptics';
 
 const TAB_HEIGHT = Platform.OS === 'ios' ? 80 : 62;
 
@@ -56,6 +57,7 @@ export default function TabLayout() {
     const [showCreateMenu, setShowCreateMenu] = useState(false);
 
     const handleCreateAction = (route: string) => {
+        hapticSelection();
         setShowCreateMenu(false);
         router.push(route as any);
     };
@@ -94,10 +96,14 @@ export default function TabLayout() {
                     headerRight: () => (
                         <View style={styles.headerRight}>
 
-                            <TouchableOpacity onPress={() => setShowCreateMenu(true)} style={styles.headerBtn} hitSlop={8}>
+                            <TouchableOpacity onPress={() => { hapticLight(); router.push('/pulse'); }} style={[styles.headerBtn, { paddingHorizontal: 12, backgroundColor: 'rgba(102,126,234,0.1)', borderRadius: 20 }]} hitSlop={8}>
+                                <Ionicons name="eye-off" size={20} color="#667eea" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => { hapticLight(); setShowCreateMenu(true); }} style={styles.headerBtn} hitSlop={8}>
                                 <Image source={{ uri: ICONS.add }} style={{ width: 22, height: 22 }} />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => router.push('/activity')} style={styles.headerBtn} hitSlop={8}>
+                            <TouchableOpacity onPress={() => { hapticLight(); router.push('/activity'); }} style={styles.headerBtn} hitSlop={8}>
                                 <Image source={{ uri: ICONS.heart.inactive }} style={{ width: 22, height: 22 }} />
                                 {activityUnreadCount > 0 && (
                                     <View style={styles.badge}>
@@ -107,7 +113,7 @@ export default function TabLayout() {
                                     </View>
                                 )}
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => router.push('/messages')} style={styles.headerBtn} hitSlop={8}>
+                            <TouchableOpacity onPress={() => { hapticLight(); router.push('/messages'); }} style={styles.headerBtn} hitSlop={8}>
                                 <Image source={{ uri: ICONS.chat }} style={{ width: 22, height: 22 }} />
                                 {messageUnreadCount > 0 && (
                                     <View style={styles.badge}>
@@ -129,6 +135,7 @@ export default function TabLayout() {
                             <TabIcon name="home" focused={focused} />
                         ),
                     }}
+                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="communities"
@@ -138,6 +145,7 @@ export default function TabLayout() {
                             <TabIcon name="community" focused={focused} />
                         ),
                     }}
+                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="marketplace"
@@ -147,6 +155,7 @@ export default function TabLayout() {
                             <TabIcon name="market" focused={focused} />
                         ),
                     }}
+                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="study"
@@ -156,6 +165,7 @@ export default function TabLayout() {
                             <TabIcon name="study" focused={focused} />
                         ),
                     }}
+                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="profile"
@@ -166,6 +176,7 @@ export default function TabLayout() {
                             <TabIcon name="profile" focused={focused} />
                         ),
                     }}
+                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="activity"
@@ -206,14 +217,14 @@ export default function TabLayout() {
 
                         <TouchableOpacity
                             style={styles.sheetOption}
-                            onPress={() => handleCreateAction('/community/create')}
+                            onPress={() => handleCreateAction('/events/create')}
                         >
                             <View style={styles.sheetIcon}>
-                                <Ionicons name="people-outline" size={24} color={colors.black} />
+                                <Ionicons name="calendar-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.sheetLabel}>New Community</Text>
-                                <Text style={styles.sheetSub}>Start a student group</Text>
+                                <Text style={styles.sheetLabel}>New Event</Text>
+                                <Text style={styles.sheetSub}>Organize campus activities</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
                         </TouchableOpacity>

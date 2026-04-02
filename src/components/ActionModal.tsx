@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, 
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { hapticLight, hapticSelection } from '../utils/haptics';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ export default function ActionModal({ visible, onClose, options, title }: Action
 
     React.useEffect(() => {
         if (visible) {
+            hapticLight();
             Animated.spring(animatedValue, {
                 toValue: 1,
                 useNativeDriver: true,
@@ -82,6 +84,7 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                                 key={index}
                                 style={styles.optionBtn}
                                 onPress={() => {
+                                    hapticLight();
                                     onClose();
                                     option.onPress();
                                 }}
@@ -101,7 +104,10 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                         ))}
                     </View>
 
-                    <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => {
+                        hapticSelection();
+                        onClose();
+                    }} activeOpacity={0.8}>
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
                 </Animated.View>
