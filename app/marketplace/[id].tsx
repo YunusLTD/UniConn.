@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIn
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { formatRelativeTime } from '../../src/utils/date';
 import { getPost } from '../../src/api/posts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -92,16 +93,25 @@ export default function MarketplaceDetailScreen() {
                         <Image source={{ uri: item.image_url }} style={styles.mainImage} />
                     ) : (
                         <View style={styles.imagePlaceholder}>
-                            <Ionicons name="image-outline" size={64} color={colors.gray200} />
+                            <Ionicons name={item.listing_type === 'request' ? 'search-outline' : 'image-outline'} size={64} color={colors.gray200} />
                         </View>
                     )}
                 </TouchableOpacity>
 
                 <View style={styles.content}>
                     <View style={styles.titleRow}>
-                        <Text style={styles.price}>
-                            {item.price === 0 ? 'FREE' : `$${item.price.toLocaleString()}`}
-                        </Text>
+                        {item.listing_type === 'request' ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.blue + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, gap: 6 }}>
+                                <Ionicons name="search" size={16} color={colors.blue} />
+                                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.blue }}>
+                                    {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} is looking for...` : 'User is looking for...'}
+                                </Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.price}>
+                                {item.price === 0 ? 'FREE' : `$${item.price?.toLocaleString() || 0}`}
+                            </Text>
+                        )}
                         <View style={styles.categoryBadge}>
                             <Text style={styles.categoryText}>{item.category || 'Other'}</Text>
                         </View>
@@ -111,9 +121,10 @@ export default function MarketplaceDetailScreen() {
                     
                     <View style={styles.metaRow}>
                         <View style={styles.metaItem}>
-                            <Ionicons name="time-outline" size={14} color={colors.gray500} />
+                            <Ionicons name="time-outline" size={14} color={colors.gray400} />
                             <Text style={styles.metaText}>
-                                {new Date(item.created_at).toLocaleDateString()}
+                                <Text style={{ color: colors.gray400 }}>Listed </Text>
+                                {formatRelativeTime(item.created_at)}
                             </Text>
                         </View>
                     </View>
@@ -124,7 +135,7 @@ export default function MarketplaceDetailScreen() {
                     </View>
 
                     <View style={styles.sellerSection}>
-                        <Text style={styles.sectionTitle}>Seller Information</Text>
+                        <Text style={styles.sectionTitle}>{item.listing_type === 'request' ? 'Requested By' : 'Seller Information'}</Text>
                         <TouchableOpacity 
                             style={styles.sellerCard}
                             onPress={() => router.push(`/user/${item.seller_id}`)}
@@ -139,7 +150,7 @@ export default function MarketplaceDetailScreen() {
                                 )}
                             </View>
                             <View style={styles.sellerInfo}>
-                                <Text style={styles.sellerName}>{item.profiles?.name || 'Unknown Seller'}</Text>
+                                <Text style={styles.sellerName}>{item.profiles?.name || 'Unknown User'}</Text>
                                 <Text style={styles.sellerSub}>Active on Campus</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
@@ -154,7 +165,7 @@ export default function MarketplaceDetailScreen() {
                     onPress={() => router.push(`/chat/${item.seller_id}`)}
                 >
                     <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                    <Text style={styles.chatBtnText}>Message Seller</Text>
+                    <Text style={styles.chatBtnText}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
                 </TouchableOpacity>
             </View>
 

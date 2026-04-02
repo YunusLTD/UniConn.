@@ -175,7 +175,7 @@ export default function CommunitiesScreen() {
     if (loading && !refreshing && communities.length === 0 && students.length === 0) {
         return (
             <View style={styles.container}>
-                <ShadowLoader type={activeTab === 'students' ? 'students' : 'marketplace'} />
+                <ShadowLoader type={activeTab === 'students' ? 'students' : 'communities'} />
             </View>
         );
     }
@@ -262,7 +262,7 @@ export default function CommunitiesScreen() {
                 ListEmptyComponent={
                     loading ? (
                         <View style={{ marginTop: 20 }}>
-                            <ShadowLoader type={activeTab === 'students' ? 'students' : 'marketplace'} />
+                            <ShadowLoader type={activeTab === 'students' ? 'students' : 'communities'} />
                         </View>
                     ) : (
                         <View style={styles.emptyState}>

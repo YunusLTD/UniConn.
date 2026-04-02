@@ -8,7 +8,11 @@ export const getUser = async (id: string) => {
     return await apiFetch(`/users/${id}`);
 };
 
-export const updateProfile = async (data: { name?: string, bio?: string, avatar_url?: string, push_token?: string, username?: string }) => {
+export const updateProfile = async (data: { 
+    name?: string, bio?: string, avatar_url?: string, push_token?: string, username?: string,
+    hometown?: string, age?: number, relationship_status?: string, 
+    hide_friends_list?: boolean, friends_only_messages?: boolean 
+}) => {
     return await apiFetch('/users/profile', {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -21,6 +25,14 @@ export const searchUsers = async (query: string) => {
 
 export const getByUsername = async (username: string) => {
     return await apiFetch(`/users/username/${username}`);
+};
+
+export const blockUser = async (targetId: string) => {
+    return await apiFetch(`/users/${targetId}/block`, { method: 'POST' });
+};
+
+export const unblockUser = async (targetId: string) => {
+    return await apiFetch(`/users/${targetId}/unblock`, { method: 'POST' });
 };
 
 export const deleteAccount = async () => {

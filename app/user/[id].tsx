@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share, Alert, Modal } from 'react-native';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
-import { getUser } from '../../src/api/users';
+import { getUser, blockUser, unblockUser } from '../../src/api/users';
 import { getUserPosts } from '../../src/api/posts';
 import { getUserEvents } from '../../src/api/events';
 import { getUserPolls } from '../../src/api/polls';
@@ -17,7 +17,6 @@ import JobCard from '../../src/components/JobCard';
 import SkeletonLoader from '../../src/components/SkeletonLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ActionModal from '../../src/components/ActionModal';
-
 import { useToast } from '../../src/context/ToastContext';
 
 type TabType = 'posts' | 'events' | 'polls' | 'jobs';
@@ -41,6 +40,7 @@ export default function UserProfileScreen() {
     const [friendshipId, setFriendshipId] = useState<string | null>(null);
     const [friendCount, setFriendCount] = useState(0);
     const [sendingRequest, setSendingRequest] = useState(false);
+    const [fullAvatarVisible, setFullAvatarVisible] = useState(false);
     const [showActionModal, setShowActionModal] = useState(false);
     const [actionTitle, setActionTitle] = useState('');
     const [actionOptions, setActionOptions] = useState<any[]>([]);
@@ -63,7 +63,6 @@ export default function UserProfileScreen() {
             
             if (res?.data) {
                 setProfile(res.data);
-                // Also load friendship status and friend count with THE REAL UUID once we have it
                 loadFriendData(res.data.id);
                 loadCount(res.data.id);
             }
@@ -196,9 +195,8 @@ export default function UserProfileScreen() {
     };
 
     const handleMessage = async () => {
-        if (!currentUser || friendStatus !== 'accepted') return;
+        if (!currentUser) return;
         try {
-            // Check if conversation exists, then navigate
             const { createConversation } = await import('../../src/api/messages');
             const res = await createConversation({ type: 'direct', participant_ids: [id as string] });
             if (res?.data?.id) {
@@ -206,24 +204,80 @@ export default function UserProfileScreen() {
             }
         } catch (e) {
             console.log('Failed to start chat', e);
-            Alert.alert('Error', 'Only friends can message each other.');
+            Alert.alert('Error', 'Could not open chat.');
+        }
+    };
+
+    const handleProfileOptions = () => {
+        setActionTitle('Profile Options');
+        const isBlocked = profile?.is_blocked_by_me;
+        setActionOptions([
+            {
+                label: isBlocked ? 'Unblock User' : 'Block User',
+                icon: isBlocked ? 'lock-open-outline' : 'ban-outline',
+                destructive: !isBlocked,
+                onPress: isBlocked ? confirmUnblock : confirmBlock
+            }
+        ]);
+        setShowActionModal(true);
+    };
+
+    const confirmBlock = () => {
+        Alert.alert(
+            'Block User',
+            `Are you sure you want to block ${profile?.name}? They won't be able to message you or see your content.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Block', style: 'destructive', onPress: performBlock }
+            ]
+        );
+    };
+
+    const confirmUnblock = () => {
+        Alert.alert(
+            'Unblock User',
+            `Are you sure you want to unblock ${profile?.name}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Unblock', style: 'default', onPress: performUnblock }
+            ]
+        );
+    };
+
+    const performBlock = async () => {
+        try {
+            await blockUser(profile?.id || id);
+            setProfile((prev: any) => ({ ...prev, is_blocked_by_me: true }));
+            showToast({ title: 'User Blocked', message: `${profile?.name} has been blocked.`, type: 'info' });
+        } catch (e) {
+            Alert.alert('Error', 'Could not block user. Try again.');
+        }
+    };
+
+    const performUnblock = async () => {
+        try {
+            await unblockUser(profile?.id || id);
+            setProfile((prev: any) => ({ ...prev, is_blocked_by_me: false }));
+            showToast({ title: 'User Unblocked', message: `${profile?.name} has been unblocked.`, type: 'success' });
+        } catch (e) {
+            Alert.alert('Error', 'Could not unblock user. Try again.');
         }
     };
 
     if (loading) return (
-        <SafeAreaView style={styles.loadingContainer}>
+        <View style={styles.loadingContainer}>
             <Stack.Screen options={{ title: '', headerBackTitle: '' }} />
             <ActivityIndicator size="small" color={colors.black} />
-        </SafeAreaView>
+        </View>
     );
 
     if (!profile) return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             <Stack.Screen options={{ title: 'Profile' }} />
             <View style={styles.centered}>
                 <Text style={styles.errorText}>User profile not found</Text>
             </View>
-        </SafeAreaView>
+        </View>
     );
 
     const initial = profile?.name?.[0]?.toUpperCase() || '?';
@@ -231,177 +285,228 @@ export default function UserProfileScreen() {
     const showScoreContext = () => {
         showToast({
             title: "UniScore & Reputation",
-            message: "UniScore reflects your campus impact. Earn points by sharing resources, organizing events, and engaging with peers. High scores build trust and community standing!",
+            message: "UniScore reflects your campus impact. Earn points by sharing resources, organizing events, and engaging with peers.",
             type: 'info'
         });
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
             <Stack.Screen options={{
                 headerShown: true,
-                title: '',
+                title: profile?.username ? `@${profile.username}` : '',
                 headerBackTitle: '',
-                headerTransparent: true,
-                headerTintColor: colors.black,
-                headerTitle: ''
+                headerShadowVisible: false,
+                headerStyle: { backgroundColor: colors.white },
+                headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16 },
+                headerRight: () => currentUser?.id !== id ? (
+                    <TouchableOpacity onPress={handleProfileOptions} style={{ padding: 8 }}>
+                        <Ionicons name="ellipsis-horizontal" size={22} color={colors.black} />
+                    </TouchableOpacity>
+                ) : null
             }} />
 
             <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Profile Header */}
+                {/* IG-style header */}
                 <View style={styles.header}>
-                    <View style={styles.profileSection}>
-                        <View style={styles.profileInfo}>
-                            <View style={styles.nameScoreRow}>
-                                <Text style={styles.profileName}>{profile?.name || 'User Name'}</Text>
-                                <TouchableOpacity style={styles.scoreBadge} onPress={showScoreContext} activeOpacity={0.7}>
-                                    <Ionicons name="flash" size={12} color={colors.black} />
-                                    <Text style={styles.scoreText}>{profile?.user_score || 0}</Text>
-                                </TouchableOpacity>
-                                <View style={styles.friendCountBadge}>
-                                    <Ionicons name="people" size={12} color={colors.gray500} />
-                                    <Text style={styles.friendCountText}>{friendCount}</Text>
+                    <View style={styles.topRow}>
+                        <TouchableOpacity activeOpacity={0.8} onPress={() => profile?.avatar_url && setFullAvatarVisible(true)}>
+                            <View style={styles.avatarRing}>
+                                <View style={styles.avatar}>
+                                    {profile?.avatar_url ? (
+                                        <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+                                    ) : (
+                                        <Text style={styles.avatarText}>{initial}</Text>
+                                    )}
                                 </View>
                             </View>
-                            {profile?.username && (
-                                <Text style={styles.usernameText}>@{profile.username}</Text>
-                            )}
-                            {profile?.bio ? (
-                                <Text style={styles.profileBio}>{profile.bio}</Text>
-                            ) : null}
-                            {profile.universities?.name && (
-                                <View style={styles.uniRow}>
-                                    <Ionicons name="school-outline" size={14} color={colors.gray500} />
-                                    <Text style={styles.uniName}>{profile.universities.name}</Text>
-                                </View>
-                            )}
-                        </View>
-                        <View style={styles.avatar}>
-                            {profile?.avatar_url ? (
-                                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
-                            ) : (
-                                <Text style={styles.avatarText}>{initial}</Text>
-                            )}
+                        </TouchableOpacity>
+
+                        <View style={styles.statsRow}>
+                            <View style={styles.statPill}>
+                                <Text style={styles.statNumber}>{content.length || 0}</Text>
+                                <Text style={styles.statLabel}>Posts</Text>
+                            </View>
+                            <View style={styles.statPill}>
+                                <Text style={styles.statNumber}>{friendCount}</Text>
+                                <Text style={styles.statLabel}>Friends</Text>
+                            </View>
+                            <TouchableOpacity style={styles.statPill} onPress={showScoreContext} activeOpacity={0.7}>
+                                <Text style={styles.statNumber}>{profile?.user_score || 0}</Text>
+                                <Text style={styles.statLabel}>Score</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
-                    <View style={styles.actionRow}>
-                        {currentUser?.id !== id && (
-                            <TouchableOpacity
-                                style={[
-                                    styles.actionBtn,
-                                    friendStatus === 'none' ? styles.friendRequestBtn :
-                                    friendStatus === 'pending' ? styles.friendPendingBtn :
-                                    styles.friendAcceptedBtn
-                                ]}
-                                onPress={handleFriendAction}
-                                disabled={sendingRequest}
-                            >
-                                {sendingRequest ? (
-                                    <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.black} />
-                                ) : (
-                                    <>
-                                        <Ionicons
-                                            name={
-                                                friendStatus === 'accepted' ? 'checkmark-circle' :
-                                                friendStatus === 'pending' ? 'close-circle' :
-                                                'person-add-outline'
-                                            }
-                                            size={18}
-                                            color={
-                                                friendStatus === 'none' ? colors.white :
-                                                friendStatus === 'accepted' ? colors.black :
-                                                colors.danger
-                                            }
-                                        />
-                                        <Text style={[
-                                            styles.friendBtnText,
-                                            friendStatus === 'accepted' && { color: colors.black },
-                                            friendStatus === 'pending' && { color: colors.danger },
-                                        ]}>
-                                            {friendStatus === 'accepted' ? 'Friends' :
-                                             friendStatus === 'pending' ? 'Cancel Request' :
-                                             'Connect'}
-                                        </Text>
-                                    </>
+                    {/* Name & bio */}
+                    <View style={styles.bioSection}>
+                        <Text style={styles.displayName}>{profile?.name || 'User Name'}</Text>
+                        
+                        {profile?.universities?.name && (
+                            <View style={styles.metaRow}>
+                                <Ionicons name="school-outline" size={13} color={colors.gray500} />
+                                <Text style={styles.metaText}>{profile.universities.name}</Text>
+                            </View>
+                        )}
+
+                        {profile?.bio ? (
+                            <Text style={styles.bioText}>{profile.bio}</Text>
+                        ) : null}
+
+                        {(profile?.hometown || profile?.age || profile?.relationship_status) && (
+                            <View style={styles.detailsRow}>
+                                {profile?.hometown && (
+                                    <View style={styles.detailPill}>
+                                        <Ionicons name="location-outline" size={12} color={colors.gray500} />
+                                        <Text style={styles.detailText}>{profile.hometown}</Text>
+                                    </View>
                                 )}
-                            </TouchableOpacity>
+                                {profile?.age && (
+                                    <View style={styles.detailPill}>
+                                        <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
+                                        <Text style={styles.detailText}>{profile.age}</Text>
+                                    </View>
+                                )}
+                                {profile?.relationship_status && (
+                                    <View style={styles.detailPill}>
+                                        <Ionicons name="heart-outline" size={12} color={colors.gray500} />
+                                        <Text style={styles.detailText}>{profile.relationship_status}</Text>
+                                    </View>
+                                )}
+                            </View>
                         )}
-                        {currentUser?.id !== id && friendStatus === 'accepted' && (
-                            <TouchableOpacity
-                                style={[styles.actionBtn, styles.messageBtn]}
-                                onPress={handleMessage}
-                            >
-                                <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
-                                <Text style={[styles.messageBtnText]}>Message</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                            style={[styles.actionBtnSecondary, currentUser?.id === id && { flex: 1, flexDirection: 'row', gap: 8 }]}
-                            onPress={handleShareProfile}
-                        >
-                            <Ionicons name="share-social-outline" size={20} color={colors.black} />
-                            {currentUser?.id === id && <Text style={{ fontFamily: fonts.semibold, fontSize: 15 }}>Share Profile</Text>}
-                        </TouchableOpacity>
                     </View>
-                </View>
 
-                {/* Tab Bar */}
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.tabScrollWrap}
-                    contentContainerStyle={styles.tabBarContainer}
-                >
-                    {TABS.map(({ key, icon }) => (
-                        <TouchableOpacity
-                            key={key}
-                            style={[styles.tabChip, activeTab === key && styles.activeTabChip]}
-                            onPress={() => setActiveTab(key)}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons
-                                name={icon as any}
-                                size={18}
-                                color={activeTab === key ? colors.white : colors.black}
-                            />
-                            <Text style={[styles.tabChipText, activeTab === key && styles.activeTabChipText]}>
-                                {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {/* Action Buttons */}
+                    {profile?.is_blocked_by_me || profile?.has_blocked_me ? (
+                        <View style={styles.blockedCard}>
+                            <Ionicons name="ban-outline" size={36} color={colors.gray400} style={{ marginBottom: 12 }} />
+                            <Text style={styles.blockedTitle}>
+                                {profile?.is_blocked_by_me ? 'User Blocked' : 'Profile Unavailable'}
                             </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-
-                {/* Content Area */}
-                <View style={styles.contentArea}>
-                    {contentLoading ? (
-                        <SkeletonLoader />
-                    ) : content.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyIcon}>
-                                {activeTab === 'posts' ? '📝' : activeTab === 'events' ? '📅' : activeTab === 'polls' ? '📊' : '💼'}
+                            <Text style={styles.blockedDesc}>
+                                {profile?.is_blocked_by_me 
+                                    ? `You have blocked ${profile?.name}. Unblock them to interact.`
+                                    : 'You cannot view this user\u2019s content.'}
                             </Text>
-                            <Text style={styles.emptyText}>No {activeTab} yet</Text>
+                            {profile?.is_blocked_by_me && (
+                                <TouchableOpacity style={styles.unblockBtn} onPress={confirmUnblock}>
+                                    <Text style={styles.unblockBtnText}>Unblock</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ) : (
-                        content.map((item) => {
-                            if (activeTab === 'posts') return <PostCard key={item.id} post={item} hideNavigation={false} />;
-                            if (activeTab === 'events') return <EventCard key={item.id} event={item} />;
-                            if (activeTab === 'polls') return <PollCard key={item.id} poll={item} />;
-                            if (activeTab === 'jobs') return <JobCard key={item.id} job={item} />;
-                            return null;
-                        })
+                        <>
+                            <View style={styles.actionRow}>
+                                {currentUser?.id !== id && (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.actionBtn,
+                                            friendStatus === 'none' ? styles.btnPrimary :
+                                            friendStatus === 'pending' ? styles.btnMuted :
+                                            styles.btnLight
+                                        ]}
+                                        onPress={handleFriendAction}
+                                        disabled={sendingRequest}
+                                    >
+                                        {sendingRequest ? (
+                                            <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.black} />
+                                        ) : (
+                                            <Text style={[
+                                                styles.actionBtnText,
+                                                friendStatus !== 'none' && { color: colors.black }
+                                            ]}>
+                                                {friendStatus === 'accepted' ? 'Friends' :
+                                                 friendStatus === 'pending' ? 'Requested' :
+                                                 'Connect'}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                                {currentUser?.id !== id && (
+                                    <TouchableOpacity style={[styles.actionBtn, styles.btnLight]} onPress={handleMessage}>
+                                        <Text style={[styles.actionBtnText, { color: colors.black }]}>Message</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity style={styles.shareBtn} onPress={handleShareProfile}>
+                                    <Ionicons name="share-outline" size={18} color={colors.black} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Pill-style Tab Bar */}
+                            {/* Segmented Pill Tab Bar */}
+                            <View style={styles.tabsContainer}>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.tabContent}
+                                >
+                                    {TABS.map(({ key, icon }) => (
+                                        <TouchableOpacity
+                                            key={key}
+                                            style={[styles.tabPill, activeTab === key && styles.activeTabPill]}
+                                            onPress={() => setActiveTab(key)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Ionicons
+                                                name={(activeTab === key ? icon.replace('-outline', '') : icon) as any}
+                                                size={16}
+                                                color={activeTab === key ? colors.white : colors.gray600}
+                                            />
+                                            <Text style={[styles.tabLabel, activeTab === key && styles.activeTabLabel]}>
+                                                {key.charAt(0).toUpperCase() + key.slice(1)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </>
                     )}
                 </View>
+
+                {/* Content */}
+                {!(profile?.is_blocked_by_me || profile?.has_blocked_me) && (
+                    <View style={styles.contentArea}>
+                        {contentLoading ? (
+                            <SkeletonLoader />
+                        ) : content.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Ionicons
+                                    name={
+                                        activeTab === 'posts' ? 'camera-outline' :
+                                        activeTab === 'events' ? 'calendar-outline' :
+                                        activeTab === 'polls' ? 'stats-chart-outline' :
+                                        'briefcase-outline'
+                                    }
+                                    size={48}
+                                    color={colors.gray300}
+                                />
+                                <Text style={styles.emptyTitle}>No {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Yet</Text>
+                            </View>
+                        ) : (
+                            content.map((item) => {
+                                if (activeTab === 'posts') return <PostCard key={item.id} post={item} hideNavigation={false} />;
+                                if (activeTab === 'events') return <EventCard key={item.id} event={item} />;
+                                if (activeTab === 'polls') return <PollCard key={item.id} poll={item} />;
+                                if (activeTab === 'jobs') return <JobCard key={item.id} job={item} />;
+                                return null;
+                            })
+                        )}
+                    </View>
+                )}
             </ScrollView>
 
-            <ActionModal 
-                visible={showActionModal}
-                onClose={() => setShowActionModal(false)}
-                title={actionTitle}
-                options={actionOptions}
-            />
-        </SafeAreaView>
+            <ActionModal visible={showActionModal} onClose={() => setShowActionModal(false)} title={actionTitle} options={actionOptions} />
+
+            <Modal visible={fullAvatarVisible} transparent animationType="fade">
+                <View style={styles.previewOverlay}>
+                    <TouchableOpacity onPress={() => setFullAvatarVisible(false)} style={styles.previewClose}>
+                        <Ionicons name="close" size={28} color={colors.white} />
+                    </TouchableOpacity>
+                    <Image source={{ uri: profile?.avatar_url || '' }} style={styles.previewImage} resizeMode="contain" />
+                </View>
+            </Modal>
+        </View>
     );
 }
 
@@ -411,187 +516,226 @@ const styles = StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     errorText: { fontFamily: fonts.regular, fontSize: 16, color: colors.gray500 },
 
+    // Header
     header: {
         paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.lg,
-        paddingTop: 60, // Space for header
+        paddingTop: 0,
     },
-    profileSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    profileInfo: { flex: 1, marginRight: spacing.lg },
-    nameScoreRow: {
+    topRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
     },
-    profileName: {
-        fontFamily: fonts.bold,
-        fontSize: 24,
-        color: colors.black,
-    },
-    scoreBadge: {
-        flexDirection: 'row',
+    avatarRing: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 2,
+        borderColor: colors.gray200,
+        justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: colors.gray100,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: radii.full,
-        gap: 2,
-    },
-    scoreText: {
-        fontFamily: fonts.bold,
-        fontSize: 12,
-        color: colors.black,
-    },
-    profileBio: {
-        fontFamily: fonts.regular,
-        fontSize: 14,
-        color: colors.gray600,
-        marginTop: 4,
-        lineHeight: 20,
-    },
-    usernameText: {
-        fontFamily: fonts.medium,
-        fontSize: 14,
-        color: colors.gray500,
-        marginTop: 2,
-    },
-    uniRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-        gap: 4,
-    },
-    uniName: {
-        fontFamily: fonts.medium,
-        fontSize: 12,
-        color: colors.gray500,
     },
     avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 112,
+        height: 112,
+        borderRadius: 56,
         backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
-        borderWidth: 0.5,
-        borderColor: colors.gray200,
     },
     avatarImg: { width: '100%', height: '100%' },
     avatarText: {
         fontFamily: fonts.bold,
-        fontSize: 32,
-        color: colors.gray500,
+        fontSize: 40,
+        color: colors.gray400,
     },
 
-    actionRow: {
-        flexDirection: 'row',
-        gap: spacing.sm,
-        marginTop: spacing.xl,
-    },
-    actionBtn: {
+    // Stats
+    statsRow: {
         flex: 1,
-        height: 44,
-        borderRadius: radii.md,
-        justifyContent: 'center',
-        alignItems: 'center',
         flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginLeft: spacing.md,
         gap: 8,
     },
-    messageBtn: {
-        backgroundColor: colors.black,
+    statPill: {
         flex: 1,
-    },
-    friendRequestBtn: {
-        backgroundColor: colors.black,
-    },
-    friendPendingBtn: {
-        backgroundColor: colors.gray100,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        backgroundColor: colors.gray50,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.gray200,
+        borderColor: colors.gray100,
     },
-    friendAcceptedBtn: {
-        backgroundColor: colors.gray100,
-        borderWidth: 1,
-        borderColor: colors.gray200,
-        flex: 1,
-    },
-    friendBtnText: {
+    statNumber: {
         fontFamily: fonts.bold,
-        fontSize: 14,
-        color: colors.white,
+        fontSize: 16,
+        color: colors.black,
     },
-    messageBtnText: {
-        fontFamily: fonts.semibold,
+    statLabel: {
+        fontFamily: fonts.medium,
+        fontSize: 10,
+        color: colors.gray500,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginTop: 2,
+    },
+
+    // Bio
+    bioSection: {
+        marginTop: 18,
+    },
+    displayName: {
+        fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.white,
+        color: colors.black,
     },
-    friendCountBadge: {
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 2,
+    },
+    metaText: {
+        fontFamily: fonts.regular,
+        fontSize: 13,
+        color: colors.gray500,
+    },
+    bioText: {
+        fontFamily: fonts.regular,
+        fontSize: 14,
+        color: colors.black,
+        marginTop: 6,
+        lineHeight: 19,
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 10,
+        flexWrap: 'wrap',
+    },
+    detailPill: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.gray100,
         paddingHorizontal: 8,
-        paddingVertical: 2,
+        paddingVertical: 4,
         borderRadius: radii.full,
         gap: 4,
     },
-    friendCountText: {
-        fontFamily: fonts.bold,
-        fontSize: 12,
-        color: colors.gray500,
+    detailText: {
+        fontFamily: fonts.medium,
+        fontSize: 11,
+        color: colors.gray600,
+        textTransform: 'capitalize',
     },
-    actionBtnSecondary: {
-        width: 44,
-        height: 44,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.gray200,
+
+    // Actions
+    actionRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 20,
+    },
+    actionBtn: {
+        flex: 1,
+        height: 42,
+        borderRadius: radii.full,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    btnPrimary: {
+        backgroundColor: colors.black,
+    },
+    btnLight: {
+        backgroundColor: colors.gray100,
+    },
+    btnMuted: {
+        backgroundColor: colors.gray100,
+    },
+    actionBtnText: {
+        fontFamily: fonts.bold,
+        fontSize: 14,
+        color: colors.white,
+    },
+    shareBtn: {
+        width: 42,
+        height: 42,
+        borderRadius: radii.full,
+        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
     },
 
-    tabScrollWrap: {
-        borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
-        backgroundColor: colors.white,
+    // Blocked
+    blockedCard: {
+        alignItems: 'center',
+        marginTop: 24,
+        paddingVertical: 32,
+        paddingHorizontal: 24,
+        backgroundColor: colors.gray50,
+        borderRadius: radii.lg,
+        borderWidth: 1,
+        borderColor: colors.gray200,
     },
-    tabBarContainer: {
+    blockedTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.black, marginBottom: 6 },
+    blockedDesc: { fontFamily: fonts.regular, fontSize: 13, color: colors.gray500, textAlign: 'center', lineHeight: 18 },
+    unblockBtn: {
+        marginTop: 16,
+        backgroundColor: colors.black,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    unblockBtnText: { fontFamily: fonts.bold, fontSize: 13, color: colors.white },
+
+    // Tabs — Unified Pill Form
+    tabsContainer: {
+        marginTop: 24,
+        backgroundColor: colors.gray50,
+        padding: 5,
+        borderRadius: radii.full,
+    },
+    tabContent: {
         flexDirection: 'row',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        gap: spacing.sm,
+        gap: 4,
     },
-    tabChip: {
+    tabPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: 18,
         paddingVertical: 10,
         borderRadius: radii.full,
-        backgroundColor: colors.gray100,
         gap: 6,
     },
-    activeTabChip: {
+    activeTabPill: {
         backgroundColor: colors.black,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
-    tabChipText: {
-        fontFamily: fonts.semibold,
+    tabLabel: {
+        fontFamily: fonts.bold,
         fontSize: 13,
-        color: colors.black,
+        color: colors.gray500,
     },
-    activeTabChipText: {
+    activeTabLabel: {
         color: colors.white,
     },
 
+    // Content
     contentArea: { flex: 1, minHeight: 300 },
-    emptyState: { alignItems: 'center', marginTop: 80 },
-    emptyIcon: { fontSize: 40, marginBottom: 8 },
-    emptyText: {
-        fontFamily: fonts.regular,
+    emptyState: { alignItems: 'center', marginTop: 64, gap: 12 },
+    emptyTitle: {
+        fontFamily: fonts.medium,
         color: colors.gray400,
         fontSize: 14,
     },
+
+    // Preview
+    previewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+    previewClose: { position: 'absolute', top: 56, right: 20, zIndex: 10, padding: 8 },
+    previewImage: { width: '100%', height: '80%' },
 });

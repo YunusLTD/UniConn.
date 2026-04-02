@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { apiFetch } from '../src/api/client';
+import ActionModal from '../src/components/ActionModal';
 
 export default function EditProfileScreen() {
     const { user } = useAuth();
@@ -20,6 +21,11 @@ export default function EditProfileScreen() {
     const [username, setUsername] = useState('');
     const [bio, setBio] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
+    
+    const [hometown, setHometown] = useState('');
+    const [age, setAge] = useState('');
+    const [relationshipStatus, setRelationshipStatus] = useState<string>('');
+    const [showRelModal, setShowRelModal] = useState(false);
 
     useEffect(() => {
         loadProfileData();
@@ -33,6 +39,9 @@ export default function EditProfileScreen() {
                 setUsername(res.data.username || '');
                 setBio(res.data.bio || '');
                 setAvatarUrl(res.data.avatar_url || '');
+                setHometown(res.data.hometown || '');
+                setAge(res.data.age ? String(res.data.age) : '');
+                setRelationshipStatus(res.data.relationship_status || '');
             }
         } catch (e) {
             console.log('Error loading profile', e);
@@ -94,6 +103,9 @@ export default function EditProfileScreen() {
                 username: username.trim().toLowerCase(),
                 bio: bio.trim(),
                 avatar_url: avatarUrl,
+                hometown: hometown.trim() || undefined,
+                age: age.trim() ? parseInt(age.trim(), 10) : undefined,
+                relationship_status: relationshipStatus || undefined
             });
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
@@ -196,9 +208,61 @@ export default function EditProfileScreen() {
                                 numberOfLines={4}
                             />
                         </View>
+
+                        <Text style={[styles.label, { marginTop: spacing.md }]}>Personal Details (Optional)</Text>
+
+                        <View style={styles.field}>
+                            <Text style={styles.label}>Hometown</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={hometown}
+                                onChangeText={setHometown}
+                                placeholder="Where are you from?"
+                                placeholderTextColor={colors.gray400}
+                            />
+                        </View>
+                        
+                        <View style={styles.field}>
+                            <Text style={styles.label}>Age</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={age}
+                                onChangeText={setAge}
+                                placeholder="Age"
+                                keyboardType="numeric"
+                                placeholderTextColor={colors.gray400}
+                            />
+                        </View>
+
+                        <View style={styles.field}>
+                            <Text style={styles.label}>Relationship Status</Text>
+                            <TouchableOpacity 
+                                style={[styles.input, { justifyContent: 'center' }]}
+                                onPress={() => setShowRelModal(true)}
+                            >
+                                <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: relationshipStatus ? colors.black : colors.gray400, textTransform: 'capitalize' }}>
+                                    {relationshipStatus || 'Select Status'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+            
+            <ActionModal
+                visible={showRelModal}
+                onClose={() => setShowRelModal(false)}
+                title="Relationship Status"
+                options={[
+                    { label: 'Private', icon: 'lock-closed-outline', onPress: () => { setRelationshipStatus('Private'); setShowRelModal(false); } },
+                    { label: 'Single', icon: 'person-outline', onPress: () => { setRelationshipStatus('Single'); setShowRelModal(false); } },
+                    { label: 'In a relationship', icon: 'heart-outline', onPress: () => { setRelationshipStatus('In a relationship'); setShowRelModal(false); } },
+                    { label: 'Married', icon: 'heart-circle-outline', onPress: () => { setRelationshipStatus('Married'); setShowRelModal(false); } },
+                    { label: 'Complicated', icon: 'sync-circle-outline', onPress: () => { setRelationshipStatus('Complicated'); setShowRelModal(false); } },
+                    { label: 'Not sure', icon: 'help-circle-outline', onPress: () => { setRelationshipStatus('Not sure'); setShowRelModal(false); } },
+                    { label: 'Clear', icon: 'close-circle-outline', destructive: true, onPress: () => { setRelationshipStatus(''); setShowRelModal(false); } }
+                ]}
+            />
         </SafeAreaView>
     );
 }

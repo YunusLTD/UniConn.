@@ -103,6 +103,22 @@ export function StudentItemSkeleton() {
     );
 }
 
+export function CommunityItemSkeleton() {
+    return (
+        <View style={styles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Skeleton width={48} height={48} borderRadius={24} style={{ marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                    <Skeleton width="50%" height={16} borderRadius={8} />
+                    <Skeleton width="30%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+                </View>
+            </View>
+            <Skeleton width="90%" height={12} borderRadius={6} style={{ marginTop: 16 }} />
+            <Skeleton width="70%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+        </View>
+    );
+}
+
 export function ChatBubbleSkeleton({ isMine }: { isMine: boolean }) {
     return (
         <View style={[styles.bubbleWrap, isMine ? { justifyContent: 'flex-end' } : { justifyContent: 'flex-start' }]}>
@@ -135,11 +151,18 @@ export function ProfileHeaderSkeleton() {
     );
 }
 
-export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' }) {
+export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' }) {
     if (type === 'messages') {
         return (
             <View style={styles.container}>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <MessageItemSkeleton key={i} />)}
+            </View>
+        );
+    }
+    if (type === 'communities') {
+        return (
+            <View style={styles.container}>
+                {[1, 2, 3, 4, 5].map(i => <CommunityItemSkeleton key={i} />)}
             </View>
         );
     }

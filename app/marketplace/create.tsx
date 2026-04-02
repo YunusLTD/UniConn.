@@ -19,13 +19,14 @@ const CATEGORIES = [
 ];
 
 export default function CreateListingScreen() {
-    const { communityId: initialCommunityId } = useLocalSearchParams();
+    const { communityId: initialCommunityId, defaultType } = useLocalSearchParams();
     const router = useRouter();
     
     const [title, setTitle] = useState('');
     const [price, setPrice] = useState('');
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('other');
+    const [listingType, setListingType] = useState<'sell' | 'request'>((defaultType as 'sell' | 'request') || 'sell');
     const [image, setImage] = useState<string | null>(null);
     const [selectedCommunityId, setSelectedCommunityId] = useState<any>(initialCommunityId || null);
     const [myCommunities, setMyCommunities] = useState<any[]>([]);
@@ -66,7 +67,9 @@ export default function CreateListingScreen() {
 
     const handleCreate = async () => {
         if (!selectedCommunityId) return Alert.alert('Error', 'Please select a community');
-        if (!title || price === '') return Alert.alert('Error', 'Title and Price are required');
+        if (!title) return Alert.alert('Error', 'Title is required');
+        if (listingType === 'sell' && price === '') return Alert.alert('Error', 'Price is required for selling');
+        if (listingType === 'sell' && isNaN(Number(price))) return Alert.alert('Error', 'Price must be a number');
         
         setLoading(true);
         try {
@@ -78,9 +81,10 @@ export default function CreateListingScreen() {
 
             const res = await createMarketplaceListing(selectedCommunityId as string, { 
                 title, 
-                price: Number(price), 
+                price: listingType === 'request' ? null : Number(price), 
                 description,
                 category,
+                listing_type: listingType,
                 image_url: uploadedUrl
             });
 
@@ -111,6 +115,21 @@ export default function CreateListingScreen() {
                     </TouchableOpacity>
                 </View>
 
+                <View style={styles.typeSelectorRow}>
+                    <TouchableOpacity 
+                        style={[styles.typeBtn, listingType === 'sell' && styles.typeBtnActive]} 
+                        onPress={() => setListingType('sell')}
+                    >
+                        <Text style={[styles.typeBtnText, listingType === 'sell' && styles.typeBtnTextActive]}>Sell Item</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.typeBtn, listingType === 'request' && styles.typeBtnActive]} 
+                        onPress={() => setListingType('request')}
+                    >
+                        <Text style={[styles.typeBtnText, listingType === 'request' && styles.typeBtnTextActive]}>Request Item</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.7}>
                     {image ? (
                         <>
@@ -123,31 +142,33 @@ export default function CreateListingScreen() {
                     ) : (
                         <View style={styles.imagePlaceholder}>
                             <Ionicons name="camera-outline" size={40} color={colors.gray300} />
-                            <Text style={styles.uploadText}>Add Product Photo</Text>
+                            <Text style={styles.uploadText}>{listingType === 'sell' ? 'Add Product Photo' : 'Add Reference Photo (Optional)'}</Text>
                         </View>
                     )}
                 </TouchableOpacity>
 
                 <View style={styles.section}>
-                    <Text style={styles.label}>PRODUCT DETAILS</Text>
+                    <Text style={styles.label}>ITEM DETAILS</Text>
                     <TextInput 
                         style={styles.input} 
-                        placeholder="What are you selling?" 
+                        placeholder={listingType === 'sell' ? "What are you selling?" : "What are you looking for?"} 
                         placeholderTextColor={colors.gray400} 
                         value={title} 
                         onChangeText={setTitle} 
                     />
-                    <View style={[styles.input, styles.priceInput]}>
-                        <Text style={styles.dollarSign}>$</Text>
-                        <TextInput 
-                            style={styles.flexInput} 
-                            placeholder="0" 
-                            placeholderTextColor={colors.gray400} 
-                            value={price} 
-                            onChangeText={setPrice} 
-                            keyboardType="numeric" 
-                        />
-                    </View>
+                    {listingType === 'sell' && (
+                        <View style={[styles.input, styles.priceInput]}>
+                            <Text style={styles.dollarSign}>$</Text>
+                            <TextInput 
+                                style={styles.flexInput} 
+                                placeholder="0" 
+                                placeholderTextColor={colors.gray400} 
+                                value={price} 
+                                onChangeText={setPrice} 
+                                keyboardType="numeric" 
+                            />
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.section}>
@@ -233,10 +254,23 @@ export default function CreateListingScreen() {
 
 const styles = StyleSheet.create({
     container: { flexGrow: 1, backgroundColor: colors.white, padding: spacing.lg, paddingBottom: 60 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
     smallLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray500 },
     clickableWrapper: { flexDirection: 'row', alignItems: 'center' },
     clickableComm: { fontFamily: fonts.bold, fontSize: 13, color: colors.blue, textDecorationLine: 'underline' },
+    
+    typeSelectorRow: { 
+        flexDirection: 'row', 
+        backgroundColor: colors.gray50, 
+        borderRadius: radii.md, 
+        padding: 4, 
+        marginBottom: 24 
+    },
+    typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radii.md },
+    typeBtnActive: { backgroundColor: colors.white, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+    typeBtnText: { fontFamily: fonts.medium, fontSize: 14, color: colors.gray500 },
+    typeBtnTextActive: { fontFamily: fonts.bold, color: colors.black },
+    
     section: { marginBottom: 24 },
     label: { fontFamily: fonts.semibold, fontSize: 11, color: colors.gray400, letterSpacing: 1, marginBottom: 12 },
     input: { 

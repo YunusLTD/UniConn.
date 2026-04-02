@@ -8,7 +8,17 @@ import StudyCard from '../../src/components/StudyCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const SUBJECTS = ['All', 'Math', 'Science', 'English', 'History', 'Physics', 'Computer Science', 'Business', 'Arts'];
+const SUBJECTS = [
+    { id: 'All', label: 'All', icon: 'apps-outline' as const },
+    { id: 'Math', label: 'Math', icon: 'calculator-outline' as const },
+    { id: 'Science', label: 'Science', icon: 'flask-outline' as const },
+    { id: 'English', label: 'English', icon: 'book-outline' as const },
+    { id: 'History', label: 'History', icon: 'time-outline' as const },
+    { id: 'Physics', label: 'Physics', icon: 'magnet-outline' as const },
+    { id: 'Computer Science', label: 'CS', icon: 'hardware-chip-outline' as const },
+    { id: 'Business', label: 'Business', icon: 'briefcase-outline' as const },
+    { id: 'Arts', label: 'Arts', icon: 'color-palette-outline' as const },
+];
 
 export default function StudyScreen() {
     const router = useRouter();
@@ -65,16 +75,22 @@ export default function StudyScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectsScroll}>
                     {SUBJECTS.map(subject => (
                         <TouchableOpacity
-                            key={subject}
-                            style={[styles.subjectChip, activeSubject === subject && styles.activeSubjectChip]}
+                            key={subject.id}
+                            style={[styles.subjectChip, activeSubject === subject.id && styles.activeSubjectChip]}
                             onPress={() => {
-                                setActiveSubject(subject);
+                                setActiveSubject(subject.id);
                                 setLoading(true);
                                 setPage(1);
                             }}
+                            activeOpacity={0.7}
                         >
-                            <Text style={[styles.subjectChipText, activeSubject === subject && styles.activeSubjectChipText]}>
-                                {subject}
+                            <Ionicons 
+                                name={subject.icon} 
+                                size={16} 
+                                color={activeSubject === subject.id ? colors.white : colors.gray600} 
+                            />
+                            <Text style={[styles.subjectChipText, activeSubject === subject.id && styles.activeSubjectChipText]}>
+                                {subject.label}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -116,21 +132,24 @@ const styles = StyleSheet.create({
     },
     subjectsContainer: {
         backgroundColor: colors.white,
-        paddingBottom: 12,
-        paddingTop: 4,
+        paddingBottom: spacing.sm,
         borderBottomWidth: 1,
         borderBottomColor: colors.gray100,
     },
     subjectsScroll: {
         paddingHorizontal: spacing.lg,
-        gap: 8,
+        paddingVertical: spacing.md,
+        gap: 10,
     },
     subjectChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
         paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingVertical: 10,
+        borderRadius: radii.full,
         backgroundColor: colors.gray50,
-        borderWidth: 0.5,
+        borderWidth: 1,
         borderColor: colors.gray100,
     },
     activeSubjectChip: {

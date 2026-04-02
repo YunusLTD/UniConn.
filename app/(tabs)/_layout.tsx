@@ -226,7 +226,7 @@ export default function TabLayout() {
                                 <Ionicons name="cart-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.sheetLabel}>Sell Item</Text>
+                                <Text style={styles.sheetLabel}>Sell or Request Item</Text>
                                 <Text style={styles.sheetSub}>List on marketplace</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
