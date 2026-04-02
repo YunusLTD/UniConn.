@@ -4,13 +4,13 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
 import { formatRelativeTime } from '../../src/utils/date';
-import { getPost } from '../../src/api/posts';
+import { getMarketplaceListing } from '../../src/api/marketplace';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketplaceDetailScreen() {
-    const { id } = useLocalSearchParams();
+    const { id, title: headerTitle } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [item, setItem] = useState<any>(null);
@@ -20,7 +20,7 @@ export default function MarketplaceDetailScreen() {
 
     const loadData = useCallback(async () => {
         try {
-            const res = await getPost(id as string);
+            const res = await getMarketplaceListing(id as string);
             if (res?.data) setItem(res.data);
         } catch (e) {
             console.error('Error loading item:', e);
@@ -41,26 +41,7 @@ export default function MarketplaceDetailScreen() {
         } catch (e) {}
     };
 
-    if (loading) {
-        return (
-            <View style={[styles.container, styles.centered]}>
-                <ActivityIndicator size="small" color={colors.black} />
-            </View>
-        );
-    }
-
-    if (!item) {
-        return (
-            <View style={[styles.container, styles.centered]}>
-                <Text style={styles.errorText}>Item not found</Text>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Text style={styles.backBtnText}>Go Back</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-    const initials = item.profiles?.name
+    const initials = item?.profiles?.name
         ? item.profiles.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
         : '?';
 
@@ -68,7 +49,7 @@ export default function MarketplaceDetailScreen() {
         <View style={[styles.container, { paddingBottom: insets.bottom }]}>
             <Stack.Screen 
                 options={{ 
-                    title: item.title,
+                    title: (item?.title || (headerTitle as string) || 'Listing...'),
                     headerTitleStyle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black },
                     headerBackTitle: '',
                     headerLeft: () => (
@@ -84,7 +65,19 @@ export default function MarketplaceDetailScreen() {
                 }} 
             />
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {loading ? (
+                <View style={[styles.container, styles.centered]}>
+                    <ActivityIndicator size="small" color={colors.black} />
+                </View>
+            ) : !item ? (
+                <View style={[styles.container, styles.centered]}>
+                    <Text style={styles.errorText}>Item not found</Text>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Text style={styles.backBtnText}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
                 <TouchableOpacity 
                     activeOpacity={0.95} 
                     onPress={() => setPreviewImage(item.image_url)}
@@ -157,17 +150,20 @@ export default function MarketplaceDetailScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </ScrollView>
+                </ScrollView>
+            )}
 
-            <View style={styles.footer}>
-                <TouchableOpacity 
-                    style={styles.chatBtn}
-                    onPress={() => router.push(`/chat/${item.seller_id}`)}
-                >
-                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                    <Text style={styles.chatBtnText}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
-                </TouchableOpacity>
-            </View>
+            {item && (
+                <View style={styles.footer}>
+                    <TouchableOpacity 
+                        style={styles.chatBtn}
+                        onPress={() => router.push(`/chat/${item.seller_id}`)}
+                    >
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                        <Text style={styles.chatBtnText}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <Modal visible={!!previewImage} transparent animationType="fade">
                 <View style={styles.previewBg}>

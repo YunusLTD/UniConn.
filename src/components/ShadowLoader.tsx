@@ -47,9 +47,9 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
     );
 }
 
-export function PostSkeleton() {
+export function PostSkeleton({ style }: { style?: ViewStyle }) {
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, style]}>
             <View style={styles.row}>
                 <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 16 }} />
                 <View style={styles.content}>
@@ -135,23 +135,48 @@ export function ChatBubbleSkeleton({ isMine }: { isMine: boolean }) {
 export function ProfileHeaderSkeleton() {
     return (
         <View style={styles.profileHeader}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 }}>
-                <View style={{ flex: 1, marginRight: 20 }}>
-                    <Skeleton width="80%" height={22} borderRadius={11} />
-                    <Skeleton width="50%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+            <View style={styles.profileTop}>
+                {/* Large Avatar (LEFT) */}
+                <Skeleton width={112} height={112} borderRadius={56} />
+
+                {/* Stats Section (RIGHT) */}
+                <View style={styles.statsSkeletonRow}>
+                    <View style={{ alignItems: 'center' }}>
+                        <Skeleton width={32} height={20} borderRadius={10} />
+                        <Skeleton width={48} height={10} borderRadius={5} style={{ marginTop: 8 }} />
+                    </View>
+                    <View style={{ alignItems: 'center' }}>
+                        <Skeleton width={32} height={20} borderRadius={10} />
+                        <Skeleton width={48} height={10} borderRadius={5} style={{ marginTop: 8 }} />
+                    </View>
+                    <View style={{ alignItems: 'center' }}>
+                        <Skeleton width={32} height={20} borderRadius={10} />
+                        <Skeleton width={48} height={10} borderRadius={5} style={{ marginTop: 8 }} />
+                    </View>
                 </View>
-                <Skeleton width={64} height={64} borderRadius={32} />
             </View>
-            <Skeleton width="100%" height={32} borderRadius={10} style={{ marginTop: 8 }} />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                <Skeleton style={{ flex: 1 }} height={36} borderRadius={18} />
-                <Skeleton style={{ flex: 1 }} height={36} borderRadius={18} />
+
+            {/* Name/Bio */}
+            <View style={{ marginTop: 20 }}>
+                <Skeleton width="50%" height={24} borderRadius={12} />
+                <Skeleton width="80%" height={14} borderRadius={7} style={{ marginTop: 12 }} />
+            </View>
+
+            {/* Action Buttons (Large Pills) */}
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
+                <Skeleton style={{ flex: 1 }} height={52} borderRadius={26} />
+                <Skeleton width={52} height={52} borderRadius={26} />
+            </View>
+
+            {/* Tab Bar (Segmented Pill) */}
+            <View style={{ marginTop: 32 }}>
+                <Skeleton width="100%" height={52} borderRadius={26} />
             </View>
         </View>
     );
 }
 
-export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' }) {
+export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' | 'study' }) {
     if (type === 'messages') {
         return (
             <View style={styles.container}>
@@ -161,7 +186,7 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
     }
     if (type === 'communities') {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, { paddingTop: 10 }]}>
                 {[1, 2, 3, 4, 5].map(i => <CommunityItemSkeleton key={i} />)}
             </View>
         );
@@ -186,7 +211,7 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
     }
     if (type === 'students') {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container]}>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <StudentItemSkeleton key={i} />)}
             </View>
         );
@@ -202,13 +227,20 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
             </View>
         );
     }
+    if (type === 'study') {
+        return (
+            <View style={[styles.container, { paddingHorizontal: spacing.sm }]}>
+                {[1, 2, 3, 4].map(i => <PostSkeleton key={i} style={{ marginHorizontal: 0 }} />)}
+            </View>
+        );
+    }
     if (type === 'profile') {
         return (
-            <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <ScrollView style={[styles.container, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
                 <ProfileHeaderSkeleton />
-                <View style={{ marginTop: 24 }}>
-                    <PostSkeleton />
-                    <PostSkeleton />
+                <View style={{ marginTop: 4 }}>
+                    <PostSkeleton style={{ marginHorizontal: spacing.md, transform: [{ scale: 0.95 }] }} />
+                    <PostSkeleton style={{ marginHorizontal: spacing.md, transform: [{ scale: 0.95 }] }} />
                 </View>
             </ScrollView>
         );
@@ -277,11 +309,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
     },
     profileHeader: {
-        paddingTop: 40,
-        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingHorizontal: spacing.md,
         paddingBottom: 24,
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F2F2F2',
+    },
+    profileTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    statsSkeletonRow: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginLeft: 24,
     }
 });

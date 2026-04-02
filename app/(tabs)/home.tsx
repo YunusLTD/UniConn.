@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fonts } from '../../src/constants/theme';
@@ -46,6 +46,14 @@ export default function HomeScreen() {
             loadFeed(1, true);
         }, [])
     );
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('postCreated', () => {
+            setRefreshing(true);
+            loadFeed(1, true);
+        });
+        return () => sub.remove();
+    }, []);
 
     const handleRefresh = () => {
         setRefreshing(true);

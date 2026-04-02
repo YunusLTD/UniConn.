@@ -109,7 +109,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
         <TouchableOpacity
             style={styles.card}
             activeOpacity={0.9}
-            onPress={() => router.push(`/marketplace/${item.id}`)}
+            onPress={() => router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } })}
         >
             <View style={styles.header}>
                 <View style={styles.tag}>

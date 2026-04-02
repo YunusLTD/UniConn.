@@ -38,7 +38,11 @@ export default function CommunityMarketplaceScreen() {
                         </TouchableOpacity>
                     }
                     renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.card} onPress={() => router.push(`/marketplace/${item.id}` as any)} activeOpacity={0.7}>
+                        <TouchableOpacity 
+                            style={styles.card} 
+                            onPress={() => router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } } as any)} 
+                            activeOpacity={0.7}
+                        >
                             {item.image_url ? (
                                 <Image source={{ uri: item.image_url }} style={styles.image} />
                             ) : (

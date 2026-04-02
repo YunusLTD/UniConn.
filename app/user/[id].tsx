@@ -6,26 +6,27 @@ import { getUser, blockUser, unblockUser } from '../../src/api/users';
 import { getUserPosts } from '../../src/api/posts';
 import { getUserEvents } from '../../src/api/events';
 import { getUserPolls } from '../../src/api/polls';
-import { getUserJobs } from '../../src/api/jobs';
+import { getUserMarketplaceListings } from '../../src/api/marketplace';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { sendFriendRequest, getFriendshipStatus, getFriendsCount, removeFriend } from '../../src/api/friends';
 import PostCard from '../../src/components/PostCard';
 import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
-import JobCard from '../../src/components/JobCard';
+import MarketCard from '../../src/components/MarketCard';
 import SkeletonLoader from '../../src/components/SkeletonLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ActionModal from '../../src/components/ActionModal';
 import { useToast } from '../../src/context/ToastContext';
+import ShadowLoader from '../../src/components/ShadowLoader';
 
-type TabType = 'posts' | 'events' | 'polls' | 'jobs';
+type TabType = 'posts' | 'events' | 'polls' | 'listings';
 
 const TABS: { key: TabType, icon: string }[] = [
     { key: 'posts', icon: 'grid-outline' },
     { key: 'events', icon: 'calendar-outline' },
     { key: 'polls', icon: 'stats-chart-outline' },
-    { key: 'jobs', icon: 'briefcase-outline' },
+    { key: 'listings', icon: 'cart-outline' },
 ];
 
 export default function UserProfileScreen() {
@@ -38,7 +39,8 @@ export default function UserProfileScreen() {
     const [contentLoading, setContentLoading] = useState(false);
     const [friendStatus, setFriendStatus] = useState<string>('none');
     const [friendshipId, setFriendshipId] = useState<string | null>(null);
-    const [friendCount, setFriendCount] = useState(0);
+    const [friendCount, setFriendCount] = useState<number | null>(null);
+    const [postsCount, setPostsCount] = useState<number | null>(null);
     const [sendingRequest, setSendingRequest] = useState(false);
     const [fullAvatarVisible, setFullAvatarVisible] = useState(false);
     const [showActionModal, setShowActionModal] = useState(false);
@@ -63,8 +65,10 @@ export default function UserProfileScreen() {
             
             if (res?.data) {
                 setProfile(res.data);
-                loadFriendData(res.data.id);
-                loadCount(res.data.id);
+                if (res.data.friends_count !== undefined) setFriendCount(res.data.friends_count);
+                if (res.data.posts_count !== undefined) setPostsCount(res.data.posts_count);
+                if (res.data.friend_status) setFriendStatus(res.data.friend_status);
+                // loadFriendData is now handled by the profile response
             }
         } catch (e) {
             console.log('Error loading profile', e);
@@ -81,7 +85,7 @@ export default function UserProfileScreen() {
             if (tab === 'posts') res = await getUserPosts(targetId);
             else if (tab === 'events') res = await getUserEvents(targetId);
             else if (tab === 'polls') res = await getUserPolls(targetId);
-            else if (tab === 'jobs') res = await getUserJobs(targetId);
+            else if (tab === 'listings') res = await getUserMarketplaceListings(targetId);
             setContent(res?.data || []);
         } catch (e) {
             console.log('Error loading tab content', e);
@@ -142,7 +146,7 @@ export default function UserProfileScreen() {
         try {
             await removeFriend(id as string);
             setFriendStatus('none');
-            if (!isPending) setFriendCount(prev => Math.max(0, prev - 1));
+            if (!isPending) setFriendCount(prev => Math.max(0, (prev || 0) - 1));
             showToast({ 
                 title: isPending ? 'Request Cancelled' : 'Friend Removed', 
                 message: isPending 
@@ -217,9 +221,50 @@ export default function UserProfileScreen() {
                 icon: isBlocked ? 'lock-open-outline' : 'ban-outline',
                 destructive: !isBlocked,
                 onPress: isBlocked ? confirmUnblock : confirmBlock
+            },
+            {
+                label: 'Report Student',
+                icon: 'flag-outline',
+                destructive: true,
+                onPress: handleReportUser
             }
         ]);
         setShowActionModal(true);
+    };
+
+    const handleReportUser = () => {
+        setShowActionModal(false);
+        setTimeout(() => {
+            setActionTitle('Report Reason');
+            setActionOptions([
+                { label: 'Harassment', icon: 'hand-left-outline', onPress: () => confirmReport('Harassment') },
+                { label: 'Spam or Scam', icon: 'mail-outline', onPress: () => confirmReport('Spam or Scam') },
+                { label: 'Impersonation', icon: 'person-outline', onPress: () => confirmReport('Impersonation') },
+                { label: 'Inappropriate Content', icon: 'image-outline', onPress: () => confirmReport('Inappropriate Content') },
+                { label: 'Other', icon: 'help-circle-outline', onPress: () => confirmReport('Other') },
+            ]);
+            setShowActionModal(true);
+        }, 300);
+    };
+
+    const confirmReport = async (reason: string) => {
+        setShowActionModal(false);
+        try {
+            const { submitReport } = await import('../../src/api/reports');
+            await submitReport({
+                target_type: 'user',
+                target_id: profile?.id || id as string,
+                reason: reason
+            });
+            showToast({ 
+                title: 'Report Submitted', 
+                message: 'Thank you for helping keep our community safe. Our team will review this report.', 
+                type: 'success' 
+            });
+        } catch (e) {
+            console.log('Report error', e);
+            Alert.alert('Error', 'Failed to submit report. Please try again.');
+        }
     };
 
     const confirmBlock = () => {
@@ -265,9 +310,9 @@ export default function UserProfileScreen() {
     };
 
     if (loading) return (
-        <View style={styles.loadingContainer}>
-            <Stack.Screen options={{ title: '', headerBackTitle: '' }} />
-            <ActivityIndicator size="small" color={colors.black} />
+        <View style={styles.container}>
+            <Stack.Screen options={{ title: '', headerBackTitle: '', headerShadowVisible: false }} />
+            <ShadowLoader type="profile" />
         </View>
     );
 
@@ -324,11 +369,11 @@ export default function UserProfileScreen() {
 
                         <View style={styles.statsRow}>
                             <View style={styles.statPill}>
-                                <Text style={styles.statNumber}>{content.length || 0}</Text>
+                                <Text style={styles.statNumber}>{activeTab === 'posts' ? content.length : (postsCount ?? 0)}</Text>
                                 <Text style={styles.statLabel}>Posts</Text>
                             </View>
                             <View style={styles.statPill}>
-                                <Text style={styles.statNumber}>{friendCount}</Text>
+                                <Text style={styles.statNumber}>{friendCount ?? 0}</Text>
                                 <Text style={styles.statLabel}>Friends</Text>
                             </View>
                             <TouchableOpacity style={styles.statPill} onPress={showScoreContext} activeOpacity={0.7}>
@@ -352,6 +397,15 @@ export default function UserProfileScreen() {
                         {profile?.bio ? (
                             <Text style={styles.bioText}>{profile.bio}</Text>
                         ) : null}
+
+                        {(profile?.department || profile?.year_of_study) && (
+                            <View style={styles.metaRow}>
+                                <Ionicons name="ribbon-outline" size={13} color={colors.gray500} />
+                                <Text style={styles.metaText}>
+                                    {profile.department}{profile.year_of_study ? ` • ${profile.year_of_study}` : ''}
+                                </Text>
+                            </View>
+                        )}
 
                         {(profile?.hometown || profile?.age || profile?.relationship_status) && (
                             <View style={styles.detailsRow}>
@@ -428,8 +482,11 @@ export default function UserProfileScreen() {
                                         <Text style={[styles.actionBtnText, { color: colors.black }]}>Message</Text>
                                     </TouchableOpacity>
                                 )}
-                                <TouchableOpacity style={styles.shareBtn} onPress={handleShareProfile}>
+                            </View>
+                            <View style={[styles.actionRow, { marginTop: 8 }]}>
+                                <TouchableOpacity style={[styles.actionBtn, styles.btnLight, { flex: 1, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
                                     <Ionicons name="share-outline" size={18} color={colors.black} />
+                                    <Text style={[styles.actionBtnText, { color: colors.black }]}>Share Profile</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -476,7 +533,7 @@ export default function UserProfileScreen() {
                                         activeTab === 'posts' ? 'camera-outline' :
                                         activeTab === 'events' ? 'calendar-outline' :
                                         activeTab === 'polls' ? 'stats-chart-outline' :
-                                        'briefcase-outline'
+                                        'cart-outline'
                                     }
                                     size={48}
                                     color={colors.gray300}
@@ -488,7 +545,7 @@ export default function UserProfileScreen() {
                                 if (activeTab === 'posts') return <PostCard key={item.id} post={item} hideNavigation={false} />;
                                 if (activeTab === 'events') return <EventCard key={item.id} event={item} />;
                                 if (activeTab === 'polls') return <PollCard key={item.id} poll={item} />;
-                                if (activeTab === 'jobs') return <JobCard key={item.id} job={item} />;
+                                if (activeTab === 'listings') return <MarketCard key={item.id} item={item} />;
                                 return null;
                             })
                         )}

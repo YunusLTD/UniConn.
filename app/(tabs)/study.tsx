@@ -98,8 +98,8 @@ export default function StudyScreen() {
             </View>
 
             {loading && page === 1 ? (
-                <View style={{ flex: 1, padding: spacing.md }}>
-                    <ShadowLoader />
+                <View style={{ flex: 1 }}>
+                    <ShadowLoader type="study" />
                 </View>
             ) : (
                 <FlatList

@@ -56,7 +56,11 @@ function RootLayoutNav() {
                 return;
             }
 
-            if (inAuthGroup || inOnboardingGroup || inSetupGroup || !segments[0]) {
+            // Only block redirect if they are on login screen AND DON'T have a token yet
+            const isAddingAccount = segments[0] === '(auth)' && (segments.length > 1 && segments[1] === 'login');
+            const shouldRedirect = (inAuthGroup && !isAddingAccount) || inOnboardingGroup || inSetupGroup || !segments[0];
+
+            if (shouldRedirect) {
                 router.replace('/(tabs)/home');
             }
         }

@@ -132,6 +132,26 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
 // ─── PostCard ───
 export default function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
     const router = useRouter();
+
+    const renderContentWithMentions = (content: string) => {
+        if (!content) return null;
+        const parts = content.split(/(@[\w.-]+)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('@')) {
+                const username = part.substring(1);
+                return (
+                    <Text
+                        key={index}
+                        style={{ color: colors.blue, fontFamily: fonts.semibold }}
+                        onPress={() => router.push(`/user/${username}`)}
+                    >
+                        {part}
+                    </Text>
+                );
+            }
+            return <Text key={index}>{part}</Text>;
+        });
+    };
     const { user } = useAuth();
     const [myVote, setMyVote] = useState<number | null>(post.my_vote);
     const [voteCount, setVoteCount] = useState<number>(post.vote_count || 0);
@@ -240,6 +260,17 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
         }
     };
 
+    const handleEdit = () => {
+        setActionVisible(false);
+        router.push({ 
+            pathname: '/create-post', 
+            params: { 
+                edit: 'true', 
+                postId: post.id 
+            } 
+        });
+    };
+
     const actionOptions: ActionOption[] = [
         { label: 'Share', icon: 'share-outline', onPress: handleShare },
         { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
@@ -247,7 +278,10 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     ];
 
     if (isOwner) {
-        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift(
+            { label: 'Edit Post', icon: 'create-outline', onPress: handleEdit },
+            { label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true }
+        );
     }
 
     const reportOptions: ActionOption[] = [
@@ -353,20 +387,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                     >
                         {post.content ? (
                             <Text style={styles.content}>
-                                {post.content.split(/(@\w+)/g).map((part: string, i: number) => {
-                                    if (part.startsWith('@')) {
-                                        return (
-                                            <Text
-                                                key={i}
-                                                style={{ color: '#007AFF', fontWeight: '600' }}
-                                                onPress={() => router.push(`/username/${part.slice(1)}` as any)}
-                                            >
-                                                {part}
-                                            </Text>
-                                        );
-                                    }
-                                    return <Text key={i}>{part}</Text>;
-                                })}
+                                {renderContentWithMentions(post.content)}
                             </Text>
                         ) : null}
                     </TouchableOpacity>

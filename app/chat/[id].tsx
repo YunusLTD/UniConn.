@@ -5,7 +5,7 @@ import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
-import { getMessages, sendMessage, getConversation, markConversationRead } from '../../src/api/messages';
+import { getMessages, sendMessage, getConversation, markConversationRead, deleteMessage } from '../../src/api/messages';
 import { uploadMultipleMedia } from '../../src/api/upload';
 import { markReadByReference } from '../../src/api/notifications';
 import { useNotifications } from '../../src/context/NotificationContext';
@@ -168,33 +168,39 @@ export default function ChatScreen() {
                     filter: `conversation_id=eq.${id}`,
                 },
                 (payload) => {
-                    console.log('Realtime: New message (DB Insert)', payload);
                     const newMessage = payload.new;
-                    if (newMessage.sender_id === user?.id) return; // Ignore our own inserts; sendMessage result handles it with joins
+                    if (newMessage.sender_id === user?.id) return;
                     
                     setMessages(prev => {
                         if (prev.find(m => m.id === newMessage.id)) return prev;
-                        
-                        // Map profile if missing (Realtime Insert doesn't have joins)
                         if (!newMessage.profiles) {
                             const member = members.find(m => m.user_id === newMessage.sender_id);
                             if (member) newMessage.profiles = member.profiles;
                         }
-                        
-                        // Map reply_to if missing (Realtime Insert lacks deep joins)
                         if (newMessage.reply_to_message_id && !newMessage.reply_to) {
                             const original = prev.find(m => m.id === newMessage.reply_to_message_id);
                             if (original) newMessage.reply_to = original;
                         }
-
                         return [...prev, newMessage];
                     });
                     setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
 
-                    // Mark as read immediately if current chat
                     if (newMessage.sender_id !== user?.id) {
                         markReadByReference('message', id as string).then(() => refreshUnreadCount()).catch(() => { });
                     }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${id}`,
+                },
+                (payload) => {
+                    const updatedMessage = payload.new;
+                    setMessages(prev => prev.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m));
                 }
             )
             .on(
@@ -357,6 +363,25 @@ export default function ChatScreen() {
         }
     };
 
+    const handleDeleteMessage = async (messageId: string) => {
+        try {
+            // Optimistic update
+            setMessages(prev => prev.map(m => 
+                m.id === messageId 
+                    ? { ...m, deleted_at: new Date().toISOString(), content: 'This message was deleted', media_url: null } 
+                    : m
+            ));
+            setShowingActions(null);
+            
+            await deleteMessage(messageId);
+        } catch (e) {
+            console.log('Error deleting message', e);
+            alert('Failed to delete message');
+            // Revert on error? Or just reload
+            loadMessages(conversation?.id || id as string);
+        }
+    };
+
     const handleInputChange = (text: string) => {
         setInput(text);
         
@@ -440,14 +465,32 @@ export default function ChatScreen() {
                     <TouchableOpacity
                         onPress={() => conversation?.type === 'direct' && otherParticipant?.user_id && router.push(`/user/${otherParticipant.user_id}`)}
                         activeOpacity={0.7}
-                        style={{ alignItems: 'center' }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
                     >
-                        <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.black }}>{displayName}</Text>
-                        {conversation?.type === 'direct' && (
-                            <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: isOnline ? '#34C759' : colors.gray500 }}>
-                                {getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
-                            </Text>
-                        )}
+                        {(() => {
+                            const avatarUrl = conversation?.type === 'direct' ? otherParticipant?.profiles?.avatar_url : (conversation?.communities?.[0]?.logo_url || conversation?.communities?.[0]?.image_url);
+                            if (avatarUrl) {
+                                return <Image source={{ uri: avatarUrl }} style={{ width: 32, height: 32, borderRadius: 16 }} />;
+                            }
+                            const initials = (() => {
+                                const parts = displayName.split(' ').filter((p: string) => p.length > 0);
+                                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+                                return displayName.substring(0, 2).toUpperCase();
+                            })();
+                            return (
+                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.black, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Text style={{ color: colors.white, fontSize: 13, fontFamily: fonts.bold }}>{initials}</Text>
+                                </View>
+                            );
+                        })()}
+                        <View style={{ alignItems: 'flex-start' }}>
+                            <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.black }} numberOfLines={1}>{displayName}</Text>
+                            {conversation?.type === 'direct' && (
+                                <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: isOnline ? '#34C759' : colors.gray500 }}>
+                                    {getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
+                                </Text>
+                            )}
+                        </View>
                     </TouchableOpacity>
                 ),
                 headerBackTitle: '',
@@ -459,20 +502,26 @@ export default function ChatScreen() {
                 data={messages}
                 keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => {
+                    const isDeleted = !!item.deleted_at;
                     const isMine = item.sender_id === user?.id;
                     const isReply = !!(item.reply_to && item.reply_to.id);
                     
                     const handleLongPress = () => {
+                        if (isDeleted) return; // Can't act on deleted messages
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                         setShowingActions(item);
                     };
 
                     const handleReply = (msg: any) => {
+                        if (msg.deleted_at) return;
                         setReplyTo(msg);
                         setTimeout(() => textInputRef.current?.focus(), 100);
                     };
 
-                    const renderContent = (content: string, isMine: boolean) => {
+                    const renderContent = (content: string, isMine: boolean, isDeleted: boolean) => {
+                        if (isDeleted) {
+                            return <Text style={styles.deletedText}>This message was deleted</Text>;
+                        }
                         if (!content) return null;
                         const parts = content.split(/(@\w+)/g);
                         return parts.map((part, i) => {
@@ -493,16 +542,20 @@ export default function ChatScreen() {
                     };
 
                     return (
-                        <SwipeableMessage onSwipe={() => handleReply(item)}>
+                        <SwipeableMessage onSwipe={() => !isDeleted && handleReply(item)}>
                             <View style={[styles.bubbleWrap, isMine ? styles.myBubbleWrap : styles.theirBubbleWrap]}>
                                 <TouchableOpacity 
                                     onLongPress={handleLongPress}
                                     delayLongPress={400}
-                                    activeOpacity={0.9}
-                                    style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble]}
+                                    activeOpacity={isDeleted ? 1 : 0.9}
+                                    style={[
+                                        styles.bubble, 
+                                        isMine ? styles.myBubble : styles.theirBubble,
+                                        isDeleted && styles.deletedBubble
+                                    ]}
                                 >
                                 {!isMine && conversation?.type === 'group' && (
-                                    <TouchableOpacity onPress={() => item.sender_id && router.push(`/user/${item.sender_id}`)}>
+                                    <TouchableOpacity onPress={() => !isDeleted && item.sender_id && router.push(`/user/${item.sender_id}`)}>
                                         <Text style={styles.senderName}>{item.profiles?.name}</Text>
                                     </TouchableOpacity>
                                 )}
@@ -529,9 +582,9 @@ export default function ChatScreen() {
                                     )
                                 )}
 
-                                {!!item.content && (
-                                    <Text style={[styles.messageText, isMine && styles.myText]}>
-                                        {renderContent(item.content, isMine)}
+                                {!!(item.content || isDeleted) && (
+                                    <Text style={[styles.messageText, isMine && styles.myText, isDeleted && styles.deletedText]}>
+                                        {renderContent(item.content, isMine, isDeleted)}
                                     </Text>
                                 )}
 
@@ -688,6 +741,9 @@ export default function ChatScreen() {
                         setTimeout(() => textInputRef.current?.focus(), 100);
                     } },
                     { label: 'Copy Text', icon: 'copy-outline', onPress: () => { if(showingActions.content) Clipboard.setString(showingActions.content); setShowingActions(null); } },
+                    ...(showingActions?.sender_id === user?.id ? [
+                        { label: 'Delete Message', icon: 'trash-outline', destructive: true, onPress: () => handleDeleteMessage(showingActions.id) }
+                    ] : []),
                 ]}
                 title="Message Options"
             />
@@ -708,6 +764,8 @@ const styles = StyleSheet.create({
     theirBubble: { backgroundColor: colors.white, borderBottomLeftRadius: 4, borderWidth: 0.5, borderColor: colors.gray100 },
     messageText: { fontFamily: fonts.regular, fontSize: 15, color: colors.black, lineHeight: 21 },
     myText: { color: colors.white },
+    deletedText: { fontStyle: 'italic', color: colors.gray400 },
+    deletedBubble: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.gray200 },
     mention: { color: '#00A3FF', fontFamily: fonts.bold },
     myMention: { color: colors.white, fontFamily: fonts.bold },
     senderName: { fontFamily: fonts.bold, fontSize: 11, color: colors.gray500, marginBottom: 4 },

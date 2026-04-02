@@ -25,6 +25,7 @@ export default function LoginScreen() {
             const response = await loginApi({ email, password });
             if (response?.data?.token) {
                 await login(response.data.token, response.data.user);
+                router.replace('/(tabs)/home');
             }
         } catch (error: any) {
             Alert.alert('Login Failed', error.message || 'Something went wrong');
@@ -35,15 +36,22 @@ export default function LoginScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.headerRight}>
-                <TouchableOpacity style={styles.headerItem} hitSlop={8}>
-                    <Ionicons name="globe-outline" size={20} color={colors.gray500} />
-                    <Text style={styles.headerText}>EN</Text>
-                </TouchableOpacity>
-                <View style={[styles.dividerVertical, { marginHorizontal: 12 }]} />
-                <TouchableOpacity style={styles.headerItem} hitSlop={8}>
-                    <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
-                </TouchableOpacity>
+            <View style={styles.topHeader}>
+                {router.canGoBack() ? (
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+                        <Ionicons name="arrow-back" size={24} color={colors.black} />
+                    </TouchableOpacity>
+                ) : <View />}
+                <View style={styles.headerRight}>
+                    <TouchableOpacity style={styles.headerItem} hitSlop={8}>
+                        <Ionicons name="globe-outline" size={20} color={colors.gray500} />
+                        <Text style={styles.headerText}>EN</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.dividerVertical, { marginHorizontal: 12 }]} />
+                    <TouchableOpacity style={styles.headerItem} hitSlop={8}>
+                        <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <KeyboardAvoidingView
@@ -141,8 +149,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
+    },
+    topHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: spacing.xl,
         paddingTop: spacing.md,
+    },
+    backBtn: {
+        padding: 4,
     },
     headerItem: {
         flexDirection: 'row',

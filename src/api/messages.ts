@@ -38,3 +38,9 @@ export const markConversationRead = async (id: string) => {
         method: 'POST',
     });
 };
+
+export const deleteMessage = async (messageId: string) => {
+    return await apiFetch(`/messages/message/${messageId}`, {
+        method: 'DELETE',
+    });
+};

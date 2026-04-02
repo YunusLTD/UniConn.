@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../src/constants/theme';
 import { getConversations } from '../src/api/messages';
@@ -41,7 +41,15 @@ export default function MessagesScreen() {
                 const otherParticipant = item.participants?.find((p: any) => p.user_id !== user?.id);
                 const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
                 const rawDisplayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : item.name || 'Group';
-                const displayName = rawDisplayName.replace(/Community/gi, '').replace(/University/gi, '').trim();
+                // Clean up community names: remove emoji prefixes and common suffixes
+                const displayName = rawDisplayName
+                    .replace(/[💬]/g, '')
+                    .replace(/Community/gi, '')
+                    .replace(/University/gi, '')
+                    .replace(/\(Chat\)/gi, '')
+                    .replace(/\(Community Chat\)/gi, '')
+                    .trim();
+                const avatarUrl = item.type === 'direct' ? otherParticipant?.profiles?.avatar_url : item.community?.image_url;
                 
                 const initials = (() => {
                     const parts = displayName.split(' ').filter((p: string) => p.length > 0);
@@ -57,7 +65,11 @@ export default function MessagesScreen() {
                     >
                         <View>
                             <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{initials}</Text>
+                                {avatarUrl ? (
+                                    <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+                                ) : (
+                                    <Text style={styles.avatarText}>{initials}</Text>
+                                )}
                             </View>
                             {isOnline && <View style={styles.onlineBadge} />}
                         </View>
@@ -116,6 +128,11 @@ const styles = StyleSheet.create({
         backgroundColor: colors.gray900,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+    },
+    avatarImg: {
+        width: '100%',
+        height: '100%',
     },
     avatarText: {
         fontFamily: fonts.semibold,

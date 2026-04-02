@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, FlatList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, FlatList, DeviceEventEmitter } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../src/constants/theme';
 import { getMyCommunities, createCommunity } from '../src/api/communities';
-import { createPost } from '../src/api/posts';
+import { createPost, getPost, updatePost } from '../src/api/posts';
 import { createEvent } from '../src/api/events';
 import { createJob } from '../src/api/jobs';
 import { createMarketplaceListing } from '../src/api/marketplace';
@@ -55,16 +55,37 @@ export default function CreatePostModal() {
     const [attachments, setAttachments] = useState<{ uri: string, type: 'image' | 'video' }[]>([]);
 
     useEffect(() => {
-        const loadMyComms = async () => {
+        const loadInitialData = async () => {
             try {
-                const res = await getMyCommunities();
-                if (res?.data) {
-                    setCommunities(res.data);
+                // 1. Load communities
+                const commRes = await getMyCommunities();
+                if (commRes?.data) {
+                    setCommunities(commRes.data);
+                }
+
+                // 2. If editing, load the post
+                if (params.edit === 'true' && params.postId) {
+                    const postRes = await getPost(params.postId as string);
+                    if (postRes?.data) {
+                        const post = postRes.data;
+                        setContent(post.content || '');
+                        setCreationType('post'); // For now only editing regular posts
+                        
+                        if (commRes?.data) {
+                            const comm = commRes.data.find((c: any) => c.id === post.community_id);
+                            if (comm) {
+                                setSelectedCommunity(comm);
+                                loadMembers(comm.id);
+                            }
+                        }
+                    }
+                } else if (commRes?.data) {
+                    // Default selection for new posts
                     let target = null;
                     if (params.communityId) {
-                        target = res.data.find((c: any) => c.id === params.communityId);
-                    } else if (res.data.length > 0) {
-                        target = res.data[0];
+                        target = commRes.data.find((c: any) => c.id === params.communityId);
+                    } else if (commRes.data.length > 0) {
+                        target = commRes.data[0];
                     }
                     if (target) {
                         setSelectedCommunity(target);
@@ -72,13 +93,13 @@ export default function CreatePostModal() {
                     }
                 }
             } catch (error) {
-                console.error('Failed to load communities:', error);
+                console.error('Failed to load initial data:', error);
             } finally {
                 setLoading(false);
             }
         };
-        loadMyComms();
-    }, [params.communityId]);
+        loadInitialData();
+    }, [params.communityId, params.edit, params.postId]);
 
     const loadMembers = async (communityId: string) => {
         try {
@@ -132,7 +153,11 @@ export default function CreatePostModal() {
 
             if (creationType === 'post') {
                 if (!content.trim() && attachments.length === 0) throw new Error('Content or media is required');
-                await createPost(selectedCommunity.id, { content: content.trim(), media_urls, media_types });
+                if (params.edit === 'true' && params.postId) {
+                    await updatePost(params.postId as string, { content: content.trim() });
+                } else {
+                    await createPost(selectedCommunity.id, { content: content.trim(), media_urls, media_types });
+                }
             } else if (creationType === 'event') {
                 if (!eventTitle.trim()) throw new Error('Title is required');
                 await createEvent(selectedCommunity.id, {
@@ -163,6 +188,7 @@ export default function CreatePostModal() {
                     options: validOptions.map(o => o.trim()),
                 });
             }
+            DeviceEventEmitter.emit('postCreated');
             router.back();
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to create');
@@ -213,7 +239,8 @@ export default function CreatePostModal() {
         if (field === 'content') setContent(text);
         else if (field === 'poll') setPollQuestion(text);
 
-        const lastWord = text.split(' ').pop();
+        // Detect tagging in current field
+        const lastWord = text.split(/\s/).pop();
         if (lastWord?.startsWith('@')) {
             setTaggingSearch(lastWord.substring(1));
             setTaggingRefInput(field);
@@ -237,7 +264,12 @@ export default function CreatePostModal() {
     };
 
     const filteredMembers = taggingSearch !== null 
-        ? members.filter(m => m.profiles?.username?.toLowerCase().includes(taggingSearch.toLowerCase()))
+        ? members.filter(m => {
+            const search = taggingSearch.toLowerCase();
+            const username = m.profiles?.username?.toLowerCase() || '';
+            const name = m.profiles?.name?.toLowerCase() || '';
+            return username.includes(search) || name.includes(search);
+        }).slice(0, 8)
         : [];
 
     return (
@@ -247,7 +279,7 @@ export default function CreatePostModal() {
                     <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>New {creationType === 'study' ? 'Mini Community' : creationType === 'market' ? 'Listing' : creationType}</Text>
+                    <Text style={styles.headerTitle}>{params.edit === 'true' ? 'Edit' : 'New'} {creationType === 'study' ? 'Mini Community' : creationType === 'market' ? 'Listing' : creationType}</Text>
                     <TouchableOpacity
                         style={[styles.postBtn, posting && { opacity: 0.5 }]}
                         onPress={handlePost}
@@ -257,7 +289,9 @@ export default function CreatePostModal() {
                         {posting ? (
                             <ActivityIndicator size="small" color={colors.white} />
                         ) : (
-                            <Text style={styles.postBtnText}>{creationType === 'post' ? 'Share' : 'Launch'}</Text>
+                            <Text style={styles.postBtnText}>
+                                {params.edit === 'true' ? 'Save' : (creationType === 'post' ? 'Share' : 'Launch')}
+                            </Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -304,31 +338,14 @@ export default function CreatePostModal() {
                     </View>
                 )}
 
-                {taggingSearch !== null && filteredMembers.length > 0 && (
-                    <View style={styles.taggingList}>
-                        <FlatList
-                            data={filteredMembers}
-                            keyExtractor={m => m.profiles.id}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username)}>
-                                    <Image source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
-                                    <View>
-                                        <Text style={styles.tagName}>{item.profiles.name}</Text>
-                                        <Text style={styles.tagUsername}>@{item.profiles.username}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-                            keyboardShouldPersistTaps="always"
-                        />
-                    </View>
-                )}
 
-                <View style={styles.typeBar}>
+                <View style={[styles.typeBar, params.edit === 'true' && { opacity: 0.5 }]}>
                     {TYPES.map(t => (
                         <TouchableOpacity
                             key={t.key}
                             style={[styles.typeBtn, creationType === t.key && styles.typeBtnActive]}
-                            onPress={() => setCreationType(t.key)}
+                            onPress={() => !params.edit && setCreationType(t.key)}
+                            disabled={!!params.edit}
                         >
                             <Ionicons name={t.icon as any} size={16} color={creationType === t.key ? colors.white : colors.gray500} />
                             {creationType === t.key && <Text style={styles.typeLabel}>{t.label}</Text>}
@@ -340,6 +357,29 @@ export default function CreatePostModal() {
                     {creationType === 'post' && (
                         <View style={{ flex: 1 }}>
                             <TextInput style={styles.mainInput} placeholder="What's on your mind?" placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            {taggingSearch !== null && filteredMembers.length > 0 && (
+                                <View style={styles.taggingList}>
+                                    {filteredMembers.map((item) => (
+                                        <TouchableOpacity 
+                                            key={item.profiles.id}
+                                            style={styles.memberTag} 
+                                            onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}
+                                        >
+                                            {item.profiles.avatar_url ? (
+                                                <Image source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
+                                            ) : (
+                                                <View style={[styles.tagAvatar, { backgroundColor: colors.gray200, justifyContent: 'center', alignItems: 'center' }]}>
+                                                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.gray600 }}>{item.profiles.name?.[0]?.toUpperCase() || '?'}</Text>
+                                                </View>
+                                            )}
+                                            <View>
+                                                <Text style={styles.tagName}>{item.profiles.name}</Text>
+                                                {item.profiles.username && <Text style={styles.tagUsername}>@{item.profiles.username}</Text>}
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
                             {attachments.length > 0 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
                                     {attachments.map((item, index) => (
@@ -495,10 +535,20 @@ const styles = StyleSheet.create({
     addOptionText: { fontFamily: fonts.medium, fontSize: 14, color: colors.gray500 },
 
     taggingList: {
-        maxHeight: 200,
+        marginHorizontal: spacing.lg,
+        marginTop: -16, // Pull it up closer to the cursor/input
+        maxHeight: 220,
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray100
+        borderRadius: radii.md,
+        borderWidth: 1,
+        borderColor: colors.gray200,
+        overflow: 'hidden',
+        // Subtle depth
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 3,
     },
     memberTag: {
         flexDirection: 'row',

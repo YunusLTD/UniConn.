@@ -43,6 +43,10 @@ export const addComment = async (id: string, content: string, parent_id?: string
     });
 };
 
+export const deleteComment = async (postId: string, commentId: string) => {
+    return await apiFetch(`/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+};
+
 export const updatePost = async (id: string, data: any) => {
     return await apiFetch(`/posts/${id}`, {
         method: 'PATCH',

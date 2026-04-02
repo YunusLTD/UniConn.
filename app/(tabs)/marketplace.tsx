@@ -141,7 +141,7 @@ export default function MarketplaceScreen() {
     const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity 
             style={styles.itemCard}
-            onPress={() => router.push(`/marketplace/${item.id}`)}
+            onPress={() => router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } })}
             activeOpacity={0.9}
         >
             <TouchableOpacity 

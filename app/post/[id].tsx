@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../src/constants/theme';
-import { getPost, getComments, addComment } from '../../src/api/posts';
+import { getPost, getComments, addComment, deleteComment } from '../../src/api/posts';
 import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../../src/components/PostCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { getCommunityMembers } from '../../src/api/communities';
+import { useAuth } from '../../src/context/AuthContext';
+import { Alert } from 'react-native';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -22,6 +24,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function PostScreen() {
+    const { user } = useAuth();
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [post, setPost] = useState<any>(null);
@@ -53,10 +56,16 @@ export default function PostScreen() {
     };
 
     const loadMembers = async (communityId: string) => {
+        if (!communityId) return;
         try {
             const res = await getCommunityMembers(communityId);
-            if (res?.data) setMembers(res.data);
-        } catch (e) {}
+            if (res?.data) {
+                console.log('Loaded members for tagging:', res.data.length);
+                setMembers(res.data);
+            }
+        } catch (e) {
+            console.log('Failed to load members for tagging', e);
+        }
     };
 
     useEffect(() => { loadData(); }, [id]);
@@ -89,6 +98,26 @@ export default function PostScreen() {
         return flattenTree(roots);
     };
 
+    const renderContentWithMentions = (content: string) => {
+        if (!content) return null;
+        const parts = content.split(/(@\w+)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('@')) {
+                const username = part.substring(1);
+                return (
+                    <Text
+                        key={index}
+                        style={{ color: colors.blue, fontFamily: fonts.semibold }}
+                        onPress={() => router.push(`/user/${username}`)}
+                    >
+                        {part}
+                    </Text>
+                );
+            }
+            return <Text key={index}>{part}</Text>;
+        });
+    };
+
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
         setSubmitting(true);
@@ -114,10 +143,30 @@ export default function PostScreen() {
         setReplyingTo(null);
     };
 
+    const handleDeleteComment = (commentId: string) => {
+        Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+                text: 'Delete', 
+                style: 'destructive', 
+                onPress: async () => {
+                    try {
+                        await deleteComment(id as string, commentId);
+                        const commentRes = await getComments(id as string);
+                        if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+                    } catch (e) {
+                        Alert.alert('Error', 'Failed to delete comment');
+                    }
+                } 
+            }
+        ]);
+    };
+
     const handleInputChange = (text: string) => {
         setNewComment(text);
-        const lastWord = text.split(' ').pop();
-        if (lastWord?.startsWith('@')) {
+        const parts = text.split(/\s/);
+        const lastWord = parts[parts.length - 1];
+        if (lastWord.startsWith('@')) {
             setTaggingSearch(lastWord.substring(1));
         } else {
             setTaggingSearch(null);
@@ -125,15 +174,20 @@ export default function PostScreen() {
     };
 
     const handleSelectTag = (username: string) => {
-        const parts = newComment.split(' ');
-        parts.pop();
-        const newVal = parts.join(' ') + (parts.length > 0 ? ' ' : '') + '@' + username + ' ';
-        setNewComment(newVal);
+        const words = newComment.split(' ');
+        words.pop(); // Remove the partial tag
+        const prefix = words.length > 0 ? words.join(' ') + ' ' : '';
+        setNewComment(prefix + '@' + username + ' ');
         setTaggingSearch(null);
     };
 
     const filteredMembers = taggingSearch !== null 
-        ? members.filter(m => m.profiles?.username?.toLowerCase().includes(taggingSearch.toLowerCase()))
+        ? members.filter(m => {
+            const search = taggingSearch.toLowerCase();
+            const username = m.profiles?.username?.toLowerCase() || '';
+            const name = m.profiles?.name?.toLowerCase() || '';
+            return username.includes(search) || name.includes(search);
+        }).slice(0, 8)
         : [];
 
     return (
@@ -171,20 +225,27 @@ export default function PostScreen() {
                                         <Text style={[styles.commentAvatarText, item.depth > 0 && { fontSize: 10 }]}>{initial}</Text>
                                     )}
                                 </TouchableOpacity>
-                                <View style={styles.commentBody}>
+                                <TouchableOpacity 
+                                    style={styles.commentBody} 
+                                    onLongPress={() => item.user_id === user?.id && handleDeleteComment(item.id)}
+                                    activeOpacity={0.7}
+                                    delayLongPress={500}
+                                >
                                     <View style={styles.commentHeader}>
                                         <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
                                             <Text style={styles.commentAuthor}>{item.profiles?.name || 'Unknown'}</Text>
                                         </TouchableOpacity>
                                         <Text style={styles.commentTime}>{timeAgo(item.created_at)}</Text>
                                     </View>
-                                    <Text style={styles.commentContent}>{item.content}</Text>
+                                    <Text style={styles.commentContent}>
+                                        {renderContentWithMentions(item.content)}
+                                    </Text>
                                     <View style={styles.commentActions}>
                                         <TouchableOpacity onPress={() => handleReply(item.id, item.profiles?.name || 'Unknown')}>
                                             <Text style={styles.replyBtnText}>Reply</Text>
                                         </TouchableOpacity>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             </View>
                         );
                     }}
@@ -214,11 +275,17 @@ export default function PostScreen() {
                                 data={filteredMembers}
                                 keyExtractor={m => m.profiles.id}
                                 renderItem={({ item }) => (
-                                    <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username)}>
-                                        <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
+                                    <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}>
+                                        {item.profiles.avatar_url ? (
+                                            <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
+                                        ) : (
+                                            <View style={[styles.tagAvatar, { backgroundColor: colors.gray200, justifyContent: 'center', alignItems: 'center' }]}>
+                                                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.gray600 }}>{item.profiles.name?.[0]?.toUpperCase() || '?'}</Text>
+                                            </View>
+                                        )}
                                         <View>
                                             <Text style={styles.tagName}>{item.profiles.name}</Text>
-                                            <Text style={styles.tagUsername}>@{item.profiles.username}</Text>
+                                            {item.profiles.username && <Text style={styles.tagUsername}>@{item.profiles.username}</Text>}
                                         </View>
                                     </TouchableOpacity>
                                 )}
@@ -404,10 +471,19 @@ const styles = StyleSheet.create({
     },
 
     taggingList: {
-        maxHeight: 200,
+        position: 'absolute',
+        bottom: '100%',
+        left: 0,
+        right: 0,
+        maxHeight: 250,
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray100
+        borderTopWidth: 1,
+        borderTopColor: colors.gray100,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 10,
     },
     memberTag: {
         flexDirection: 'row',
