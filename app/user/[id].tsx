@@ -402,7 +402,8 @@ export default function UserProfileScreen() {
                             <View style={styles.metaRow}>
                                 <Ionicons name="ribbon-outline" size={13} color={colors.gray500} />
                                 <Text style={styles.metaText}>
-                                    {profile.department}{profile.year_of_study ? ` • ${profile.year_of_study}` : ''}
+                                    {profile.department}
+                                    {profile.year_of_study ? ` • Class of ${profile.year_of_study.split(',')[0].trim()}` : ''}
                                 </Text>
                             </View>
                         )}

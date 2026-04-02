@@ -203,7 +203,7 @@ export default function ProfileScreen() {
                                 {profile?.year_of_study && (
                                     <View style={styles.detailPill}>
                                         <Ionicons name="school-outline" size={12} color={colors.gray500} />
-                                        <Text style={styles.detailText}>Class of {profile.year_of_study}</Text>
+                                        <Text style={styles.detailText}>Class of {profile.year_of_study.split(',')[0].trim()}</Text>
                                     </View>
                                 )}
                             </View>
