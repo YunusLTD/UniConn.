@@ -457,7 +457,38 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
             {/* Image Viewer Modal */}
             <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
-                ...
+                <View style={styles.viewerContainer}>
+                    <SafeAreaView style={styles.viewerSafeArea}>
+                        <View style={styles.viewerHeader}>
+                            <TouchableOpacity onPress={() => setViewerVisible(false)} style={styles.viewerClose}>
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
+                            {media.length > 1 && (
+                                <Text style={styles.viewerCount}>{viewerIndex + 1} / {media.length}</Text>
+                            )}
+                        </View>
+                        <FlatList
+                            data={media}
+                            renderItem={({ item, index }) => (
+                                <MediaViewerItem url={item} type={media_types[index]} />
+                            )}
+                            keyExtractor={(_, i) => i.toString()}
+                            horizontal
+                            pagingEnabled
+                            initialScrollIndex={viewerIndex}
+                            getItemLayout={(_, index) => ({
+                                length: width,
+                                offset: width * index,
+                                index,
+                            })}
+                            onMomentumScrollEnd={(e) => {
+                                const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+                                setViewerIndex(newIndex);
+                            }}
+                            showsHorizontalScrollIndicator={false}
+                        />
+                    </SafeAreaView>
+                </View>
             </Modal>
 
             {/* Actions Bottom Sheet */}
