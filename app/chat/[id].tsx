@@ -43,7 +43,7 @@ const SwipeableMessage = ({ children, onSwipe }: any) => {
                 }
             },
             onPanResponderRelease: (_, gesture) => {
-                if (gesture.dx > 40) {
+                if (gesture.dx > 30 || (gesture.dx > 10 && gesture.vx > 0.5)) {
                     onSwipe();
                 }
                 hapticTriggered.current = false;
@@ -438,6 +438,7 @@ export default function ChatScreen() {
     const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
     const rawDisplayName = conversation?.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : conversation?.name || 'Group';
     const displayName = rawDisplayName.replace(/Community/gi, '').replace(/University/gi, '').trim();
+    const isPlatform = otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform';
 
     if (loading) {
         return <ShadowLoader type="chat" />;
@@ -486,10 +487,15 @@ export default function ChatScreen() {
                             );
                         })()}
                         <View style={{ alignItems: 'flex-start' }}>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.black }} numberOfLines={1}>{displayName}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.black }} numberOfLines={1}>{displayName}</Text>
+                                {isPlatform && (
+                                    <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
+                                )}
+                            </View>
                             {conversation?.type === 'direct' && (
                                 <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: isOnline ? '#34C759' : colors.gray500 }}>
-                                    {getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
+                                    {isPlatform ? 'System Account' : getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
                                 </Text>
                             )}
                         </View>
@@ -504,26 +510,21 @@ export default function ChatScreen() {
                 data={messages}
                 keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => {
-                    const isDeleted = !!item.deleted_at;
+                    if (item.deleted_at) return null;
                     const isMine = item.sender_id === user?.id;
                     const isReply = !!(item.reply_to && item.reply_to.id);
                     
                     const handleLongPress = () => {
-                        if (isDeleted) return; // Can't act on deleted messages
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                         setShowingActions(item);
                     };
 
                     const handleReply = (msg: any) => {
-                        if (msg.deleted_at) return;
                         setReplyTo(msg);
                         setTimeout(() => textInputRef.current?.focus(), 100);
                     };
 
-                    const renderContent = (content: string, isMine: boolean, isDeleted: boolean) => {
-                        if (isDeleted) {
-                            return <Text style={styles.deletedText}>This message was deleted</Text>;
-                        }
+                    const renderContent = (content: string, isMine: boolean) => {
                         if (!content) return null;
                         const parts = content.split(/(@\w+)/g);
                         return parts.map((part, i) => {
@@ -544,20 +545,19 @@ export default function ChatScreen() {
                     };
 
                     return (
-                        <SwipeableMessage onSwipe={() => !isDeleted && handleReply(item)}>
+                        <SwipeableMessage onSwipe={() => handleReply(item)}>
                             <View style={[styles.bubbleWrap, isMine ? styles.myBubbleWrap : styles.theirBubbleWrap]}>
                                 <TouchableOpacity 
                                     onLongPress={handleLongPress}
                                     delayLongPress={400}
-                                    activeOpacity={isDeleted ? 1 : 0.9}
+                                    activeOpacity={0.9}
                                     style={[
                                         styles.bubble, 
                                         isMine ? styles.myBubble : styles.theirBubble,
-                                        isDeleted && styles.deletedBubble
                                     ]}
                                 >
                                 {!isMine && conversation?.type === 'group' && (
-                                    <TouchableOpacity onPress={() => !isDeleted && item.sender_id && router.push(`/user/${item.sender_id}`)}>
+                                    <TouchableOpacity onPress={() => item.sender_id && router.push(`/user/${item.sender_id}`)}>
                                         <Text style={styles.senderName}>{item.profiles?.name}</Text>
                                     </TouchableOpacity>
                                 )}
@@ -584,9 +584,9 @@ export default function ChatScreen() {
                                     )
                                 )}
 
-                                {!!(item.content || isDeleted) && (
-                                    <Text style={[styles.messageText, isMine && styles.myText, isDeleted && styles.deletedText]}>
-                                        {renderContent(item.content, isMine, isDeleted)}
+                                {!!item.content && (
+                                    <Text style={[styles.messageText, isMine && styles.myText]}>
+                                        {renderContent(item.content, isMine)}
                                     </Text>
                                 )}
 
@@ -695,25 +695,35 @@ export default function ChatScreen() {
                 )}
 
                 <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-                    <TouchableOpacity onPress={pickMedia} style={styles.attachBtn}>
-                        <Ionicons name="camera-outline" size={24} color={colors.gray500} />
-                    </TouchableOpacity>
-                    <View style={styles.inputContainer}>
-                        <TextInput
-                            ref={textInputRef}
-                            style={[styles.input, { maxHeight: 120 }]}
-                            placeholder="Message..."
-                            value={input}
-                            onChangeText={handleInputChange}
-                            multiline
-                        />
-                    </View>
-                    <TouchableOpacity
-                        style={[styles.sendBtn, !input.trim() && !mediaUri && styles.sendBtnDisabled]}
-                        onPress={handleSend}
-                    >
-                        <Ionicons name="arrow-up" size={20} color={colors.white} />
-                    </TouchableOpacity>
+                    {isPlatform ? (
+                        <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}>
+                            <View style={styles.platformNotice}>
+                                <Text style={styles.platformNoticeText}>This is a system-only account. You cannot reply to this message.</Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <>
+                            <TouchableOpacity onPress={pickMedia} style={styles.attachBtn}>
+                                <Ionicons name="camera-outline" size={24} color={colors.gray500} />
+                            </TouchableOpacity>
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    ref={textInputRef}
+                                    style={[styles.input, { maxHeight: 120 }]}
+                                    placeholder="Message..."
+                                    value={input}
+                                    onChangeText={handleInputChange}
+                                    multiline
+                                />
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.sendBtn, !input.trim() && !mediaUri && styles.sendBtnDisabled]}
+                                onPress={handleSend}
+                            >
+                                <Ionicons name="arrow-up" size={20} color={colors.white} />
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </KeyboardAvoidingView>
 
@@ -886,5 +896,26 @@ const styles = StyleSheet.create({
         left: 20,
         marginTop: -10,
         zIndex: -1,
+    },
+    platformNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.gray50,
+        padding: 14,
+        borderRadius: radii.lg,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: colors.gray100,
+        marginHorizontal: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    platformNoticeText: {
+        flex: 1,
+        fontFamily: fonts.medium,
+        fontSize: 13,
+        color: colors.gray600,
+        lineHeight: 18,
+        textAlign: 'center',
     },
 });

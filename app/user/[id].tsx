@@ -7,7 +7,7 @@ import { getUserPosts } from '../../src/api/posts';
 import { getUserEvents } from '../../src/api/events';
 import { getUserPolls } from '../../src/api/polls';
 import { getUserMarketplaceListings } from '../../src/api/marketplace';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { sendFriendRequest, getFriendshipStatus, getFriendsCount, removeFriend } from '../../src/api/friends';
 import PostCard from '../../src/components/PostCard';
@@ -48,6 +48,7 @@ export default function UserProfileScreen() {
     const [actionOptions, setActionOptions] = useState<any[]>([]);
     const router = useRouter();
     const { showToast } = useToast();
+    const isSelf = currentUser?.id === profile?.id;
 
     const isUUID = (str: string) => {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -202,7 +203,7 @@ export default function UserProfileScreen() {
         if (!currentUser) return;
         try {
             const { createConversation } = await import('../../src/api/messages');
-            const res = await createConversation({ type: 'direct', participant_ids: [id as string] });
+            const res = await createConversation({ type: 'direct', participant_ids: [profile?.id || (id as string)] });
             if (res?.data?.id) {
                 router.push(`/chat/${res.data.id}`);
             }
@@ -344,7 +345,7 @@ export default function UserProfileScreen() {
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: colors.white },
                 headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16 },
-                headerRight: () => currentUser?.id !== id ? (
+                headerRight: () => !isSelf && profile ? (
                     <TouchableOpacity onPress={handleProfileOptions} style={{ padding: 8 }}>
                         <Ionicons name="ellipsis-horizontal" size={22} color={colors.black} />
                     </TouchableOpacity>
@@ -383,9 +384,18 @@ export default function UserProfileScreen() {
                         </View>
                     </View>
 
-                    {/* Name & bio */}
                     <View style={styles.bioSection}>
-                        <Text style={styles.displayName}>{profile?.name || 'User Name'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.displayName}>{profile?.name || 'User Name'}</Text>
+                            {(profile?.is_admin || profile?.name === 'UniConn Platform') && (
+                                <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
+                            )}
+                            {isSelf && (
+                                <View style={styles.selfBadge}>
+                                    <Text style={styles.selfBadgeText}>YOU</Text>
+                                </View>
+                            )}
+                        </View>
                         
                         {profile?.universities?.name && (
                             <View style={styles.metaRow}>
@@ -453,35 +463,42 @@ export default function UserProfileScreen() {
                     ) : (
                         <>
                             <View style={styles.actionRow}>
-                                {currentUser?.id !== id && (
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.actionBtn,
-                                            friendStatus === 'none' ? styles.btnPrimary :
-                                            friendStatus === 'pending' ? styles.btnMuted :
-                                            styles.btnLight
-                                        ]}
-                                        onPress={handleFriendAction}
-                                        disabled={sendingRequest}
+                                {isSelf ? (
+                                    <TouchableOpacity 
+                                        style={[styles.actionBtn, styles.btnLight, { flex: 1 }]} 
+                                        onPress={() => router.push('/edit-profile')}
                                     >
-                                        {sendingRequest ? (
-                                            <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.black} />
-                                        ) : (
-                                            <Text style={[
-                                                styles.actionBtnText,
-                                                friendStatus !== 'none' && { color: colors.black }
-                                            ]}>
-                                                {friendStatus === 'accepted' ? 'Friends' :
-                                                 friendStatus === 'pending' ? 'Requested' :
-                                                 'Connect'}
-                                            </Text>
-                                        )}
+                                        <Text style={[styles.actionBtnText, { color: colors.black }]}>Edit Profile</Text>
                                     </TouchableOpacity>
-                                )}
-                                {currentUser?.id !== id && (
-                                    <TouchableOpacity style={[styles.actionBtn, styles.btnLight]} onPress={handleMessage}>
-                                        <Text style={[styles.actionBtnText, { color: colors.black }]}>Message</Text>
-                                    </TouchableOpacity>
+                                ) : (
+                                    <>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.actionBtn,
+                                                friendStatus === 'none' ? styles.btnPrimary :
+                                                friendStatus === 'pending' ? styles.btnMuted :
+                                                styles.btnLight
+                                            ]}
+                                            onPress={handleFriendAction}
+                                            disabled={sendingRequest}
+                                        >
+                                            {sendingRequest ? (
+                                                <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.black} />
+                                            ) : (
+                                                <Text style={[
+                                                    styles.actionBtnText,
+                                                    friendStatus !== 'none' && { color: colors.black }
+                                                ]}>
+                                                    {friendStatus === 'accepted' ? 'Friends' :
+                                                    friendStatus === 'pending' ? 'Requested' :
+                                                    'Connect'}
+                                                </Text>
+                                            )}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.actionBtn, styles.btnLight]} onPress={handleMessage}>
+                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>Message</Text>
+                                        </TouchableOpacity>
+                                    </>
                                 )}
                             </View>
                             <View style={[styles.actionRow, { marginTop: 8 }]}>
@@ -646,8 +663,20 @@ const styles = StyleSheet.create({
     },
     displayName: {
         fontFamily: fonts.bold,
-        fontSize: 15,
+        fontSize: 16,
         color: colors.black,
+    },
+    selfBadge: {
+        backgroundColor: colors.gray100,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    selfBadgeText: {
+        fontFamily: fonts.bold,
+        fontSize: 10,
+        color: colors.gray600,
+        letterSpacing: 0.5,
     },
     metaRow: {
         flexDirection: 'row',

@@ -44,7 +44,14 @@ function RootLayoutNav() {
             const status = user?.profile?.status || 'approved';
             const hasUniversity = !!user?.profile?.university_id;
 
-            if (status === 'rejected' || status === 'banned') {
+            if (status === 'banned') {
+                if (segments[0] !== 'banned') {
+                    router.replace('/banned');
+                }
+                return;
+            }
+
+            if (status === 'rejected') {
                 if (segments[segments.length - 1] !== 'verification-pending') {
                     router.replace('/(auth)/verification-pending');
                 }
@@ -125,6 +132,10 @@ function RootLayoutNav() {
                 <Stack.Screen
                     name="marketplace/community/[id]"
                     options={{ title: 'Marketplace' }}
+                />
+                <Stack.Screen
+                    name="banned"
+                    options={{ headerShown: false }}
                 />
                 <Stack.Screen
                     name="chat/[id]"

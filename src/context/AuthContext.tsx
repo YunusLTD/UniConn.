@@ -15,6 +15,8 @@ type User = {
         university_id?: string;
         username?: string;
         avatar_url?: string;
+        ban_reason?: string;
+        banned_until?: string;
     } | null;
 };
 

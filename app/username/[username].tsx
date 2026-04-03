@@ -85,7 +85,14 @@ export default function UserProfileScreen() {
                     )}
                 </View>
 
-                <Text style={styles.name}>{profile.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.name}>{profile.name}</Text>
+                    {isSelf && (
+                        <View style={styles.selfBadge}>
+                            <Text style={styles.selfBadgeText}>YOU</Text>
+                        </View>
+                    )}
+                </View>
                 <Text style={styles.username}>@{profile.username}</Text>
 
                 {profile.bio && (
@@ -100,24 +107,32 @@ export default function UserProfileScreen() {
                 )}
             </View>
 
-            {!isSelf && (
                 <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={styles.messageBtn}
-                        onPress={handleMessage}
-                        disabled={startingChat}
-                    >
-                        {startingChat ? (
-                            <ActivityIndicator size="small" color={colors.white} />
-                        ) : (
-                            <>
-                                <Ionicons name="chatbubble-outline" size={20} color={colors.white} />
-                                <Text style={styles.messageBtnText}>Message</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                    {isSelf ? (
+                        <TouchableOpacity
+                            style={styles.editBtn}
+                            onPress={() => router.push('/edit-profile')}
+                        >
+                            <Ionicons name="create-outline" size={20} color={colors.black} />
+                            <Text style={styles.editBtnText}>Edit Profile</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.messageBtn}
+                            onPress={handleMessage}
+                            disabled={startingChat}
+                        >
+                            {startingChat ? (
+                                <ActivityIndicator size="small" color={colors.white} />
+                            ) : (
+                                <>
+                                    <Ionicons name="chatbubble-outline" size={20} color={colors.white} />
+                                    <Text style={styles.messageBtnText}>Message</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
                 </View>
-            )}
         </ScrollView>
     );
 }
@@ -144,4 +159,18 @@ const styles = StyleSheet.create({
     actions: { paddingHorizontal: spacing.lg },
     messageBtn: { backgroundColor: colors.black, height: 50, borderRadius: radii.full, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
     messageBtnText: { fontFamily: fonts.bold, fontSize: 16, color: colors.white },
+    editBtn: { backgroundColor: colors.gray100, height: 50, borderRadius: radii.full, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+    editBtnText: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
+    selfBadge: {
+        backgroundColor: colors.gray100,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    selfBadgeText: {
+        fontFamily: fonts.bold,
+        fontSize: 10,
+        color: colors.gray600,
+        letterSpacing: 0.5,
+    },
 });

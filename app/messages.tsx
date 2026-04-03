@@ -4,7 +4,7 @@ import { useRouter, Stack } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../src/constants/theme';
 import { getConversations } from '../src/api/messages';
 import { useAuth } from '../src/context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../src/components/ShadowLoader';
 
 export default function MessagesScreen() {
@@ -74,7 +74,12 @@ export default function MessagesScreen() {
                             {isOnline && <View style={styles.onlineBadge} />}
                         </View>
                         <View style={styles.info}>
-                            <Text style={styles.name}>{displayName}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <Text style={styles.name}>{displayName}</Text>
+                                {(otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform') && (
+                                    <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
+                                )}
+                            </View>
                             <Text style={styles.lastMsg} numberOfLines={1}>
                                 {item.last_message
                                     ? (item.last_message.content || (item.last_message.media_type === 'video' ? '🎥 Video' : '📷 Photo'))

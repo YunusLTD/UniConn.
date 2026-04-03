@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, SafeAreaView, FlatList, Animated, Share, Clipboard } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { votePost, deletePost } from '../api/posts';
 import { submitReport } from '../api/reports';
@@ -347,8 +347,14 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                     <View style={styles.authorRow}>
                         <View style={{ flex: 1 }}>
                             <View style={styles.nameRow}>
-                                <TouchableOpacity onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}>
+                                <TouchableOpacity 
+                                    onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                                >
                                     <Text style={styles.name}>{post.profiles?.name || 'Anonymous'}</Text>
+                                    {(post.profiles?.is_admin || post.profiles?.name === 'UniConn Platform') && (
+                                        <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
+                                    )}
                                 </TouchableOpacity>
                                 {isOwner && (
                                     <View style={styles.youBadge}>
