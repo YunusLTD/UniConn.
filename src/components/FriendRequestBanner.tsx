@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
         paddingTop: spacing.sm,
         paddingBottom: spacing.xs,
         backgroundColor: colors.background,
+        marginBottom: spacing.sm,
     },
     content: {
         backgroundColor: '#F3F4F6', // Lighter gray for a sub-menu feel

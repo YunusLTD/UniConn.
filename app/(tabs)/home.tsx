@@ -96,11 +96,7 @@ export default function HomeScreen() {
                 data={posts}
                 keyExtractor={item => `${item.feed_type}_${item.id}`}
                 renderItem={renderItem}
-                ListHeaderComponent={
-                    <View style={{ marginBottom: spacing.md }}>
-                        <FriendRequestBanner />
-                    </View>
-                }
+                ListHeaderComponent={<FriendRequestBanner />}
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
                 onEndReached={handleLoadMore}
