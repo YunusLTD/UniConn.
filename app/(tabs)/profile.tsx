@@ -23,6 +23,7 @@ import { Modal } from 'react-native';
 import { getUserStories } from '../../src/api/stories';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings' | 'settings';
@@ -37,6 +38,7 @@ const TABS: { key: TabType, icon: string }[] = [
 export default function ProfileScreen() {
     const { logout, user, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
     const { theme, setTheme, colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -149,14 +151,11 @@ export default function ProfileScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             {/* Native Header equivalent */}
-            <TouchableOpacity
-                style={[styles.navHeader, { borderBottomColor: colors.border }]}
-                onPress={() => setShowAccountSwitcher(true)}
-                activeOpacity={0.7}
+            <View
+                style={[styles.navHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}
             >
                 <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || 'Profile')}</Text>
-                <Ionicons name="chevron-down" size={14} color={colors.black} style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
+            </View>
 
             <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
                 {/* IG-style header */}
@@ -172,10 +171,10 @@ export default function ProfileScreen() {
                         >
                             {storyEvent ? (
                                 <LinearGradient
-                                    colors={['#A154F2', '#9CA3AF', '#000000']}
+                                    colors={['#A154F2', '#3B82F6', isDark ? colors.gray50 : colors.gray100]}
                                     style={styles.gradientBorder}
                                 >
-                                    <View style={[styles.avatar, { backgroundColor: colors.surface, borderColor: colors.background }]}>
+                                    <View style={[styles.avatar, { backgroundColor: colors.background, borderColor: colors.background }]}>
                                         {profile?.avatar_url ? (
                                             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                                         ) : (
@@ -197,11 +196,11 @@ export default function ProfileScreen() {
                         <View style={styles.statsRow}>
                             <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.posts_count || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Posts</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('posts')}</Text>
                             </View>
                             <TouchableOpacity style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push('/friends/list')} activeOpacity={0.7}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.friends_count || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Friends</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends')}</Text>
                             </TouchableOpacity>
                             <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
@@ -215,7 +214,7 @@ export default function ProfileScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text style={[styles.displayName, { color: colors.black }]}>{profile?.name || 'User Name'}</Text>
                             {profile?.campus_rank && (
-                                <TouchableOpacity style={styles.campusRankBadge} onPress={() => setShowRankModal(true)}>
+                                <TouchableOpacity style={[styles.campusRankBadge, { backgroundColor: isDark ? '#3D1B21' : '#FFEBF0' }]} onPress={() => setShowRankModal(true)}>
                                     <Text style={styles.campusRankText}>#{profile.campus_rank}</Text>
                                 </TouchableOpacity>
                             )}
@@ -275,21 +274,21 @@ export default function ProfileScreen() {
                     {/* Action Buttons */}
                     <View style={styles.actionRow}>
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.gray800 : colors.gray200 }]}
+                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
                             onPress={() => router.push('/edit-profile')}
                         >
-                            <Text style={[styles.actionBtnText, { color: colors.black }]}>Edit Profile</Text>
+                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('edit_profile')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.gray800 : colors.gray200 }]}
+                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
                             onPress={() => setShowQRModal(true)}
                         >
-                            <Text style={[styles.actionBtnText, { color: colors.black }]}>Share profile</Text>
+                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Segmented Pill Tab Bar */}
-                    <View style={[styles.tabsContainer, { backgroundColor: colors.surface }]}>
+                    <View style={styles.tabsContainer}>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -298,7 +297,11 @@ export default function ProfileScreen() {
                             {TABS.map(({ key, icon }) => (
                                 <TouchableOpacity
                                     key={key}
-                                    style={[styles.tabPill, activeTab === key && [styles.activeTabPill, { backgroundColor: colors.black, shadowColor: colors.black }]]}
+                                    style={[
+                                        styles.tabPill, 
+                                        { backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50) },
+                                        activeTab === key && styles.activeTabPill
+                                    ]}
                                     onPress={() => setActiveTab(key)}
                                     activeOpacity={0.7}
                                 >
@@ -475,51 +478,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
             </Modal>
 
-            {/* Account Switcher Modal */}
-            <Modal visible={showAccountSwitcher} transparent animationType="slide" onRequestClose={() => setShowAccountSwitcher(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAccountSwitcher(false)}>
-                    <View style={[styles.modalContent, { paddingBottom: 60, backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>Switch Account</Text>
-                            <TouchableOpacity onPress={() => setShowAccountSwitcher(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
 
-                        {savedAccounts.map((acc) => (
-                            <TouchableOpacity
-                                key={acc.id}
-                                style={[styles.accountItem, { borderBottomColor: colors.border }]}
-                                onPress={() => handleAccountSwitch(acc.id)}
-                            >
-                                <View style={styles.accountInfo}>
-                                    <View style={[styles.smallAvatar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                        {acc.avatar_url ? (
-                                            <Image source={{ uri: acc.avatar_url }} style={styles.avatarImg} />
-                                        ) : (
-                                            <Text style={[styles.smallAvatarText, { color: colors.gray600 }]}>{acc.name[0].toUpperCase()}</Text>
-                                        )}
-                                    </View>
-                                    <View style={{ marginLeft: 12 }}>
-                                        <Text style={[styles.accountName, { color: colors.black }]}>{acc.name || acc.username || 'User'}</Text>
-                                        <Text style={[styles.accountUsername, { color: colors.gray500 }]}>@{acc.username || 'user'}</Text>
-                                    </View>
-                                </View>
-                                {user?.id === acc.id && (
-                                    <Ionicons name="checkmark-circle" size={24} color={colors.black} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-
-                        <TouchableOpacity style={styles.addAccountBtn} onPress={handleAddAccount}>
-                            <View style={[styles.addAccountIcon, { borderColor: colors.border }]}>
-                                <Ionicons name="add" size={20} color={colors.gray600} />
-                            </View>
-                            <Text style={[styles.addAccountText, { color: colors.gray600 }]}>Add Account</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
 
             <ProfileQRModal
                 visible={showQRModal}
@@ -564,7 +523,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
     },
     gradientBorder: {
-        width: 124, height: 124, borderRadius: 62,
+        width: 120, height: 120, borderRadius: 60,
         padding: 4, justifyContent: 'center', alignItems: 'center',
     },
     avatar: {

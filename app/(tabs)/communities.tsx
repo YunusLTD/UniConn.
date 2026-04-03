@@ -8,6 +8,7 @@ import { searchUsers } from '../../src/api/users';
 import { sendFriendRequest, getFriendshipStatus } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 type ExploreTab = 'communities' | 'students';
 
@@ -21,6 +22,7 @@ export default function CommunitiesScreen() {
     const [activeTab, setActiveTab] = useState<ExploreTab>('communities');
     const [friendStatuses, setFriendStatuses] = useState<Record<string, string>>({});
     const router = useRouter();
+    const { t } = useLanguage();
 
     const loadData = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -110,7 +112,7 @@ export default function CommunitiesScreen() {
                         </View>
                         <Text style={[styles.cardType, { color: colors.gray500 }]} numberOfLines={1}>
                             {item.is_private && <Ionicons name="lock-closed" size={11} color={colors.gray400} />}
-                            {item.is_private ? ' ' : ''}{item.member_count || 0} members
+                            {item.is_private ? ' ' : ''}{item.member_count || 0} {t('members_count')}
                         </Text>
                     </View>
                 </View>
@@ -131,9 +133,9 @@ export default function CommunitiesScreen() {
 
         const getButtonConfig = () => {
             switch (friendStatus) {
-                case 'accepted': return { label: 'Friends', icon: 'checkmark-circle' as const, style: [styles.friendsBtnActive] };
-                case 'pending': return { label: 'Requested', icon: 'time-outline' as const, style: [styles.friendsBtnPending, { backgroundColor: colors.gray50, borderColor: colors.gray200 }] };
-                default: return { label: 'Add Friend', icon: 'person-add-outline' as const, style: [styles.friendsBtn, { backgroundColor: colors.black }] };
+                case 'accepted': return { label: t('friends_label'), icon: 'checkmark-circle' as const, style: [styles.friendsBtnActive] };
+                case 'pending': return { label: t('requested_label'), icon: 'time-outline' as const, style: [styles.friendsBtnPending, { backgroundColor: colors.gray50, borderColor: colors.gray200 }] };
+                default: return { label: t('add_friend_label'), icon: 'person-add-outline' as const, style: [styles.friendsBtn, { backgroundColor: colors.black }] };
             }
         };
         const btnConfig = getButtonConfig();
@@ -184,7 +186,7 @@ export default function CommunitiesScreen() {
                     <Ionicons name="search" size={18} color={colors.gray400} />
                     <TextInput
                         style={[styles.searchInput, { color: colors.black }]}
-                        placeholder={activeTab === 'communities' ? "Search communities..." : "Search students by name or department"}
+                        placeholder={activeTab === 'communities' ? t('search_communities_placeholder') : t('search_students_placeholder')}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         placeholderTextColor={colors.gray400}
@@ -201,13 +203,13 @@ export default function CommunitiesScreen() {
                         style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.black }]}
                         onPress={() => setActiveTab('communities')}
                     >
-                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'communities' && { color: colors.black }]}>Communities</Text>
+                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'communities' && { color: colors.black }]}>{t('communities_tab')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'students' && { borderBottomColor: colors.black }]}
                         onPress={() => setActiveTab('students')}
                     >
-                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'students' && { color: colors.black }]}>Students</Text>
+                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'students' && { color: colors.black }]}>{t('students_tab')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -240,7 +242,7 @@ export default function CommunitiesScreen() {
                 ListHeaderComponent={
                     activeTab === 'communities' ? (
                         <View style={styles.headerSection}>
-                            <Text style={[styles.headerSubtitle, { color: colors.gray500 }]}>Discover & join communities</Text>
+                            <Text style={[styles.headerSubtitle, { color: colors.gray500 }]}>{t('discover_communities')}</Text>
                             <View style={styles.actionRow}>
                                 <TouchableOpacity
                                     style={[styles.createBtn, { backgroundColor: colors.black, flex: 1 }]}
@@ -248,7 +250,7 @@ export default function CommunitiesScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <Ionicons name="add" size={18} color={colors.white} />
-                                    <Text style={[styles.createBtnText, { color: colors.white }]}>Start New Community</Text>
+                                    <Text style={[styles.createBtnText, { color: colors.white }]}>{t('start_new_community')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -270,10 +272,10 @@ export default function CommunitiesScreen() {
                                 style={{ marginBottom: spacing.md }}
                             />
                             <Text style={[styles.emptyTitle, { color: colors.black }]}>
-                                {activeTab === 'communities' ? "No communities yet" : "No students found"}
+                                {activeTab === 'communities' ? t('no_communities_yet') : t('no_students_found')}
                             </Text>
                             <Text style={[styles.emptySub, { color: colors.gray500 }]}>
-                                {activeTab === 'communities' ? "Be the first to start one!" : "Try a different search term"}
+                                {activeTab === 'communities' ? t('be_the_first') : t('try_different_search')}
                             </Text>
                         </View>
                     )

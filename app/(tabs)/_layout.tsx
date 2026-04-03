@@ -6,6 +6,7 @@ import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { hapticLight, hapticSelection } from '../../src/utils/haptics';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 const TAB_HEIGHT = Platform.OS === 'ios' ? 80 : 62;
 
@@ -45,6 +46,7 @@ function getIcons(isDark: boolean) {
 export default function TabLayout() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const { activityUnreadCount, messageUnreadCount, pulseUnreadCount } = useNotifications();
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const ICONS = getIcons(isDark);
@@ -188,7 +190,7 @@ export default function TabLayout() {
                 <Tabs.Screen
                     name="home"
                     options={{
-                        title: 'Feed',
+                        title: t('feed'),
                         headerRight: feedHeaderRight,
                         tabBarIcon: ({ focused }) => (
                             <TabIcon name="home" focused={focused} />
@@ -199,7 +201,7 @@ export default function TabLayout() {
                 <Tabs.Screen
                     name="communities"
                     options={{
-                        title: 'Explore',
+                        title: t('explore'),
                         tabBarIcon: ({ focused }) => (
                             <TabIcon name="community" focused={focused} />
                         ),
@@ -209,7 +211,7 @@ export default function TabLayout() {
                 <Tabs.Screen
                     name="marketplace"
                     options={{
-                        title: 'Marketplace',
+                        title: t('marketplace'),
                         tabBarIcon: ({ focused }) => (
                             <TabIcon name="market" focused={focused} />
                         ),
@@ -219,7 +221,7 @@ export default function TabLayout() {
                 <Tabs.Screen
                     name="study"
                     options={{
-                        title: ' Study',
+                        title: t('study'),
                         tabBarIcon: ({ focused }) => (
                             <TabIcon name="study" focused={focused} />
                         ),
@@ -229,7 +231,7 @@ export default function TabLayout() {
                 <Tabs.Screen
                     name="profile"
                     options={{
-                        title: 'Profile',
+                        title: t('profile'),
                         headerShown: false,
                         tabBarIcon: ({ focused }) => (
                             <TabIcon name="profile" focused={focused} />
@@ -258,7 +260,7 @@ export default function TabLayout() {
                 >
                     <View style={[s.sheet, { backgroundColor: colors.surface }]}>
                         <View style={[s.sheetHandle, { backgroundColor: colors.gray300 }]} />
-                        <Text style={[s.sheetTitle, { color: colors.black }]}>Create</Text>
+                        <Text style={[s.sheetTitle, { color: colors.black }]}>{t('create')}</Text>
 
                         <TouchableOpacity
                             style={[s.sheetOption, { borderTopColor: colors.border }]}
@@ -268,8 +270,8 @@ export default function TabLayout() {
                                 <Ionicons name="document-text-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>New Post</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>Share with your campus</Text>
+                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_post')}</Text>
+                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('share_with_campus')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
                         </TouchableOpacity>
@@ -282,8 +284,8 @@ export default function TabLayout() {
                                 <Ionicons name="calendar-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>New Event</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>Organize campus activities</Text>
+                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_event')}</Text>
+                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('organize_activities')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
                         </TouchableOpacity>
@@ -296,8 +298,8 @@ export default function TabLayout() {
                                 <Ionicons name="cart-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>Sell or Request Item</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>List on marketplace</Text>
+                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('sell_request')}</Text>
+                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('list_on_market')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
                         </TouchableOpacity>
@@ -310,8 +312,8 @@ export default function TabLayout() {
                                 <Ionicons name="school-outline" size={24} color={colors.black} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>Ask Question</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>Get homework help</Text>
+                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('ask_question')}</Text>
+                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('get_homework_help')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
                         </TouchableOpacity>

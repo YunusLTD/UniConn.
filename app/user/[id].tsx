@@ -23,6 +23,7 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 import { getUserStories } from '../../src/api/stories';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings';
 
@@ -35,6 +36,7 @@ const TABS: { key: TabType, icon: string }[] = [
 
 export default function UserProfileScreen() {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const { id } = useLocalSearchParams();
     const { user: currentUser } = useAuth();
     const [profile, setProfile] = useState<any>(null);
@@ -352,9 +354,9 @@ export default function UserProfileScreen() {
 
     if (profile === null || profile === undefined) return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Stack.Screen options={{ title: 'Profile' }} />
+            <Stack.Screen options={{ title: t('profile') || 'Profile' }} />
             <View style={styles.centered}>
-                <Text style={[styles.errorText, { color: colors.gray500 }]}>User profile not found</Text>
+                <Text style={[styles.errorText, { color: colors.gray500 }]}>{t('profile_not_found')}</Text>
             </View>
         </View>
     );
@@ -376,7 +378,7 @@ export default function UserProfileScreen() {
                 title: profile?.username ? `@${profile.username}` : '',
                 headerBackTitle: '',
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: colors.surface },
+                headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.black,
                 headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
                 headerRight: () => !isSelf && profile ? (
@@ -401,7 +403,7 @@ export default function UserProfileScreen() {
                         >
                             {storyEvent ? (
                                 <LinearGradient
-                                    colors={['#A154F2', '#9CA3AF', '#000000']}
+                                    colors={['#A154F2', '#3B82F6', isDark ? colors.gray50 : colors.gray100]}
                                     style={styles.gradientBorder}
                                 >
                                     <View style={styles.avatar}>
@@ -426,15 +428,15 @@ export default function UserProfileScreen() {
                         <View style={styles.statsRow}>
                             <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{activeTab === 'posts' ? content.length : (postsCount ?? 0)}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Posts</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('posts') || 'Posts'}</Text>
                             </View>
                             <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{friendCount ?? 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Friends</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends_label')}</Text>
                             </View>
                             <TouchableOpacity style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showScoreContext} activeOpacity={0.7}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Score</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('score_label')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -451,7 +453,7 @@ export default function UserProfileScreen() {
                                 <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
                             )}
                             {isSelf && (
-                                <View style={[styles.selfBadge, { backgroundColor: colors.surface }]}>
+                                <View style={[styles.selfBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
                                     <Text style={[styles.selfBadgeText, { color: colors.gray600 }]}>YOU</Text>
                                 </View>
                             )}
@@ -507,16 +509,16 @@ export default function UserProfileScreen() {
                         <View style={styles.blockedCard}>
                             <Ionicons name="ban-outline" size={36} color={colors.gray400} style={{ marginBottom: 12 }} />
                             <Text style={styles.blockedTitle}>
-                                {profile?.is_blocked_by_me ? 'User Blocked' : 'Profile Unavailable'}
+                                {profile?.is_blocked_by_me ? t('user_blocked') : t('profile_unavailable')}
                             </Text>
                             <Text style={styles.blockedDesc}>
                                 {profile?.is_blocked_by_me
-                                    ? `You have blocked ${profile?.name}. Unblock them to interact.`
-                                    : 'You cannot view this user\u2019s content.'}
+                                    ? t('block_desc_me')
+                                    : t('block_desc_other')}
                             </Text>
                             {profile?.is_blocked_by_me && (
                                 <TouchableOpacity style={styles.unblockBtn} onPress={confirmUnblock}>
-                                    <Text style={styles.unblockBtnText}>Unblock</Text>
+                                    <Text style={styles.unblockBtnText}>{t('unblock_label')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -525,10 +527,10 @@ export default function UserProfileScreen() {
                             <View style={styles.actionRow}>
                                 {isSelf ? (
                                     <TouchableOpacity
-                                        style={[styles.actionBtn, { backgroundColor: isDark ? colors.gray100 : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
+                                        style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
                                         onPress={() => router.push('/edit-profile')}
                                     >
-                                        <Text style={[styles.actionBtnText, { color: colors.black }]}>Edit Profile</Text>
+                                        <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('edit_profile')}</Text>
                                     </TouchableOpacity>
                                 ) : (
                                     <>
@@ -536,8 +538,8 @@ export default function UserProfileScreen() {
                                             style={[
                                                 styles.actionBtn,
                                                 friendStatus === 'none' ? { backgroundColor: colors.black } :
-                                                    friendStatus === 'pending' ? { backgroundColor: isDark ? colors.gray100 : colors.gray200 } :
-                                                        { backgroundColor: isDark ? colors.gray100 : colors.gray200, borderWidth: 1, borderColor: colors.border }
+                                                    friendStatus === 'pending' ? { backgroundColor: isDark ? colors.surface : colors.gray200 } :
+                                                        { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }
                                             ]}
                                             onPress={handleFriendAction}
                                             disabled={sendingRequest}
@@ -549,22 +551,22 @@ export default function UserProfileScreen() {
                                                     styles.actionBtnText,
                                                     { color: friendStatus === 'none' ? colors.white : colors.black }
                                                 ]}>
-                                                    {friendStatus === 'accepted' ? 'Friends' :
-                                                        friendStatus === 'pending' ? 'Requested' :
-                                                            'Connect'}
+                                                    {friendStatus === 'accepted' ? t('friends_label') :
+                                                        friendStatus === 'pending' ? t('requested_label') :
+                                                            t('connect_label')}
                                                 </Text>
                                             )}
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.gray100 : colors.gray200, borderWidth: 1, borderColor: colors.border }]} onPress={handleMessage}>
-                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>Message</Text>
+                                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]} onPress={handleMessage}>
+                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('message_label')}</Text>
                                         </TouchableOpacity>
                                     </>
                                 )}
                             </View>
                             <View style={[styles.actionRow, { marginTop: 8 }]}>
-                                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.gray100 : colors.gray200, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
+                                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
                                     <Ionicons name="share-outline" size={18} color={colors.black} />
-                                    <Text style={[styles.actionBtnText, { color: colors.black }]}>Share Profile</Text>
+                                    <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile_label')}</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -581,7 +583,7 @@ export default function UserProfileScreen() {
                                             key={key}
                                             style={[
                                                 styles.tabPill,
-                                                { backgroundColor: activeTab === key ? colors.black : (isDark ? colors.gray100 : colors.gray50) },
+                                                { backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50) },
                                                 activeTab === key && styles.activeTabPill
                                             ]}
                                             onPress={() => setActiveTab(key)}
@@ -593,7 +595,10 @@ export default function UserProfileScreen() {
                                                 color={activeTab === key ? colors.white : colors.gray500}
                                             />
                                             <Text style={[styles.tabLabel, { color: activeTab === key ? colors.white : colors.gray500 }]}>
-                                                {key.charAt(0).toUpperCase() + key.slice(1)}
+                                                {key === 'posts' ? (t('post_tab' as any) || 'Posts') :
+                                                 key === 'events' ? (t('event_tab' as any) || 'Events') :
+                                                 key === 'polls' ? (t('poll_tab' as any) || 'Polls') :
+                                                 (t('market_tab' as any) || 'Market')}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
@@ -620,7 +625,7 @@ export default function UserProfileScreen() {
                                     size={48}
                                     color={colors.gray300}
                                 />
-                                <Text style={[styles.emptyTitle, { color: colors.gray500 }]}>No {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Yet</Text>
+                                <Text style={[styles.emptyTitle, { color: colors.gray500 }]}>{t('no_content_yet')}</Text>
                             </View>
                         ) : (
                             content.map((item) => {
@@ -648,10 +653,10 @@ export default function UserProfileScreen() {
 
             {/* Rank Modal */}
             <Modal visible={showRankModal} transparent animationType="fade" onRequestClose={() => setShowRankModal(false)}>
-                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowRankModal(false)}>
+                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowRankModal(false)}>
                     <View style={{ backgroundColor: colors.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24, minHeight: 400 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.black }}>Campus Pioneer Rank</Text>
+                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.black }}>{t('campus_rank_label')}</Text>
                             <TouchableOpacity onPress={() => setShowRankModal(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
@@ -682,7 +687,7 @@ export default function UserProfileScreen() {
     errorText: { fontFamily: fonts.regular, fontSize: 16 },
     header: {
         paddingHorizontal: spacing.lg,
-        paddingTop: 0,
+        paddingTop: 20,
     },
     topRow: {
         flexDirection: 'row',
@@ -693,7 +698,7 @@ export default function UserProfileScreen() {
         justifyContent: 'center', alignItems: 'center',
     },
     gradientBorder: {
-        width: 124, height: 124, borderRadius: 62,
+        width: 120, height: 120, borderRadius: 62,
         padding: 4, justifyContent: 'center', alignItems: 'center',
     },
     avatar: {

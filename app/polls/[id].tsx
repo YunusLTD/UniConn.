@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getPolls, voteInPoll } from '../../src/api/polls';
@@ -24,10 +24,23 @@ export default function PollsScreen() {
         catch (e: any) { Alert.alert('Error', e.message); }
     };
 
-    if (loading) return <View style={styles.centered}><ActivityIndicator size="small" color={colors.black} /></View>;
+    if (loading) return (
+        <View style={[styles.centered, { backgroundColor: colors.background }]}>
+            <Stack.Screen options={{ title: 'Polls', headerBackTitle: '', headerShadowVisible: false, headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.black }} />
+            <ActivityIndicator size="small" color={colors.black} />
+        </View>
+    );
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <Stack.Screen options={{ 
+                title: 'Polls',
+                headerBackTitle: '',
+                headerShadowVisible: false,
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.black,
+                headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16, color: colors.black }
+            }} />
             <FlatList
                 data={polls}
                 keyExtractor={item => item.id.toString()}

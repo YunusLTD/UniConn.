@@ -7,9 +7,13 @@ import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLanguage } from '../../src/context/LanguageContext';
+import LanguageDropdown from '../../src/components/LanguageDropdown';
 
 export default function LoginScreen() {
     const { colors, isDark } = useTheme();
+    const { t, language, setLanguage } = useLanguage();
+    const [showLanguagePicker, setShowLanguagePicker] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -44,16 +48,25 @@ export default function LoginScreen() {
                         <Ionicons name="arrow-back" size={24} color={colors.black} />
                     </TouchableOpacity>
                 ) : <View />}
-                <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.headerItem} hitSlop={8}>
+                 <View style={styles.headerRight}>
+                    <TouchableOpacity 
+                        style={styles.headerItem} 
+                        hitSlop={8}
+                        onPress={() => setShowLanguagePicker(true)}
+                    >
                         <Ionicons name="globe-outline" size={20} color={colors.gray500} />
-                        <Text style={[styles.headerText, { color: colors.gray500 }]}>EN</Text>
+                        <Text style={[styles.headerText, { color: colors.gray500 }]}>{language.toUpperCase()}</Text>
                     </TouchableOpacity>
                     <View style={[styles.dividerVertical, { marginHorizontal: 12, backgroundColor: colors.gray200 }]} />
                     <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                         <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
                     </TouchableOpacity>
                 </View>
+
+                <LanguageDropdown 
+                    visible={showLanguagePicker} 
+                    onClose={() => setShowLanguagePicker(false)} 
+                />
             </View>
 
             <KeyboardAvoidingView
@@ -69,15 +82,15 @@ export default function LoginScreen() {
                             </View>
                         </View>
 
-                        <Text style={[styles.title, { color: colors.black }]}>Welcome Back</Text>
-                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>Log in to access your campus network.</Text>
+                        <Text style={[styles.title, { color: colors.black }]}>{t('welcome')}</Text>
+                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>{t('login_subtitle')}</Text>
 
                         {/* Form */}
                         <View style={styles.form}>
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: colors.black }]}>Email</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>{t('email')}</Text>
                                 <TextInput
-                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: isDark ? '#000000' : colors.black, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}
                                     placeholder="name@gmail.com"
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
@@ -88,10 +101,10 @@ export default function LoginScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: colors.black }]}>Password</Text>
-                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}>
+                                <Text style={[styles.label, { color: colors.black }]}>{t('password')}</Text>
+                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}>
                                     <TextInput
-                                        style={[styles.passwordInput, { color: colors.black }]}
+                                        style={[styles.passwordInput, { color: isDark ? '#000000' : colors.black }]}
                                         placeholder="••••••••"
                                         placeholderTextColor={colors.gray400}
                                         secureTextEntry={!showPassword}
@@ -109,19 +122,19 @@ export default function LoginScreen() {
                             </View>
 
                             <TouchableOpacity style={styles.forgotBtn}>
-                                <Text style={[styles.forgotText, { color: colors.gray400 }]}>Forgot password?</Text>
+                                <Text style={[styles.forgotText, { color: colors.gray400 }]}>{t('forgot_password')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.submitBtn, { backgroundColor: colors.black }, loading && { opacity: 0.8 }]}
+                                style={[styles.submitBtn, { backgroundColor: isDark ? '#FFFFFF' : colors.black }, loading && { opacity: 0.8 }]}
                                 onPress={handleLogin}
                                 disabled={loading}
                                 activeOpacity={0.9}
                             >
                                 {loading ? (
-                                    <ActivityIndicator color={colors.white} size="small" />
+                                    <ActivityIndicator color={isDark ? '#000000' : colors.white} size="small" />
                                 ) : (
-                                    <Text style={[styles.submitText, { color: colors.white }]}>Log In</Text>
+                                    <Text style={[styles.submitText, { color: isDark ? '#000000' : colors.white }]}>{t('login')}</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -129,9 +142,9 @@ export default function LoginScreen() {
                         {/* Footer */}
                         <View style={[styles.footer, { borderTopColor: colors.gray100 }]}>
                             <View style={styles.footerRow}>
-                                <Text style={[styles.footerText, { color: colors.gray500 }]}>Don’t have an account? </Text>
+                                <Text style={[styles.footerText, { color: colors.gray500 }]}>{t('no_account')}</Text>
                                 <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                                    <Text style={[styles.footerAction, { color: colors.black }]}>Apply for access</Text>
+                                    <Text style={[styles.footerAction, { color: colors.black }]}>{t('apply_access')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

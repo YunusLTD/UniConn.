@@ -10,18 +10,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - spacing.lg * 2 - 12) / 2;
-
-const CATEGORIES = [
-    { id: 'all', label: 'All', icon: 'apps-outline' as const },
-    { id: 'books', label: 'Books', icon: 'book-outline' as const },
-    { id: 'clothes', label: 'Clothes', icon: 'shirt-outline' as const },
-    { id: 'accessories', label: 'Accessories', icon: 'watch-outline' as const },
-    { id: 'free', label: 'Free', icon: 'gift-outline' as const },
-    { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' as const },
-];
 
 export default function MarketplaceScreen() {
     const { colors } = useTheme();
@@ -37,6 +29,16 @@ export default function MarketplaceScreen() {
     
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { t } = useLanguage();
+
+    const CATEGORIES = [
+        { id: 'all', label: t('all_subjects'), icon: 'apps-outline' as const },
+        { id: 'books', label: 'Books', icon: 'book-outline' as const },
+        { id: 'clothes', label: 'Clothes', icon: 'shirt-outline' as const },
+        { id: 'accessories', label: 'Accessories', icon: 'watch-outline' as const },
+        { id: 'free', label: t('free_badge'), icon: 'gift-outline' as const },
+        { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' as const },
+    ];
 
     const loadData = async (isRefresh = false) => {
         if (!isRefresh) setLoading(true);
@@ -81,19 +83,19 @@ export default function MarketplaceScreen() {
                     style={[styles.tab, activeType === 'all' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('all')}
                 >
-                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'all' && { color: colors.black }]}>All Listings</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'all' && { color: colors.black }]}>{t('all_listings')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeType === 'sell' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('sell')}
                 >
-                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'sell' && { color: colors.black }]}>For Sale</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'sell' && { color: colors.black }]}>{t('for_sale')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeType === 'request' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('request')}
                 >
-                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'request' && { color: colors.black }]}>Requests</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'request' && { color: colors.black }]}>{t('requests_tab')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -125,7 +127,7 @@ export default function MarketplaceScreen() {
 
             <View style={styles.filterRow}>
                 <Text style={[styles.resultsText, { color: colors.gray500 }]}>
-                    {items.length} {activeType === 'request' ? 'Requests' : 'Items'}
+                    {items.length} {activeType === 'request' ? t('requests_tab') : t('items_count')}
                 </Text>
                 <TouchableOpacity 
                     style={[styles.filterBtn, { backgroundColor: colors.gray50 }]}
@@ -133,7 +135,7 @@ export default function MarketplaceScreen() {
                 >
                     <Ionicons name="options-outline" size={16} color={colors.black} />
                     <Text style={[styles.filterBtnText, { color: colors.black }]}>
-                        {selectedCommunity ? communities.find(c => c.id === selectedCommunity)?.name : 'All Communities'}
+                        {selectedCommunity ? communities.find(c => c.id === selectedCommunity)?.name : t('all_communities')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -160,15 +162,15 @@ export default function MarketplaceScreen() {
                 )}
                 {item.listing_type === 'request' ? (
                     <View style={[styles.freeBadge, { backgroundColor: colors.blue }]}>
-                        <Text style={styles.freeBadgeText}>REQUEST</Text>
+                        <Text style={styles.freeBadgeText}>{t('request_badge')}</Text>
                     </View>
                 ) : item.price === 0 ? (
                     <View style={styles.freeBadge}>
-                        <Text style={styles.freeBadgeText}>FREE</Text>
+                        <Text style={styles.freeBadgeText}>{t('free_badge')}</Text>
                     </View>
                 ) : (new Date().getTime() - new Date(item.created_at).getTime()) < 86400000 ? (
                     <View style={[styles.freeBadge, { backgroundColor: colors.black }]}>
-                        <Text style={styles.freeBadgeText}>NEW</Text>
+                        <Text style={styles.freeBadgeText}>{t('new_badge')}</Text>
                     </View>
                 ) : null}
             </TouchableOpacity>
@@ -178,15 +180,15 @@ export default function MarketplaceScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
                         <Ionicons name="search" size={12} color={colors.blue} />
                         <Text style={{ fontFamily: fonts.semibold, fontSize: 12, color: colors.blue }} numberOfLines={1}>
-                            {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} is looking for` : 'User is looking for'}
+                            {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} ${t('looking_for')}` : `User ${t('looking_for')}`}
                         </Text>
                     </View>
                 ) : (
                     <Text style={[styles.itemPrice, { color: colors.black }]}>
-                        {item.price === 0 ? 'Free' : `$${item.price?.toLocaleString() || 0}`}
+                        {item.price === 0 ? t('free_badge') : `$${item.price?.toLocaleString() || 0}`}
                     </Text>
                 )}
-                <Text style={[styles.itemTitle, { color: colors.gray700 }]} numberOfLines={1}>{item.title || 'Untitled Item'}</Text>
+                <Text style={[styles.itemTitle, { color: colors.gray700 }]} numberOfLines={1}>{item.title || t('untitled_item')}</Text>
                 <View style={styles.locationRow}>
                     <Text style={[styles.itemLocation, { color: colors.gray400 }]} numberOfLines={1}>
                         <Ionicons name="time-outline" size={10} color={colors.gray400} />
@@ -224,10 +226,10 @@ export default function MarketplaceScreen() {
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="shopping-outline" size={64} color={colors.gray200} />
                             <Text style={styles.emptyTitle}>
-                                {activeType === 'request' ? 'No requests here yet' : (activeType === 'sell' ? 'No items for sale yet' : 'Nothing here yet')}
+                                {activeType === 'request' ? t('no_requests_yet') : (activeType === 'sell' ? t('no_items_for_sale') : t('nothing_here_yet'))}
                             </Text>
                             <Text style={styles.emptySub}>
-                                {activeType === 'request' ? 'Be the first to request something!' : (activeType === 'sell' ? 'Be the first to list something!' : 'Be the first to list or request something!')}
+                                {activeType === 'request' ? t('be_the_first_to_request') : (activeType === 'sell' ? t('be_the_first_to_list') : t('be_the_first_to_both'))}
                             </Text>
                             <TouchableOpacity 
                                 style={styles.emptyCreateBtn}
@@ -238,7 +240,7 @@ export default function MarketplaceScreen() {
                             >
                                 <Ionicons name="add" size={18} color={colors.white} />
                                 <Text style={styles.emptyCreateBtnText}>
-                                    {activeType === 'request' ? 'Request an Item' : (activeType === 'sell' ? 'Sell an Item' : 'Create a Listing')}
+                                    {activeType === 'request' ? t('request_an_item') : (activeType === 'sell' ? t('sell_an_item') : t('create_a_listing'))}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -251,14 +253,14 @@ export default function MarketplaceScreen() {
                 <View style={styles.modalBg}>
                     <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20, backgroundColor: colors.surface }]}>
                         <View style={[styles.modalHeader, { borderBottomColor: colors.gray100 }]}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>Filter by Community</Text>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('filter_by_community')}</Text>
                             <TouchableOpacity onPress={() => setFilterVisible(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
                         </View>
                         
                         <FlatList
-                            data={[{ id: null, name: 'All Communities' }, ...communities]}
+                            data={[{ id: null, name: t('all_communities') }, ...communities]}
                             keyExtractor={item => item.id || 'all'}
                             renderItem={({ item }) => (
                                 <TouchableOpacity 

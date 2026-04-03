@@ -7,9 +7,13 @@ import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLanguage } from '../../src/context/LanguageContext';
+import LanguageDropdown from '../../src/components/LanguageDropdown';
 
 export default function RegisterScreen() {
     const { colors, isDark } = useTheme();
+    const { t, language, setLanguage } = useLanguage();
+    const [showLanguagePicker, setShowLanguagePicker] = useState(false);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -39,15 +43,24 @@ export default function RegisterScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.headerRight}>
-                <TouchableOpacity style={styles.headerItem} hitSlop={8}>
+                <TouchableOpacity 
+                    style={styles.headerItem} 
+                    hitSlop={8}
+                    onPress={() => setShowLanguagePicker(true)}
+                >
                     <Ionicons name="globe-outline" size={20} color={colors.gray500} />
-                    <Text style={[styles.headerText, { color: colors.gray500 }]}>EN</Text>
+                    <Text style={[styles.headerText, { color: colors.gray500 }]}>{language.toUpperCase()}</Text>
                 </TouchableOpacity>
                 <View style={[styles.dividerVertical, { marginHorizontal: 12, backgroundColor: colors.gray200 }]} />
                 <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                     <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
                 </TouchableOpacity>
             </View>
+
+            <LanguageDropdown
+                visible={showLanguagePicker}
+                onClose={() => setShowLanguagePicker(false)}
+            />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -61,14 +74,14 @@ export default function RegisterScreen() {
                             </View>
                         </View>
 
-                        <Text style={[styles.title, { color: colors.black }]}>Create Account</Text>
-                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>Join your campus community and stay connected.</Text>
+                        <Text style={[styles.title, { color: colors.black }]}>{t('create_account')}</Text>
+                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>{t('register_subtitle')}</Text>
 
                         <View style={styles.form}>
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: colors.black }]}>Full Name</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>{t('full_name')}</Text>
                                 <TextInput
-                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: isDark ? '#000000' : colors.black, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}
                                     placeholder="John Doe"
                                     placeholderTextColor={colors.gray400}
                                     value={name}
@@ -77,9 +90,9 @@ export default function RegisterScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: colors.black }]}>Email Address</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>{t('email')}</Text>
                                 <TextInput
-                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: isDark ? '#000000' : colors.black, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}
                                     placeholder="name@university.edu"
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
@@ -90,10 +103,10 @@ export default function RegisterScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={[styles.label, { color: colors.black }]}>Password</Text>
-                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}>
+                                <Text style={[styles.label, { color: colors.black }]}>{t('password')}</Text>
+                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}>
                                     <TextInput
-                                        style={[styles.passwordInput, { color: colors.black }]}
+                                        style={[styles.passwordInput, { color: isDark ? '#000000' : colors.black }]}
                                         placeholder="••••••••"
                                         placeholderTextColor={colors.gray400}
                                         secureTextEntry={!showPassword}
@@ -111,24 +124,24 @@ export default function RegisterScreen() {
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.submitBtn, { backgroundColor: colors.black }, loading && { opacity: 0.8 }]}
+                                style={[styles.submitBtn, { backgroundColor: isDark ? '#FFFFFF' : colors.black }, loading && { opacity: 0.8 }]}
                                 onPress={handleRegister}
                                 disabled={loading}
                                 activeOpacity={0.9}
                             >
                                 {loading ? (
-                                    <ActivityIndicator color={colors.white} size="small" />
+                                    <ActivityIndicator color={isDark ? '#000000' : colors.white} size="small" />
                                 ) : (
-                                    <Text style={[styles.submitText, { color: colors.white }]}>Create Account</Text>
+                                    <Text style={[styles.submitText, { color: isDark ? '#000000' : colors.white }]}>{t('create_account')}</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
 
                         <View style={[styles.footer, { borderTopColor: colors.gray100 }]}>
                             <View style={styles.footerRow}>
-                                <Text style={[styles.footerText, { color: colors.gray500 }]}>Already have an account? </Text>
+                                <Text style={[styles.footerText, { color: colors.gray500 }]}>{t('already_account')}</Text>
                                 <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                                    <Text style={[styles.footerAction, { color: colors.black }]}>Log in</Text>
+                                    <Text style={[styles.footerAction, { color: colors.black }]}>{t('login_now')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

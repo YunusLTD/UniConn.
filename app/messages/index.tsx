@@ -7,6 +7,7 @@ import { getConversations } from '../../src/api/messages';
 import { useAuth } from '../../src/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<any[]>([]);
@@ -14,6 +15,7 @@ export default function MessagesScreen() {
     const router = useRouter();
     const { user, onlineUsers } = useAuth();
     const { colors } = useTheme();
+    const { t } = useLanguage();
 
     const loadData = async () => {
         try {
@@ -99,8 +101,8 @@ export default function MessagesScreen() {
             ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyIcon}>💬</Text>
-                    <Text style={[styles.emptyTitle, { color: colors.black }]}>No conversations</Text>
-                    <Text style={[styles.emptySub, { color: colors.gray500 }]}>Start chatting with your community members</Text>
+                    <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('no_conversations')}</Text>
+                    <Text style={[styles.emptySub, { color: colors.gray500 }]}>{t('start_chatting_sub')}</Text>
                 </View>
             }
         />

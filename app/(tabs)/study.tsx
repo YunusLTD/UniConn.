@@ -8,22 +8,24 @@ import { getStudyQuestions } from '../../src/api/study';
 import StudyCard from '../../src/components/StudyCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const SUBJECTS = [
-    { id: 'All', label: 'All', icon: 'apps-outline' as const },
-    { id: 'Math', label: 'Math', icon: 'calculator-outline' as const },
-    { id: 'Science', label: 'Science', icon: 'flask-outline' as const },
-    { id: 'English', label: 'English', icon: 'book-outline' as const },
-    { id: 'History', label: 'History', icon: 'time-outline' as const },
-    { id: 'Physics', label: 'Physics', icon: 'magnet-outline' as const },
-    { id: 'Computer Science', label: 'CS', icon: 'hardware-chip-outline' as const },
-    { id: 'Business', label: 'Business', icon: 'briefcase-outline' as const },
-    { id: 'Arts', label: 'Arts', icon: 'color-palette-outline' as const },
-];
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function StudyScreen() {
     const router = useRouter();
     const { colors } = useTheme();
+    const { t } = useLanguage();
+
+    const SUBJECTS = [
+        { id: 'All', label: t('all_subjects'), icon: 'apps-outline' as const },
+        { id: 'Math', label: t('math' as any) || 'Math', icon: 'calculator-outline' as const },
+        { id: 'Science', label: t('science' as any) || 'Science', icon: 'flask-outline' as const },
+        { id: 'English', label: t('english' as any) || 'English', icon: 'book-outline' as const },
+        { id: 'History', label: t('history' as any) || 'History', icon: 'time-outline' as const },
+        { id: 'Physics', label: t('physics' as any) || 'Physics', icon: 'magnet-outline' as const },
+        { id: 'Computer Science', label: t('cs' as any) || 'CS', icon: 'hardware-chip-outline' as const },
+        { id: 'Business', label: t('business' as any) || 'Business', icon: 'briefcase-outline' as const },
+        { id: 'Arts', label: t('arts' as any) || 'Arts', icon: 'color-palette-outline' as const },
+    ];
     const [questions, setQuestions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -117,8 +119,8 @@ export default function StudyScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="school-outline" size={64} color={colors.gray300} style={{ marginBottom: spacing.md }} />
-                            <Text style={[styles.emptyTitle, { color: colors.black }]}>No questions in {activeSubject}</Text>
-                            <Text style={[styles.emptySub, { color: colors.gray500 }]}>Be the first to ask or help out!</Text>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('no_questions_in')} {activeSubject}</Text>
+                            <Text style={[styles.emptySub, { color: colors.gray500 }]}>{t('be_the_first_to_ask')}</Text>
                         </View>
                     }
                 />

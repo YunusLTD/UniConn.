@@ -4,6 +4,7 @@ import { OnboardingProvider, useOnboarding } from '../src/context/OnboardingCont
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { ToastProvider } from '../src/context/ToastContext';
+import { LanguageProvider, useLanguage } from '../src/context/LanguageContext';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StatusBar, TouchableOpacity as RNTouchableOpacity, useColorScheme, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ function RootLayoutNav() {
     const { user, token, isLoading: authLoading, isNewUser } = useAuth();
     const { hasCompletedOnboarding } = useOnboarding();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const segments = useSegments();
     const router = useRouter();
 
@@ -114,24 +116,24 @@ function RootLayoutNav() {
 
                 <Stack.Screen
                     name="community/[id]/index"
-                    options={{ title: 'Community Hub' }}
+                    options={{ title: t('community_hub') }}
                 />
 
                 <Stack.Screen
                     name="community/create"
-                    options={{ title: 'New Community', presentation: 'modal' }}
+                    options={{ title: t('new_community_header'), presentation: 'modal' }}
                 />
                 <Stack.Screen
                     name="create-post"
-                    options={{ title: 'Create Post', presentation: 'modal', headerShown: false }}
+                    options={{ title: t('new_post'), presentation: 'modal', headerShown: false }}
                 />
                 <Stack.Screen
                     name="messages/index"
-                    options={{ title: 'Messages' }}
+                    options={{ title: t('messages_header') }}
                 />
                 <Stack.Screen
                     name="marketplace/community/[id]"
-                    options={{ title: 'Marketplace' }}
+                    options={{ title: t('marketplace') }}
                 />
                 <Stack.Screen
                     name="banned"
@@ -139,27 +141,27 @@ function RootLayoutNav() {
                 />
                 <Stack.Screen
                     name="chat/[id]"
-                    options={{ title: 'Chat' }}
+                    options={{ title: t('chat_header') }}
                 />
                 <Stack.Screen
                     name="edit-profile"
-                    options={{ title: 'Edit Profile', presentation: 'modal', headerShown: false }}
+                    options={{ title: t('edit_profile'), presentation: 'modal', headerShown: false }}
                 />
                 <Stack.Screen
                     name="study/[id]"
-                    options={{ title: 'Study Discussion' }}
+                    options={{ title: t('study_discussion_header') }}
                 />
                 <Stack.Screen
                     name="study/create"
-                    options={{ title: 'Ask for Help', presentation: 'modal', headerShown: true }}
+                    options={{ title: t('ask_for_help_header'), presentation: 'modal', headerShown: true }}
                 />
                 <Stack.Screen
                     name="events/create"
-                    options={{ title: 'Schedule Event', presentation: 'modal', headerShown: true }}
+                    options={{ title: t('schedule_event_header'), presentation: 'modal', headerShown: true }}
                 />
                 <Stack.Screen
                     name="story-upload"
-                    options={{ title: 'Share Your POV', presentation: 'fullScreenModal', headerShown: false }}
+                    options={{ title: t('share_pov_header'), presentation: 'fullScreenModal', headerShown: false }}
                 />
             </Stack>
         </>
@@ -200,15 +202,17 @@ export default function RootLayout() {
     return (
         <SafeAreaProvider>
             <ThemeProvider>
-                <OnboardingProvider>
-                    <AuthProvider>
-                        <NotificationProvider>
-                            <ToastProvider>
-                                <RootLayoutNav />
-                            </ToastProvider>
-                        </NotificationProvider>
-                    </AuthProvider>
-                </OnboardingProvider>
+                <LanguageProvider>
+                    <OnboardingProvider>
+                        <AuthProvider>
+                            <NotificationProvider>
+                                <ToastProvider>
+                                    <RootLayoutNav />
+                                </ToastProvider>
+                            </NotificationProvider>
+                        </AuthProvider>
+                    </OnboardingProvider>
+                </LanguageProvider>
             </ThemeProvider>
         </SafeAreaProvider>
     );
