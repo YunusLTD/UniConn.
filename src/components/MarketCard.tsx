@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Share, Clipboard, Alert } from 'react-native';
-import { colors, spacing, fonts, radii } from '../constants/theme';
+import { spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +15,7 @@ interface MarketCardProps {
 }
 
 export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (id: string) => void }) {
+    const { colors } = useTheme();
     const router = useRouter();
     const { user } = useAuth();
     const [actionVisible, setActionVisible] = useState(false);
@@ -110,16 +112,16 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
 
     return (
         <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             activeOpacity={0.9}
             onPress={() => {
                 hapticLight();
                 router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } });
             }}
         >
-            <View style={styles.header}>
-                <View style={[styles.tag, item.listing_type === 'request' && { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                    <Text style={[styles.tagText, item.listing_type === 'request' && { color: colors.blue }]}>
+            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                <View style={[styles.tag, { backgroundColor: colors.background }, item.listing_type === 'request' && { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                    <Text style={[styles.tagText, { color: colors.gray500 }, item.listing_type === 'request' && { color: colors.blue }]}>
                         {item.listing_type === 'request' ? 'REQUESTED' : 'MARKETPLACE'}
                     </Text>
                 </View>
@@ -129,7 +131,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                             {item.price ? `Willing to pay: $${item.price}` : 'Looking For'}
                         </Text>
                     ) : (
-                        <Text style={[styles.price, (!item.price || item.price === 0) && { color: '#10B981', fontFamily: fonts.bold }]}>
+                        <Text style={[styles.price, { color: colors.black }, (!item.price || item.price === 0) && { color: '#10B981', fontFamily: fonts.bold }]}>
                             {(!item.price || item.price === 0) ? 'FREE' : `$${item.price.toLocaleString()}`}
                         </Text>
                     )}
@@ -140,18 +142,18 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
             </View>
 
             {item.image_url && (
-                <View style={styles.imgContainer}>
+                <View style={[styles.imgContainer, { backgroundColor: colors.background }]}>
                     <Image source={{ uri: item.image_url }} style={styles.img} />
                 </View>
             )}
 
             <View style={styles.content}>
-                <Text style={styles.title}>{item.title}</Text>
+                <Text style={[styles.title, { color: colors.black }]}>{item.title}</Text>
                 {item.description && (
-                    <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
+                    <Text style={[styles.desc, { color: colors.gray500 }]} numberOfLines={2}>{item.description}</Text>
                 )}
 
-                <View style={styles.footer}>
+                <View style={[styles.footer, { borderTopColor: colors.border }]}>
                     <TouchableOpacity
                         style={styles.seller}
                         onPress={(e) => {
@@ -161,10 +163,10 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                         hitSlop={8}
                     >
                         <MaterialCommunityIcons name="account-circle-outline" size={14} color={colors.gray400} />
-                        <Text style={styles.sellerName}>{item.profiles?.name || 'Student'}</Text>
+                        <Text style={[styles.sellerName, { color: colors.gray400 }]}>{item.profiles?.name || 'Student'}</Text>
                     </TouchableOpacity>
-                    <View style={[styles.actionBtn, item.listing_type === 'request' && { backgroundColor: colors.blue }]}>
-                        <Text style={styles.actionText}>{item.listing_type === 'request' ? 'Help Source' : 'View Item'}</Text>
+                    <View style={[styles.actionBtn, { backgroundColor: colors.black }, item.listing_type === 'request' && { backgroundColor: colors.blue }]}>
+                        <Text style={[styles.actionText, { color: colors.white }]}>{item.listing_type === 'request' ? 'Help Source' : 'View Item'}</Text>
                     </View>
                 </View>
             </View>
@@ -188,13 +190,11 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.white,
         marginHorizontal: spacing.lg,
         marginVertical: spacing.sm,
         borderRadius: radii.xl,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: colors.gray100,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -208,10 +208,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray50,
     },
     tag: {
-        backgroundColor: colors.gray50,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 4,
@@ -219,18 +217,15 @@ const styles = StyleSheet.create({
     tagText: {
         fontFamily: fonts.bold,
         fontSize: 10,
-        color: colors.gray400,
         letterSpacing: 0.5,
     },
     price: {
         fontFamily: fonts.bold,
         fontSize: 16,
-        color: colors.black,
     },
     imgContainer: {
         width: '100%',
         height: 200,
-        backgroundColor: colors.gray50,
     },
     img: {
         width: '100%',
@@ -243,13 +238,11 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.black,
         marginBottom: 6,
     },
     desc: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray500,
         lineHeight: 20,
     },
     footer: {
@@ -259,7 +252,6 @@ const styles = StyleSheet.create({
         marginTop: 16,
         paddingTop: 12,
         borderTopWidth: 0.5,
-        borderTopColor: colors.gray50,
     },
     seller: {
         flexDirection: 'row',
@@ -269,10 +261,8 @@ const styles = StyleSheet.create({
     sellerName: {
         fontFamily: fonts.medium,
         fontSize: 12,
-        color: colors.gray400,
     },
     actionBtn: {
-        backgroundColor: colors.black,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: radii.full,
@@ -280,6 +270,5 @@ const styles = StyleSheet.create({
     actionText: {
         fontFamily: fonts.bold,
         fontSize: 12,
-        color: colors.white,
     },
 });

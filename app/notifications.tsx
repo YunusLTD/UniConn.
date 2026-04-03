@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { colors, spacing, fonts, radii } from '../src/constants/theme';
+import { spacing, fonts, radii } from '../src/constants/theme';
 import { getNotifications, markAsRead } from '../src/api/notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../src/context/NotificationContext';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../src/context/ThemeContext';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -35,6 +36,7 @@ export default function NotificationsScreen() {
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const { colors, isDark } = useTheme();
 
     const { refreshUnreadCount } = useNotifications();
 
@@ -75,14 +77,14 @@ export default function NotificationsScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="small" color={colors.black} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
@@ -91,33 +93,41 @@ export default function NotificationsScreen() {
                     const iconName = NOTIF_ICONS[item.type] || 'notifications-outline';
                     return (
                         <TouchableOpacity
-                            style={[styles.card, !item.read && styles.unread]}
+                            style={[
+                                styles.card, 
+                                { backgroundColor: colors.surface, borderBottomColor: colors.border },
+                                !item.read && { backgroundColor: isDark ? '#1A1A1A' : colors.gray50 }
+                            ]}
                             onPress={() => handleMarkRead(item)}
                             activeOpacity={0.7}
                         >
-                            <View style={[styles.iconBlock, !item.read && styles.iconBlockUnread]}>
+                            <View style={[
+                                styles.iconBlock, 
+                                { backgroundColor: isDark ? '#262626' : colors.gray100 },
+                                !item.read && { backgroundColor: isDark ? '#333333' : colors.gray200 }
+                            ]}>
                                 <Ionicons
                                     name={iconName as any}
                                     size={18}
-                                    color={item.read ? colors.gray400 : colors.black}
+                                    color={item.read ? colors.gray400 : colors.text}
                                 />
                             </View>
                             <View style={styles.info}>
-                                <Text style={[styles.title, !item.read && styles.titleUnread]}>
+                                <Text style={[styles.title, { color: colors.gray600 }, !item.read && [styles.titleUnread, { color: colors.black }]]}>
                                     {item.title}
                                 </Text>
-                                <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
-                                <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
+                                <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>{item.message}</Text>
+                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
                             </View>
-                            {!item.read && <View style={styles.dot} />}
+                            {!item.read && <View style={[styles.dot, { backgroundColor: colors.black }]} />}
                         </TouchableOpacity>
                     );
                 }}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyIcon}>🔔</Text>
-                        <Text style={styles.emptyTitle}>All caught up</Text>
-                        <Text style={styles.emptySub}>You'll see notifications here</Text>
+                        <Text style={[styles.emptyTitle, { color: colors.black }]}>All caught up</Text>
+                        <Text style={[styles.emptySub, { color: colors.gray500 }]}>You'll see notifications here</Text>
                     </View>
                 }
             />
@@ -126,63 +136,49 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+    container: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
         paddingVertical: 14,
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
         gap: 14,
-    },
-    unread: {
-        backgroundColor: colors.gray50,
     },
     iconBlock: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    iconBlockUnread: {
-        backgroundColor: colors.gray200,
     },
     info: { flex: 1 },
     title: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray600,
     },
     titleUnread: {
         fontFamily: fonts.semibold,
-        color: colors.black,
     },
     body: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray500,
         marginTop: 2,
         lineHeight: 16,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray400,
         marginTop: 4,
     },
     dot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: colors.black,
     },
     emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: spacing.xl },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.black },
-    emptySub: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, marginTop: 4 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 20 },
+    emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4 },
 });

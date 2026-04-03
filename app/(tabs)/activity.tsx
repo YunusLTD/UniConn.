@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
@@ -27,14 +28,25 @@ const NOTIF_ICONS: Record<string, string> = {
     message: 'chatbubble-outline',
     post: 'document-text-outline',
     like: 'heart-outline',
+    post_upvote: 'arrow-up-circle-outline',
+    anonymous_upvote: 'arrow-up-circle-outline',
     comment: 'chatbubble-ellipses-outline',
+    comment_reply: 'chatbubbles-outline',
+    anonymous_comment: 'chatbubbles-outline',
     friend_request: 'person-add-outline',
     friend_accepted: 'people-outline',
     community_join_request: 'shield-outline',
+    community_marketplace_item: 'cart-outline',
+    community_event: 'calendar-outline',
+    event_interest: 'calendar-outline',
+    event_rsvp: 'calendar-outline',
+    community_job: 'briefcase-outline',
+    community_poll: 'stats-chart-outline',
 };
 
 export default function ActivityScreen() {
     const router = useRouter();
+    const { colors, isDark } = useTheme();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -85,8 +97,19 @@ export default function ActivityScreen() {
             // Navigate to content
             if (type === 'message' && reference_id) {
                 router.push(`/chat/${reference_id}` as any);
-            } else if (type === 'post' && reference_id) {
+            } else if (
+                (type.includes('post') || type.includes('comment') || type.includes('upvote') || type.includes('reply')) 
+                && reference_id
+            ) {
                 router.push(`/post/${reference_id}` as any);
+            } else if (type.includes('event') && reference_id) {
+                router.push(`/events/${reference_id}` as any);
+            } else if (type.includes('marketplace') && reference_id) {
+                router.push(`/marketplace/${reference_id}` as any);
+            } else if (type.includes('job') && reference_id) {
+                router.push(`/jobs/category/all` as any); // fallback for jobs
+            } else if (type.includes('poll') && reference_id) {
+                router.push(`/polls/${reference_id}` as any);
             } else if (type === 'friend_request') {
                 router.push('/friends/requests');
             } else if (type === 'friend_accepted' && reference_id) {
@@ -107,7 +130,7 @@ export default function ActivityScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ title: 'Activity' }} />
             <FlatList
                 data={notifications}
@@ -125,11 +148,11 @@ export default function ActivityScreen() {
                     const iconName = NOTIF_ICONS[item.type] || 'notifications-outline';
                     return (
                         <TouchableOpacity
-                            style={[styles.card, !item.read && styles.unread]}
+                            style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }, !item.read && { backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
                             onPress={() => handleMarkRead(item)}
                             activeOpacity={0.7}
                         >
-                            <View style={[styles.iconBlock, !item.read && styles.iconBlockUnread]}>
+                            <View style={[styles.iconBlock, { backgroundColor: isDark ? colors.gray800 : colors.gray100 }, !item.read && { backgroundColor: isDark ? colors.gray700 : colors.gray200 }]}>
                                 <Ionicons
                                     name={iconName as any}
                                     size={18}
@@ -137,11 +160,11 @@ export default function ActivityScreen() {
                                 />
                             </View>
                             <View style={styles.info}>
-                                <Text style={[styles.title, !item.read && styles.titleUnread]}>
+                                <Text style={[styles.title, { color: colors.gray600 }, !item.read && { fontFamily: fonts.semibold, color: colors.black }]}>
                                     {item.title}
                                 </Text>
-                                <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
-                                <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
+                                <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>{item.message}</Text>
+                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
                             </View>
                         </TouchableOpacity>
                     );
@@ -149,8 +172,8 @@ export default function ActivityScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyIcon}>🔔</Text>
-                        <Text style={styles.emptyTitle}>All caught up</Text>
-                        <Text style={styles.emptySub}>You'll see notifications here</Text>
+                        <Text style={[styles.emptyTitle, { color: colors.black }]}>All caught up</Text>
+                        <Text style={[styles.emptySub, { color: colors.gray500 }]}>You'll see notifications here</Text>
                     </View>
                 }
             />
@@ -159,74 +182,41 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-    header: {
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        backgroundColor: colors.white,
-    },
-    headerTitle: {
-        fontFamily: fonts.bold,
-        fontSize: 24,
-        color: colors.black,
-    },
+    container: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
         paddingVertical: 14,
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
         gap: 14,
-    },
-    unread: {
-        backgroundColor: colors.gray50,
     },
     iconBlock: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    iconBlockUnread: {
-        backgroundColor: colors.gray200,
     },
     info: { flex: 1 },
     title: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray600,
-    },
-    titleUnread: {
-        fontFamily: fonts.semibold,
-        color: colors.black,
     },
     body: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray500,
         marginTop: 2,
         lineHeight: 16,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray400,
         marginTop: 4,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: colors.black,
     },
     emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: spacing.xl },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.black },
-    emptySub: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, marginTop: 4 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 20 },
+    emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4 },
 });

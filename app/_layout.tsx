@@ -5,7 +5,7 @@ import { NotificationProvider } from '../src/context/NotificationContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StatusBar, TouchableOpacity as RNTouchableOpacity } from 'react-native';
+import { View, ActivityIndicator, StatusBar, TouchableOpacity as RNTouchableOpacity, useColorScheme, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -51,7 +51,7 @@ function RootLayoutNav() {
                 return;
             }
 
-            if (status === 'rejected') {
+            if (status === 'pending' || status === 'rejected') {
                 if (segments[segments.length - 1] !== 'verification-pending') {
                     router.replace('/(auth)/verification-pending');
                 }
@@ -126,7 +126,7 @@ function RootLayoutNav() {
                     options={{ title: 'Create Post', presentation: 'modal', headerShown: false }}
                 />
                 <Stack.Screen
-                    name="messages"
+                    name="messages/index"
                     options={{ title: 'Messages' }}
                 />
                 <Stack.Screen
@@ -157,12 +157,19 @@ function RootLayoutNav() {
                     name="events/create"
                     options={{ title: 'Schedule Event', presentation: 'modal', headerShown: true }}
                 />
+                <Stack.Screen
+                    name="story-upload"
+                    options={{ title: 'Share Your POV', presentation: 'fullScreenModal', headerShown: false }}
+                />
             </Stack>
         </>
     );
 }
 
 export default function RootLayout() {
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
+
     const [fontsLoaded] = useFonts({
         SpaceGrotesk_400Regular,
         SpaceGrotesk_500Medium,
@@ -172,8 +179,20 @@ export default function RootLayout() {
 
     if (!fontsLoaded) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-                <Text style={{ fontSize: 32, fontWeight: '700' }}>UniConn</Text>
+            <View style={{ 
+                flex: 1, 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                backgroundColor: isDark ? '#000000' : '#FFFFFF' 
+            }}>
+                <Text style={{ 
+                    fontSize: 32, 
+                    fontWeight: '700', 
+                    color: isDark ? '#FFFFFF' : '#000000',
+                    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' 
+                }}>
+                    UniConn
+                </Text>
             </View>
         );
     }

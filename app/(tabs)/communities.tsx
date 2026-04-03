@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, Alert, TextInput } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { listCommunities } from '../../src/api/communities';
 import { searchUsers } from '../../src/api/users';
 import { sendFriendRequest, getFriendshipStatus } from '../../src/api/friends';
@@ -10,104 +11,8 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 
 type ExploreTab = 'communities' | 'students';
 
-function CommunityCard({ item, onPress }: { item: any; onPress: () => void }) {
-    const isOfficial = !!item.is_official;
-
-    return (
-        <TouchableOpacity
-            style={styles.card}
-            onPress={onPress}
-            activeOpacity={0.8}
-        >
-            <View style={styles.cardHeader}>
-                <View style={[styles.cardAvatar, isOfficial && styles.officialAvatar]}>
-                    {item.image_url ? (
-                        <Image source={{ uri: item.image_url }} style={styles.cardAvatarImg} />
-                    ) : (
-                        <MaterialCommunityIcons
-                            name={isOfficial ? "school" : "account-group"}
-                            size={24}
-                            color={isOfficial ? colors.white : colors.gray400}
-                        />
-                    )}
-                </View>
-                <View style={styles.cardMain}>
-                    <View style={styles.nameRow}>
-                        <Text style={styles.cardName} numberOfLines={1}>
-                            {item.name?.replace(/Community/gi, '').replace(/University/gi, '').trim()}
-                        </Text>
-                        {isOfficial && <Ionicons name="checkmark-circle" size={16} color={colors.blue} />}
-                    </View>
-                    <Text style={styles.cardType} numberOfLines={1}>
-                        {item.is_private && <Ionicons name="lock-closed" size={11} color={colors.gray400} />}
-                        {item.is_private ? ' ' : ''}{item.member_count || 0} members
-                    </Text>
-                </View>
-            </View>
-            {item.description ? (
-                <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-            ) : null}
-        </TouchableOpacity>
-    );
-}
-
-function StudentCard({ item, onPress, onSendRequest, friendStatus }: { item: any; onPress: () => void; onSendRequest: () => void; friendStatus?: string }) {
-    const initials = (() => {
-        if (!item.name) return '?';
-        const parts = item.name.split(' ').filter((p: string) => p.length > 0);
-        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-        return item.name.substring(0, 2).toUpperCase();
-    })();
-
-    const getButtonConfig = () => {
-        switch (friendStatus) {
-            case 'accepted': return { label: 'Friends', icon: 'checkmark-circle' as const, style: styles.friendsBtnActive };
-            case 'pending': return { label: 'Requested', icon: 'time-outline' as const, style: styles.friendsBtnPending };
-            default: return { label: 'Add Friend', icon: 'person-add-outline' as const, style: styles.friendsBtn };
-        }
-    };
-    const btnConfig = getButtonConfig();
-
-    return (
-        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-            <View style={styles.cardHeader}>
-                <View style={styles.studentAvatar}>
-                    {item.avatar_url ? (
-                        <Image source={{ uri: item.avatar_url }} style={styles.cardAvatarImg} />
-                    ) : (
-                        <Text style={styles.avatarInitial}>{initials}</Text>
-                    )}
-                </View>
-                <View style={styles.cardMain}>
-                    <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                    {item.username && <Text style={styles.usernameText}>@{item.username}</Text>}
-                    <Text style={styles.universityText} numberOfLines={1}>
-                        {item.department ? `${item.department} • ` : ''}
-                        {item.universities?.name || 'Academic Institution'}
-                    </Text>
-                </View>
-                {friendStatus !== 'accepted' && friendStatus !== 'pending' && (
-                    <TouchableOpacity style={btnConfig.style} onPress={onSendRequest}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name={btnConfig.icon} size={16} color={friendStatus ? colors.gray500 : colors.black} />
-                            <Text style={[styles.friendsBtnText, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
-                        </View>
-                    </TouchableOpacity>
-                )}
-                {(friendStatus === 'accepted' || friendStatus === 'pending') && (
-                    <View style={btnConfig.style}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name={btnConfig.icon} size={16} color={friendStatus === 'accepted' ? '#4CAF50' : colors.gray500} />
-                            <Text style={[styles.friendsBtnText, friendStatus === 'accepted' && { color: '#4CAF50' }, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
-                        </View>
-                    </View>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
-}
-
 export default function CommunitiesScreen() {
+    const { colors } = useTheme();
     const [communities, setCommunities] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -123,13 +28,11 @@ export default function CommunitiesScreen() {
         try {
             if (activeTab === 'communities') {
                 const res = await listCommunities(1, 100);
-                // Filter out official university communities
                 if (res?.data) setCommunities(res.data.filter((c: any) => !c.is_official));
             } else {
                 const res = await searchUsers(searchQuery);
                 if (res?.data) {
                     setStudents(res.data);
-                    // Load friendship statuses from pre-fetched data
                     const statuses: Record<string, string> = {};
                     res.data.forEach((student: any) => {
                         if (student.friend_status) {
@@ -149,7 +52,6 @@ export default function CommunitiesScreen() {
 
     useEffect(() => { loadData(); }, [activeTab]);
 
-    // Handle search debouncing or simple manual search
     useEffect(() => {
         const delay = setTimeout(() => {
             if (activeTab === 'students' || searchQuery) {
@@ -171,22 +73,117 @@ export default function CommunitiesScreen() {
         }
     };
 
-    // Show ShadowLoader if initial loading or switching tabs/searching
     if (loading && !refreshing && communities.length === 0 && students.length === 0) {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
                 <ShadowLoader type={activeTab === 'students' ? 'students' : 'communities'} />
             </View>
         );
     }
 
+    const CommunityCard = ({ item, onPress }: { item: any; onPress: () => void }) => {
+        const isOfficial = !!item.is_official;
+        return (
+            <TouchableOpacity
+                style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.gray100 }]}
+                onPress={onPress}
+                activeOpacity={0.8}
+            >
+                <View style={styles.cardHeader}>
+                    <View style={[styles.cardAvatar, { backgroundColor: colors.gray50, borderColor: colors.gray100 }, isOfficial && { backgroundColor: colors.black, borderColor: colors.black }]}>
+                        {item.image_url ? (
+                            <Image source={{ uri: item.image_url }} style={styles.cardAvatarImg} />
+                        ) : (
+                            <MaterialCommunityIcons
+                                name={isOfficial ? "school" : "account-group"}
+                                size={24}
+                                color={isOfficial ? colors.white : colors.gray400}
+                            />
+                        )}
+                    </View>
+                    <View style={styles.cardMain}>
+                        <View style={styles.nameRow}>
+                            <Text style={[styles.cardName, { color: colors.black }]} numberOfLines={1}>
+                                {item.name?.replace(/Community/gi, '').replace(/University/gi, '').trim()}
+                            </Text>
+                            {isOfficial && <Ionicons name="checkmark-circle" size={16} color={colors.blue} />}
+                        </View>
+                        <Text style={[styles.cardType, { color: colors.gray500 }]} numberOfLines={1}>
+                            {item.is_private && <Ionicons name="lock-closed" size={11} color={colors.gray400} />}
+                            {item.is_private ? ' ' : ''}{item.member_count || 0} members
+                        </Text>
+                    </View>
+                </View>
+                {item.description ? (
+                    <Text style={[styles.cardDesc, { color: colors.gray600 }]} numberOfLines={2}>{item.description}</Text>
+                ) : null}
+            </TouchableOpacity>
+        );
+    };
+
+    const StudentCard = ({ item, onPress, onSendRequest, friendStatus }: { item: any; onPress: () => void; onSendRequest: () => void; friendStatus?: string }) => {
+        const initials = (() => {
+            if (!item.name) return '?';
+            const parts = item.name.split(' ').filter((p: string) => p.length > 0);
+            if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+            return item.name.substring(0, 2).toUpperCase();
+        })();
+
+        const getButtonConfig = () => {
+            switch (friendStatus) {
+                case 'accepted': return { label: 'Friends', icon: 'checkmark-circle' as const, style: [styles.friendsBtnActive] };
+                case 'pending': return { label: 'Requested', icon: 'time-outline' as const, style: [styles.friendsBtnPending, { backgroundColor: colors.gray50, borderColor: colors.gray200 }] };
+                default: return { label: 'Add Friend', icon: 'person-add-outline' as const, style: [styles.friendsBtn, { backgroundColor: colors.black }] };
+            }
+        };
+        const btnConfig = getButtonConfig();
+
+        return (
+            <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.gray100 }]} onPress={onPress} activeOpacity={0.8}>
+                <View style={styles.cardHeader}>
+                    <View style={[styles.studentAvatar, { backgroundColor: colors.gray50, borderColor: colors.gray100 }]}>
+                        {item.avatar_url ? (
+                            <Image source={{ uri: item.avatar_url }} style={styles.cardAvatarImg} />
+                        ) : (
+                            <Text style={[styles.avatarInitial, { color: colors.gray500 }]}>{initials}</Text>
+                        )}
+                    </View>
+                    <View style={styles.cardMain}>
+                        <Text style={[styles.cardName, { color: colors.black }]} numberOfLines={1}>{item.name}</Text>
+                        {item.username && <Text style={[styles.usernameText, { color: colors.gray500 }]}>@{item.username}</Text>}
+                        <Text style={[styles.universityText, { color: colors.gray400 }]} numberOfLines={1}>
+                            {item.department ? `${item.department} • ` : ''}
+                            {item.universities?.name || 'Academic Institution'}
+                        </Text>
+                    </View>
+                    {friendStatus !== 'accepted' && friendStatus !== 'pending' && (
+                        <TouchableOpacity style={btnConfig.style} onPress={onSendRequest}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Ionicons name={btnConfig.icon} size={16} color={friendStatus ? colors.gray500 : colors.white} />
+                                <Text style={[styles.friendsBtnText, { color: colors.white }, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
+                    {(friendStatus === 'accepted' || friendStatus === 'pending') && (
+                        <View style={btnConfig.style}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Ionicons name={btnConfig.icon} size={16} color={friendStatus === 'accepted' ? '#4CAF50' : colors.gray500} />
+                                <Text style={[styles.friendsBtnText, friendStatus === 'accepted' && { color: '#4CAF50' }, friendStatus === 'pending' && { color: colors.gray500 }]}>{btnConfig.label}</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
     return (
-        <View style={styles.container}>
-            <View style={styles.headerArea}>
-                <View style={styles.searchContainer}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={[styles.headerArea, { backgroundColor: colors.surface, borderBottomColor: colors.gray200 }]}>
+                <View style={[styles.searchContainer, { backgroundColor: colors.gray50 }]}>
                     <Ionicons name="search" size={18} color={colors.gray400} />
                     <TextInput
-                        style={styles.searchInput}
+                        style={[styles.searchInput, { color: colors.black }]}
                         placeholder={activeTab === 'communities' ? "Search communities..." : "Search students by name or department"}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -201,16 +198,16 @@ export default function CommunitiesScreen() {
 
                 <View style={styles.tabBar}>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'communities' && styles.activeTab]}
+                        style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.black }]}
                         onPress={() => setActiveTab('communities')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'communities' && styles.activeTabText]}>Communities</Text>
+                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'communities' && { color: colors.black }]}>Communities</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'students' && styles.activeTab]}
+                        style={[styles.tab, activeTab === 'students' && { borderBottomColor: colors.black }]}
                         onPress={() => setActiveTab('students')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'students' && styles.activeTabText]}>Students</Text>
+                        <Text style={[styles.tabText, { color: colors.gray500 }, activeTab === 'students' && { color: colors.black }]}>Students</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -243,15 +240,15 @@ export default function CommunitiesScreen() {
                 ListHeaderComponent={
                     activeTab === 'communities' ? (
                         <View style={styles.headerSection}>
-                            <Text style={styles.headerSubtitle}>Discover & join communities</Text>
+                            <Text style={[styles.headerSubtitle, { color: colors.gray500 }]}>Discover & join communities</Text>
                             <View style={styles.actionRow}>
                                 <TouchableOpacity
-                                    style={[styles.createBtn, { flex: 1 }]}
+                                    style={[styles.createBtn, { backgroundColor: colors.black, flex: 1 }]}
                                     onPress={() => router.push('/community/create')}
                                     activeOpacity={0.7}
                                 >
                                     <Ionicons name="add" size={18} color={colors.white} />
-                                    <Text style={styles.createBtnText}>Start New Community</Text>
+                                    <Text style={[styles.createBtnText, { color: colors.white }]}>Start New Community</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -272,10 +269,10 @@ export default function CommunitiesScreen() {
                                 color={colors.gray300}
                                 style={{ marginBottom: spacing.md }}
                             />
-                            <Text style={styles.emptyTitle}>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>
                                 {activeTab === 'communities' ? "No communities yet" : "No students found"}
                             </Text>
-                            <Text style={styles.emptySub}>
+                            <Text style={[styles.emptySub, { color: colors.gray500 }]}>
                                 {activeTab === 'communities' ? "Be the first to start one!" : "Try a different search term"}
                             </Text>
                         </View>
@@ -287,19 +284,15 @@ export default function CommunitiesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+    container: { flex: 1 },
     headerArea: {
-        backgroundColor: colors.white,
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.md,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.gray50,
         borderRadius: radii.sm,
         paddingHorizontal: 12,
         height: 44,
@@ -309,7 +302,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
     },
     tabBar: {
         flexDirection: 'row',
@@ -321,16 +313,9 @@ const styles = StyleSheet.create({
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
-    activeTab: {
-        borderBottomColor: colors.black,
-    },
     tabText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.gray500,
-    },
-    activeTabText: {
-        color: colors.black,
     },
     headerSection: {
         paddingHorizontal: spacing.lg,
@@ -340,7 +325,6 @@ const styles = StyleSheet.create({
     headerSubtitle: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray500,
         marginBottom: spacing.md,
     },
     actionRow: {
@@ -348,7 +332,6 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     createBtn: {
-        backgroundColor: colors.black,
         flex: 1.5,
         flexDirection: 'row',
         alignItems: 'center',
@@ -360,16 +343,13 @@ const styles = StyleSheet.create({
     createBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.white,
     },
     card: {
-        backgroundColor: colors.white,
         padding: 16,
         borderRadius: 20,
         marginBottom: 12,
         marginHorizontal: 16,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -381,16 +361,10 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: colors.gray50,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: colors.gray100,
-    },
-    officialAvatar: {
-        backgroundColor: colors.black,
-        borderColor: colors.black,
     },
     cardAvatarImg: { width: '100%', height: '100%' },
     nameRow: {
@@ -401,74 +375,52 @@ const styles = StyleSheet.create({
     cardName: {
         fontFamily: fonts.bold,
         fontSize: 16,
-        color: colors.black,
     },
     cardType: {
         fontFamily: fonts.medium,
         fontSize: 12,
-        color: colors.gray500,
         marginTop: 2,
     },
     cardDesc: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray600,
         lineHeight: 20,
         marginTop: 12,
         paddingLeft: 4,
     },
-    actionArrow: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.gray50,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.gray100,
-    },
     studentAvatar: {
         width: 48,
         height: 48,
-        borderRadius: 14, // Modern 'squircle' curve
-        backgroundColor: colors.gray50,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
     avatarInitial: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.gray500,
     },
-    cardInfo: { flex: 1 },
     usernameText: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray500,
         marginTop: 1,
     },
     universityText: {
         fontFamily: fonts.regular,
         fontSize: 13,
-        color: colors.gray400,
         marginTop: 2,
     },
     friendsBtn: {
         paddingHorizontal: 12,
         paddingVertical: 8,
-        backgroundColor: colors.black,
         borderRadius: 20,
     },
     friendsBtnPending: {
         paddingHorizontal: 12,
         paddingVertical: 8,
-        backgroundColor: colors.gray50,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: colors.gray200,
     },
     friendsBtnActive: {
         paddingHorizontal: 12,
@@ -481,7 +433,6 @@ const styles = StyleSheet.create({
     friendsBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 12,
-        color: colors.white,
     },
     emptyState: {
         alignItems: 'center',
@@ -491,12 +442,10 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontFamily: fonts.bold,
         fontSize: 20,
-        color: colors.black,
     },
     emptySub: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray500,
         marginTop: 6,
         textAlign: 'center',
     },

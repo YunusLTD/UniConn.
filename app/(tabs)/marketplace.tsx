@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { formatRelativeTime } from '../../src/utils/date';
 import { getFeed } from '../../src/api/feed';
 import { listCommunities, getMyCommunities } from '../../src/api/communities';
@@ -23,6 +24,7 @@ const CATEGORIES = [
 ];
 
 export default function MarketplaceScreen() {
+    const { colors } = useTheme();
     const [items, setItems] = useState<any[]>([]);
     const [communities, setCommunities] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,29 +75,29 @@ export default function MarketplaceScreen() {
     };
 
     const renderHeader = () => (
-        <View style={styles.headerContainer}>
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
             <View style={styles.tabBar}>
                 <TouchableOpacity
-                    style={[styles.tab, activeType === 'all' && styles.activeTab]}
+                    style={[styles.tab, activeType === 'all' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('all')}
                 >
-                    <Text style={[styles.tabText, activeType === 'all' && styles.activeTabText]}>All Listings</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'all' && { color: colors.black }]}>All Listings</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.tab, activeType === 'sell' && styles.activeTab]}
+                    style={[styles.tab, activeType === 'sell' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('sell')}
                 >
-                    <Text style={[styles.tabText, activeType === 'sell' && styles.activeTabText]}>For Sale</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'sell' && { color: colors.black }]}>For Sale</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.tab, activeType === 'request' && styles.activeTab]}
+                    style={[styles.tab, activeType === 'request' && { borderBottomColor: colors.black }]}
                     onPress={() => setActiveType('request')}
                 >
-                    <Text style={[styles.tabText, activeType === 'request' && styles.activeTabText]}>Requests</Text>
+                    <Text style={[styles.tabText, { color: colors.gray500 }, activeType === 'request' && { color: colors.black }]}>Requests</Text>
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.borderLine} />
+            <View style={[styles.borderLine, { backgroundColor: colors.gray100 }]} />
 
             <FlatList
                 horizontal
@@ -105,7 +107,7 @@ export default function MarketplaceScreen() {
                 contentContainerStyle={styles.categoryList}
                 renderItem={({ item }) => (
                     <TouchableOpacity
-                        style={[styles.categoryChip, activeCategory === item.id && styles.categoryChipActive]}
+                        style={[styles.categoryChip, { backgroundColor: colors.gray50, borderColor: colors.gray100 }, activeCategory === item.id && { backgroundColor: colors.black, borderColor: colors.black }]}
                         onPress={() => setActiveCategory(item.id)}
                         activeOpacity={0.7}
                     >
@@ -114,7 +116,7 @@ export default function MarketplaceScreen() {
                             size={16} 
                             color={activeCategory === item.id ? colors.white : colors.gray600} 
                         />
-                        <Text style={[styles.categoryLabel, activeCategory === item.id && styles.categoryLabelActive]}>
+                        <Text style={[styles.categoryLabel, { color: colors.gray600 }, activeCategory === item.id && { color: colors.white }]}>
                             {item.label}
                         </Text>
                     </TouchableOpacity>
@@ -122,15 +124,15 @@ export default function MarketplaceScreen() {
             />
 
             <View style={styles.filterRow}>
-                <Text style={styles.resultsText}>
+                <Text style={[styles.resultsText, { color: colors.gray500 }]}>
                     {items.length} {activeType === 'request' ? 'Requests' : 'Items'}
                 </Text>
                 <TouchableOpacity 
-                    style={styles.filterBtn}
+                    style={[styles.filterBtn, { backgroundColor: colors.gray50 }]}
                     onPress={() => setFilterVisible(true)}
                 >
                     <Ionicons name="options-outline" size={16} color={colors.black} />
-                    <Text style={styles.filterBtnText}>
+                    <Text style={[styles.filterBtnText, { color: colors.black }]}>
                         {selectedCommunity ? communities.find(c => c.id === selectedCommunity)?.name : 'All Communities'}
                     </Text>
                 </TouchableOpacity>
@@ -140,14 +142,14 @@ export default function MarketplaceScreen() {
 
     const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity 
-            style={styles.itemCard}
+            style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.gray100 }]}
             onPress={() => router.push({ pathname: `/marketplace/${item.id}`, params: { title: item.title } })}
             activeOpacity={0.9}
         >
             <TouchableOpacity 
                 activeOpacity={0.9} 
                 onPress={() => setPreviewImage(item.image_url)}
-                style={styles.imageWrapper}
+                style={[styles.imageWrapper, { backgroundColor: colors.gray50 }]}
             >
                 {item.image_url ? (
                     <Image source={{ uri: item.image_url }} style={styles.itemImage} />
@@ -180,13 +182,13 @@ export default function MarketplaceScreen() {
                         </Text>
                     </View>
                 ) : (
-                    <Text style={styles.itemPrice}>
+                    <Text style={[styles.itemPrice, { color: colors.black }]}>
                         {item.price === 0 ? 'Free' : `$${item.price?.toLocaleString() || 0}`}
                     </Text>
                 )}
-                <Text style={styles.itemTitle} numberOfLines={1}>{item.title || 'Untitled Item'}</Text>
+                <Text style={[styles.itemTitle, { color: colors.gray700 }]} numberOfLines={1}>{item.title || 'Untitled Item'}</Text>
                 <View style={styles.locationRow}>
-                    <Text style={styles.itemLocation} numberOfLines={1}>
+                    <Text style={[styles.itemLocation, { color: colors.gray400 }]} numberOfLines={1}>
                         <Ionicons name="time-outline" size={10} color={colors.gray400} />
                         {'  '}
                         {formatRelativeTime(item.created_at)}
@@ -197,7 +199,7 @@ export default function MarketplaceScreen() {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ title: 'Marketplace', headerBackTitle: '' }} />
             
             {loading ? (
@@ -247,9 +249,9 @@ export default function MarketplaceScreen() {
             {/* Filter Modal */}
             <Modal visible={filterVisible} animationType="slide" transparent>
                 <View style={styles.modalBg}>
-                    <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Filter by Community</Text>
+                    <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20, backgroundColor: colors.surface }]}>
+                        <View style={[styles.modalHeader, { borderBottomColor: colors.gray100 }]}>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>Filter by Community</Text>
                             <TouchableOpacity onPress={() => setFilterVisible(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
@@ -260,13 +262,13 @@ export default function MarketplaceScreen() {
                             keyExtractor={item => item.id || 'all'}
                             renderItem={({ item }) => (
                                 <TouchableOpacity 
-                                    style={[styles.filterOption, selectedCommunity === item.id && styles.filterOptionSelected]}
+                                    style={[styles.filterOption, { borderBottomColor: colors.gray50 }, selectedCommunity === item.id && styles.filterOptionSelected]}
                                     onPress={() => {
                                         setSelectedCommunity(item.id);
                                         setFilterVisible(false);
                                     }}
                                 >
-                                    <Text style={[styles.filterOptionText, selectedCommunity === item.id && styles.filterOptionTextSelected]}>
+                                    <Text style={[styles.filterOptionText, { color: colors.gray700 }, selectedCommunity === item.id && { fontFamily: fonts.semibold, color: colors.primary }]}>
                                         {item.name}
                                     </Text>
                                     {selectedCommunity === item.id && (
@@ -300,9 +302,9 @@ export default function MarketplaceScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1 },
     listContent: { paddingBottom: spacing.xl },
-    headerContainer: { backgroundColor: colors.white, paddingBottom: spacing.sm },
+    headerContainer: { paddingBottom: spacing.sm },
     categoryList: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 10 },
     categoryChip: {
         flexDirection: 'row',
@@ -311,13 +313,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: radii.full,
-        backgroundColor: colors.gray50,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
-    categoryChipActive: { backgroundColor: colors.black, borderColor: colors.black },
-    categoryLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray600 },
-    categoryLabelActive: { color: colors.white },
+    categoryLabel: { fontFamily: fonts.medium, fontSize: 13 },
     tabBar: {
         flexDirection: 'row',
         paddingHorizontal: spacing.lg,
@@ -329,20 +327,12 @@ const styles = StyleSheet.create({
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
-    activeTab: {
-        borderBottomColor: colors.black,
-    },
     tabText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.gray500,
-    },
-    activeTabText: {
-        color: colors.black,
     },
     borderLine: {
         height: 1,
-        backgroundColor: colors.gray100,
         width: '100%',
     },
     filterRow: {
@@ -352,7 +342,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         marginTop: spacing.xs,
     },
-    resultsText: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray500 },
+    resultsText: { fontFamily: fonts.medium, fontSize: 13 },
     filterBtn: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -360,20 +350,17 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: radii.sm,
-        backgroundColor: colors.gray50,
     },
-    filterBtnText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.black },
+    filterBtnText: { fontFamily: fonts.semibold, fontSize: 12 },
 
     gridRow: { paddingHorizontal: spacing.lg, justifyContent: 'space-between', marginTop: spacing.md },
     itemCard: {
         width: COLUMN_WIDTH,
-        backgroundColor: colors.white,
         borderRadius: radii.lg,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
-    imageWrapper: { width: '100%', height: COLUMN_WIDTH, backgroundColor: colors.gray50 },
+    imageWrapper: { width: '100%', height: COLUMN_WIDTH },
     itemImage: { width: '100%', height: '100%', resizeMode: 'cover' },
     imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     freeBadge: {
@@ -385,21 +372,20 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 4,
     },
-    freeBadgeText: { color: colors.white, fontFamily: fonts.bold, fontSize: 10 },
+    freeBadgeText: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 10 },
     
     itemInfo: { padding: 12 },
-    itemPrice: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
-    itemTitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray700, marginTop: 2 },
+    itemPrice: { fontFamily: fonts.bold, fontSize: 16 },
+    itemTitle: { fontFamily: fonts.regular, fontSize: 14, marginTop: 2 },
     locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-    itemLocation: { fontFamily: fonts.medium, fontSize: 11, color: colors.gray400 },
+    itemLocation: { fontFamily: fonts.medium, fontSize: 11 },
     
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 40 },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black, marginTop: 16 },
-    emptySub: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, textAlign: 'center', marginTop: 8, marginBottom: 20 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 18, marginTop: 16 },
+    emptySub: { fontFamily: fonts.regular, fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 20 },
     emptyCreateBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.black,
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: radii.md,
@@ -408,43 +394,29 @@ const styles = StyleSheet.create({
     emptyCreateBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.white
     },
 
     modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: colors.gray100,
     },
-    modalTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black },
+    modalTitle: { fontFamily: fonts.bold, fontSize: 18 },
     filterOption: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 20,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray50,
     },
     filterOptionSelected: { backgroundColor: 'rgba(59, 130, 246, 0.05)' },
-    filterOptionText: { fontFamily: fonts.regular, fontSize: 16, color: colors.gray700 },
-    filterOptionTextSelected: { fontFamily: fonts.semibold, color: colors.primary },
+    filterOptionText: { fontFamily: fonts.regular, fontSize: 16 },
 
     previewBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
     closePreview: { position: 'absolute', top: 60, right: 20, zIndex: 10 },
     fullImage: { width: '100%', height: '80%' },
-    absoluteLoader: {
-        position: 'absolute',
-        top: 140,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'transparent',
-    },
 });

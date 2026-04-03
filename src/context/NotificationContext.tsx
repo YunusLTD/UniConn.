@@ -23,6 +23,7 @@ type NotificationContextType = {
     unreadCount: number;
     messageUnreadCount: number;
     activityUnreadCount: number;
+    pulseUnreadCount: number;
     requestPermissions: () => Promise<void>;
     refreshUnreadCount: () => Promise<void>;
 };
@@ -30,7 +31,7 @@ type NotificationContextType = {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-    const [counts, setCounts] = useState({ total: 0, messages: 0, activity: 0 });
+    const [counts, setCounts] = useState({ total: 0, messages: 0, activity: 0, pulse: 0 });
     const { token, user } = useAuth();
     const router = useRouter();
     const notificationListener = useRef<Notifications.Subscription | null>(null);
@@ -44,7 +45,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 setCounts({
                     total: res.data.total || 0,
                     messages: res.data.messages || 0,
-                    activity: res.data.activity || 0
+                    activity: res.data.activity || 0,
+                    pulse: res.data.pulse || 0
                 });
             }
         } catch (e) {
@@ -133,6 +135,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             unreadCount: counts.total,
             messageUnreadCount: counts.messages,
             activityUnreadCount: counts.activity,
+            pulseUnreadCount: counts.pulse,
             requestPermissions: registerForPushNotificationsAsync,
             refreshUnreadCount: fetchUnreadCount
         }}>

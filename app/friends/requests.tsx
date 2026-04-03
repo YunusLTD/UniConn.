@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
 import { getFriendRequests, respondToFriendRequest } from '../../src/api/friends';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function FriendRequestsScreen() {
     const router = useRouter();
     const [requests, setRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const { colors, isDark } = useTheme();
 
     const loadRequests = async () => {
         try {
@@ -39,24 +41,24 @@ export default function FriendRequestsScreen() {
         if (!profile) return null;
 
         return (
-            <View style={styles.requestCard}>
+            <View style={[styles.requestCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <TouchableOpacity 
                     style={styles.profileInfo}
                     onPress={() => router.push(`/user/${profile.id}`)}
                 >
-                    <View style={styles.avatar}>
+                    <View style={[styles.avatar, { backgroundColor: colors.gray100, borderColor: colors.gray200 }]}>
                         {profile.avatar_url ? (
                             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                         ) : (
                             <View style={styles.avatarPlaceholder}>
-                                <Text style={styles.avatarText}>{profile.name?.[0]?.toUpperCase() || '?'}</Text>
+                                <Text style={[styles.avatarText, { color: colors.gray500 }]}>{profile.name?.[0]?.toUpperCase() || '?'}</Text>
                             </View>
                         )}
                     </View>
                     <View style={styles.nameContent}>
-                        <Text style={styles.name} numberOfLines={1}>{profile.name}</Text>
+                        <Text style={[styles.name, { color: colors.black }]} numberOfLines={1}>{profile.name}</Text>
                         {profile.university_name && (
-                            <Text style={styles.uniName} numberOfLines={1}>{profile.university_name}</Text>
+                            <Text style={[styles.uniName, { color: colors.gray500 }]} numberOfLines={1}>{profile.university_name}</Text>
                         )}
                         <Text style={styles.statusText}>Wants to be your friend</Text>
                     </View>
@@ -64,16 +66,16 @@ export default function FriendRequestsScreen() {
 
                 <View style={styles.actions}>
                     <TouchableOpacity 
-                        style={[styles.actionBtn, styles.rejectBtn]} 
+                        style={[styles.actionBtn, styles.rejectBtn, { backgroundColor: isDark ? colors.gray800 : colors.gray100 }]} 
                         onPress={() => handleResponse(item.id, 'reject')}
                     >
-                        <Text style={styles.rejectBtnText}>Decline</Text>
+                        <Text style={[styles.rejectBtnText, { color: colors.gray600 }]}>Decline</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                        style={[styles.actionBtn, styles.acceptBtn]} 
+                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: colors.black }]} 
                         onPress={() => handleResponse(item.id, 'accept')}
                     >
-                        <Text style={styles.acceptBtnText}>Accept</Text>
+                        <Text style={[styles.acceptBtnText, { color: colors.white }]}>Accept</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -81,12 +83,13 @@ export default function FriendRequestsScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
                 title: 'Friend Requests', 
                 headerShown: true, 
                 headerBackTitle: '',
                 headerTintColor: colors.black,
+                headerStyle: { backgroundColor: colors.background }
             }} />
 
             {loading ? (
@@ -102,8 +105,8 @@ export default function FriendRequestsScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Ionicons name="people-outline" size={64} color={colors.gray200} />
-                            <Text style={styles.emptyTitle}>No pending requests</Text>
-                            <Text style={styles.emptyText}>When students want to be your friend, they'll appear here.</Text>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>No pending requests</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray500 }]}>When students want to be your friend, they'll appear here.</Text>
                         </View>
                     }
                 />
@@ -113,27 +116,14 @@ export default function FriendRequestsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
-    header: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        paddingHorizontal: spacing.lg, 
-        paddingTop: 60, 
-        paddingBottom: 20,
-        borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray100
-    },
-    backBtn: { width: 40, height: 40, justifyContent: 'center' },
-    headerTitle: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 18 },
+    container: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     listContent: { padding: spacing.lg },
     requestCard: {
-        backgroundColor: colors.white,
         borderRadius: 20,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.gray100,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -141,21 +131,21 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     profileInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    avatar: { width: 50, height: 50, borderRadius: 25, overflow: 'hidden', backgroundColor: colors.gray100, borderWidth: 1, borderColor: colors.gray200 },
+    avatar: { width: 50, height: 50, borderRadius: 25, overflow: 'hidden', borderWidth: 1 },
     avatarImg: { width: '100%', height: '100%' },
     avatarPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    avatarText: { fontFamily: fonts.bold, fontSize: 20, color: colors.gray500 },
+    avatarText: { fontFamily: fonts.bold, fontSize: 20 },
     nameContent: { flex: 1, marginLeft: 12 },
-    name: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
-    uniName: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray500, marginTop: 2 },
-    statusText: { fontFamily: fonts.medium, fontSize: 13, color: colors.blue, marginTop: 4 },
+    name: { fontFamily: fonts.bold, fontSize: 16 },
+    uniName: { fontFamily: fonts.regular, fontSize: 12, marginTop: 2 },
+    statusText: { fontFamily: fonts.medium, fontSize: 13, color: '#3B82F6', marginTop: 4 },
     actions: { flexDirection: 'row', gap: 12 },
     actionBtn: { flex: 1, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    acceptBtn: { backgroundColor: colors.black },
-    acceptBtnText: { fontFamily: fonts.bold, fontSize: 14, color: colors.white },
-    rejectBtn: { backgroundColor: colors.gray100 },
-    rejectBtnText: { fontFamily: fonts.bold, fontSize: 14, color: colors.gray600 },
+    acceptBtn: { },
+    acceptBtnText: { fontFamily: fonts.bold, fontSize: 14 },
+    rejectBtn: { },
+    rejectBtnText: { fontFamily: fonts.bold, fontSize: 14 },
     emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.black, marginTop: 20, marginBottom: 8 },
-    emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 20, marginTop: 20, marginBottom: 8 },
+    emptyText: { fontFamily: fonts.regular, fontSize: 14, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 },
 });

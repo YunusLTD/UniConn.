@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { colors, spacing, fonts, radii } from '../constants/theme';
+import { spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { deleteJob } from '../api/jobs';
 import { useRouter } from 'expo-router';
 
 export default function JobCard({ job, showDelete = false, onDelete }: { job: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
+    const { colors } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
     const isOwner = user?.id === job.created_by;
@@ -31,30 +33,30 @@ export default function JobCard({ job, showDelete = false, onDelete }: { job: an
 
     return (
         <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
             onPress={() => router.push(`/jobs/${job.id}`)}
             activeOpacity={0.8}
         >
             <View style={styles.inner}>
                 {/* Icon */}
-                <View style={styles.iconBlock}>
+                <View style={[styles.iconBlock, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
                     <Ionicons name="briefcase-outline" size={20} color={colors.black} />
                 </View>
 
                 {/* Content */}
                 <View style={styles.info}>
                     <View style={styles.labelRow}>
-                        <Text style={styles.label}>OPPORTUNITY</Text>
+                        <Text style={[styles.label, { color: colors.gray400 }]}>OPPORTUNITY</Text>
                         {job.communities?.name && (
-                            <Text style={styles.community}>· {job.communities.name}</Text>
+                            <Text style={[styles.community, { color: colors.gray400 }]}>· {job.communities.name}</Text>
                         )}
                     </View>
-                    <Text style={styles.title} numberOfLines={1}>{job.title}</Text>
+                    <Text style={[styles.title, { color: colors.black }]} numberOfLines={1}>{job.title}</Text>
                     {job.description && (
-                        <Text style={styles.desc} numberOfLines={2}>{job.description}</Text>
+                        <Text style={[styles.desc, { color: colors.gray500 }]} numberOfLines={2}>{job.description}</Text>
                     )}
                     <View style={styles.budgetRow}>
-                        <Text style={styles.budget}>{formattedBudget}</Text>
+                        <Text style={[styles.budget, { color: colors.black }]}>{formattedBudget}</Text>
                         {job.profiles?.name && (
                             <TouchableOpacity
                                 onPress={(e) => {
@@ -78,13 +80,13 @@ export default function JobCard({ job, showDelete = false, onDelete }: { job: an
                         )
                     ) : (
                         <TouchableOpacity
-                            style={styles.applyBtn}
+                            style={[styles.applyBtn, { backgroundColor: colors.black }]}
                             onPress={() => Alert.alert('Interested?', 'We will notify the poster that you are interested in this opportunity.', [
                                 { text: 'Cancel' },
                                 { text: 'Express Interest', onPress: () => Alert.alert('Sent!', 'Your profile has been shared.') }
                             ])}
                         >
-                            <Text style={styles.applyBtnText}>Apply</Text>
+                            <Text style={[styles.applyBtnText, { color: colors.white }]}>Apply</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -95,9 +97,7 @@ export default function JobCard({ job, showDelete = false, onDelete }: { job: an
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
     },
     inner: {
         flexDirection: 'row',
@@ -110,9 +110,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: colors.gray50,
-        borderWidth: 1,
-        borderColor: colors.gray200,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -132,23 +129,19 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: fonts.semibold,
         fontSize: 10,
-        color: colors.gray400,
         letterSpacing: 1,
     },
     community: {
         fontFamily: fonts.regular,
         fontSize: 10,
-        color: colors.gray400,
     },
     title: {
         fontFamily: fonts.semibold,
         fontSize: 15,
-        color: colors.black,
     },
     desc: {
         fontFamily: fonts.regular,
         fontSize: 13,
-        color: colors.gray500,
         lineHeight: 18,
         marginTop: 3,
     },
@@ -161,18 +154,15 @@ const styles = StyleSheet.create({
     budget: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.black,
     },
     author: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray400,
     },
     deleteBtn: {
         padding: 4,
     },
     applyBtn: {
-        backgroundColor: colors.black,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: radii.md,
@@ -180,6 +170,5 @@ const styles = StyleSheet.create({
     applyBtnText: {
         fontFamily: fonts.bold,
         fontSize: 12,
-        color: colors.white,
     },
 });

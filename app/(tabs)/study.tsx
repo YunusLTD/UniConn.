@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { getStudyQuestions } from '../../src/api/study';
 import StudyCard from '../../src/components/StudyCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
@@ -22,6 +23,7 @@ const SUBJECTS = [
 
 export default function StudyScreen() {
     const router = useRouter();
+    const { colors } = useTheme();
     const [questions, setQuestions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -70,13 +72,13 @@ export default function StudyScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.subjectsContainer}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={[styles.subjectsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.gray100 }]}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectsScroll}>
                     {SUBJECTS.map(subject => (
                         <TouchableOpacity
                             key={subject.id}
-                            style={[styles.subjectChip, activeSubject === subject.id && styles.activeSubjectChip]}
+                            style={[styles.subjectChip, { backgroundColor: colors.gray50, borderColor: colors.gray100 }, activeSubject === subject.id && { backgroundColor: colors.black, borderColor: colors.black }]}
                             onPress={() => {
                                 setActiveSubject(subject.id);
                                 setLoading(true);
@@ -89,7 +91,7 @@ export default function StudyScreen() {
                                 size={16} 
                                 color={activeSubject === subject.id ? colors.white : colors.gray600} 
                             />
-                            <Text style={[styles.subjectChipText, activeSubject === subject.id && styles.activeSubjectChipText]}>
+                            <Text style={[styles.subjectChipText, { color: colors.gray600 }, activeSubject === subject.id && { color: colors.white }]}>
                                 {subject.label}
                             </Text>
                         </TouchableOpacity>
@@ -115,8 +117,8 @@ export default function StudyScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="school-outline" size={64} color={colors.gray300} style={{ marginBottom: spacing.md }} />
-                            <Text style={styles.emptyTitle}>No questions in {activeSubject}</Text>
-                            <Text style={styles.emptySub}>Be the first to ask or help out!</Text>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>No questions in {activeSubject}</Text>
+                            <Text style={[styles.emptySub, { color: colors.gray500 }]}>Be the first to ask or help out!</Text>
                         </View>
                     }
                 />
@@ -128,13 +130,10 @@ export default function StudyScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
     subjectsContainer: {
-        backgroundColor: colors.white,
         paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: colors.gray100,
     },
     subjectsScroll: {
         paddingHorizontal: spacing.lg,
@@ -148,21 +147,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: radii.full,
-        backgroundColor: colors.gray50,
         borderWidth: 1,
-        borderColor: colors.gray100,
-    },
-    activeSubjectChip: {
-        backgroundColor: colors.black,
-        borderColor: colors.black,
     },
     subjectChipText: {
         fontFamily: fonts.medium,
         fontSize: 13,
-        color: colors.gray600,
-    },
-    activeSubjectChipText: {
-        color: colors.white,
     },
     emptyContainer: {
         flex: 1,
@@ -174,13 +163,11 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.black,
         marginBottom: 8,
     },
     emptySub: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray500,
         textAlign: 'center',
     },
 });

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadMultipleMedia } from '../../src/api/upload';
@@ -16,6 +17,7 @@ export default function CreateQuestionScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
+    const { colors } = useTheme();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [subject, setSubject] = useState('');
@@ -68,8 +70,10 @@ export default function CreateQuestionScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.black,
                 headerShown: true,
                 title: 'Ask for Help',
                 headerLeft: () => (
@@ -82,13 +86,13 @@ export default function CreateQuestionScreen() {
                     <TouchableOpacity
                         onPress={handleSubmit}
                         disabled={submitting}
-                        style={styles.postBtn}
+                        style={[styles.postBtn, { backgroundColor: colors.black }]}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         {submitting ? (
                             <ActivityIndicator size="small" color={colors.white} />
                         ) : (
-                            <Text style={styles.postBtnText}>Ask</Text>
+                            <Text style={[styles.postBtnText, { color: colors.white }]}>Ask</Text>
                         )}
                     </TouchableOpacity>
                 )
@@ -101,15 +105,23 @@ export default function CreateQuestionScreen() {
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <View style={styles.inputSection}>
-                        <Text style={styles.label}>Subject</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>Subject</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subjectScroll} contentContainerStyle={{ gap: 8 }}>
                             {SUBJECTS.map(sub => (
                                 <TouchableOpacity
                                     key={sub}
-                                    style={[styles.subjectChip, subject === sub && styles.activeSubjectChip]}
+                                    style={[
+                                        styles.subjectChip,
+                                        { backgroundColor: colors.surface, borderColor: colors.border },
+                                        subject === sub && { backgroundColor: colors.black, borderColor: colors.black }
+                                    ]}
                                     onPress={() => setSubject(sub)}
                                 >
-                                    <Text style={[styles.subjectChipText, subject === sub && styles.activeSubjectChipText]}>
+                                    <Text style={[
+                                        styles.subjectChipText,
+                                        { color: colors.gray600 },
+                                        subject === sub && { color: colors.white }
+                                    ]}>
                                         {sub}
                                     </Text>
                                 </TouchableOpacity>
@@ -118,9 +130,9 @@ export default function CreateQuestionScreen() {
                     </View>
 
                     <View style={styles.inputSection}>
-                        <Text style={styles.label}>Title</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>Title</Text>
                         <TextInput
-                            style={styles.titleInput}
+                            style={[styles.titleInput, { color: colors.black, borderBottomColor: colors.border }]}
                             placeholder="What's the core problem? (e.g. Calculus: Chain Rule)"
                             value={title}
                             onChangeText={setTitle}
@@ -130,9 +142,9 @@ export default function CreateQuestionScreen() {
                     </View>
 
                     <View style={styles.inputSection}>
-                        <Text style={styles.label}>Details / Context</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>Details / Context</Text>
                         <TextInput
-                            style={styles.contentInput}
+                            style={[styles.contentInput, { color: colors.black }]}
                             placeholder="Explain where you're stuck or what you've tried so far..."
                             value={content}
                             onChangeText={setContent}
@@ -141,7 +153,7 @@ export default function CreateQuestionScreen() {
                         />
                     </View>
 
-                    <TouchableOpacity style={styles.imageSelector} onPress={pickImage}>
+                    <TouchableOpacity style={[styles.imageSelector, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickImage}>
                         {imageUri ? (
                             <View style={{ position: 'relative' }}>
                                 <Image source={{ uri: imageUri }} style={styles.selectedImage} />
@@ -153,29 +165,29 @@ export default function CreateQuestionScreen() {
                                 </TouchableOpacity>
                             </View>
                         ) : (
-                            <View style={styles.imagePlaceholder}>
+                            <View style={[styles.imagePlaceholder, { borderColor: colors.border }]}>
                                 <Ionicons name="camera-outline" size={32} color={colors.gray400} />
-                                <Text style={styles.placeholderText}>Add a photo of the problem</Text>
+                                <Text style={[styles.placeholderText, { color: colors.gray500 }]}>Add a photo of the problem</Text>
                             </View>
                         )}
                     </TouchableOpacity>
 
-                    <View style={styles.tipsSection}>
+                    <View style={[styles.tipsSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <View style={styles.tipsHeader}>
                             <Ionicons name="bulb" size={18} color={colors.black} />
-                            <Text style={styles.tipsTitle}>Quick Tips for Better Help</Text>
+                            <Text style={[styles.tipsTitle, { color: colors.black }]}>Quick Tips for Better Help</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={styles.tipText}>Be clear and specific in your title so peers know exactly what's up.</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Be clear and specific in your title so peers know exactly what's up.</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={styles.tipText}>Show what you've tried—it helps others find where you're stuck!</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Show what you've tried—it helps others find where you're stuck!</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={styles.tipText}>Upload a sharp photo if the problem is visual or has diagrams.</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Upload a sharp photo if the problem is visual or has diagrams.</Text>
                         </View>
                     </View>
                 </ScrollView>
@@ -187,13 +199,11 @@ export default function CreateQuestionScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
     },
     scrollContent: {
         padding: spacing.lg,
     },
     postBtn: {
-        backgroundColor: colors.black,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
@@ -205,7 +215,6 @@ const styles = StyleSheet.create({
     postBtnText: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.white,
     },
     inputSection: {
         marginBottom: 24,
@@ -213,7 +222,6 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: fonts.bold,
         fontSize: 13,
-        color: colors.gray500,
         marginBottom: 10,
         textTransform: 'uppercase',
     },
@@ -225,34 +233,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 20,
-        backgroundColor: colors.gray50,
         borderWidth: 0.5,
-        borderColor: colors.gray200,
-    },
-    activeSubjectChip: {
-        backgroundColor: colors.black,
-        borderColor: colors.black,
     },
     subjectChipText: {
         fontFamily: fonts.semibold,
         fontSize: 13,
-        color: colors.gray600,
-    },
-    activeSubjectChipText: {
-        color: colors.white,
     },
     titleInput: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.black,
         borderBottomWidth: 1,
-        borderBottomColor: colors.gray100,
         paddingVertical: 12,
     },
     contentInput: {
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
         minHeight: 120,
         textAlignVertical: 'top',
         paddingVertical: 12,
@@ -266,7 +261,6 @@ const styles = StyleSheet.create({
         height: 120,
         borderRadius: 16,
         borderWidth: 1.5,
-        borderColor: colors.gray100,
         borderStyle: 'dashed',
         justifyContent: 'center',
         alignItems: 'center',
@@ -275,7 +269,6 @@ const styles = StyleSheet.create({
     placeholderText: {
         fontFamily: fonts.medium,
         fontSize: 13,
-        color: colors.gray400,
     },
     selectedImage: {
         width: '100%',
@@ -288,13 +281,11 @@ const styles = StyleSheet.create({
         right: 8,
     },
     tipsSection: {
-        backgroundColor: colors.gray50,
         padding: 20,
         borderRadius: 24,
         marginTop: 10,
         marginBottom: 40,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
     tipsHeader: {
         flexDirection: 'row',
@@ -305,7 +296,6 @@ const styles = StyleSheet.create({
     tipsTitle: {
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.black,
     },
     tipItem: {
         flexDirection: 'row',
@@ -316,7 +306,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: fonts.medium,
         fontSize: 13,
-        color: colors.gray700,
         lineHeight: 18,
     },
 });

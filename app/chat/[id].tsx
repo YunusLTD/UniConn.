@@ -4,7 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii, colors } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { getMessages, sendMessage, getConversation, markConversationRead, deleteMessage } from '../../src/api/messages';
 import { uploadMultipleMedia } from '../../src/api/upload';
 import { markReadByReference } from '../../src/api/notifications';
@@ -20,6 +21,8 @@ const SwipeableMessage = ({ children, onSwipe }: any) => {
     const translateX = useRef(new Animated.Value(0)).current;
     const opacity = useRef(new Animated.Value(0)).current;
     const hapticTriggered = useRef(false);
+
+    const { colors, isDark } = useTheme();
 
     const panResponder = useRef(
         PanResponder.create({
@@ -96,6 +99,7 @@ export default function ChatScreen() {
     const textInputRef = useRef<TextInput>(null);
     const channelRef = useRef<any>(null);
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
 
     const loadMessages = async (convId: string) => {
         try {
@@ -461,8 +465,9 @@ export default function ChatScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{
+                headerStyle: { backgroundColor: colors.background },
                 headerShown: true,
                 headerTitle: () => (
                     <TouchableOpacity
@@ -553,19 +558,19 @@ export default function ChatScreen() {
                                     activeOpacity={0.9}
                                     style={[
                                         styles.bubble, 
-                                        isMine ? styles.myBubble : styles.theirBubble,
+                                        isMine ? { backgroundColor: isDark ? '#A154F2' : '#00A3FF', borderBottomRightRadius: 4 } : { backgroundColor: colors.white, borderBottomLeftRadius: 4, borderWidth: 0.5, borderColor: colors.border },
                                     ]}
                                 >
                                 {!isMine && conversation?.type === 'group' && (
                                     <TouchableOpacity onPress={() => item.sender_id && router.push(`/user/${item.sender_id}`)}>
-                                        <Text style={styles.senderName}>{item.profiles?.name}</Text>
+                                        <Text style={[styles.senderName, { color: colors.gray500 }]}>{item.profiles?.name}</Text>
                                     </TouchableOpacity>
                                 )}
 
                                 {isReply && item.reply_to && (
-                                    <View style={[styles.replyPreview, isMine ? styles.myReplyPreview : styles.theirReplyPreview]}>
-                                        <Text style={styles.replyName} numberOfLines={1}>{item.reply_to.profiles?.name || 'User'}</Text>
-                                        <Text style={styles.replyText} numberOfLines={2}>{item.reply_to.content || (item.reply_to.media_url ? '📷 Media' : '')}</Text>
+                                    <View style={[styles.replyPreview, isMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
+                                        <Text style={[styles.replyName, { color: isMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{item.reply_to.profiles?.name || 'User'}</Text>
+                                        <Text style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{item.reply_to.content || (item.reply_to.media_url ? '📷 Media' : '')}</Text>
                                     </View>
                                 )}
 
@@ -585,13 +590,13 @@ export default function ChatScreen() {
                                 )}
 
                                 {!!item.content && (
-                                    <Text style={[styles.messageText, isMine && styles.myText]}>
+                                    <Text style={[styles.messageText, { color: isMine ? '#FFFFFF' : colors.black }]}>
                                         {renderContent(item.content, isMine)}
                                     </Text>
                                 )}
 
                                 <View style={styles.timestampRow}>
-                                    <Text style={[styles.timestamp, isMine && styles.myTimestamp]}>
+                                    <Text style={[styles.timestamp, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
                                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </Text>
                                     {item.isOptimistic ? (
@@ -633,7 +638,7 @@ export default function ChatScreen() {
             )}
             {peerTyping && (
                 <View style={styles.typingWrap}>
-                    <Text style={styles.typingText}>{displayName} is typing...</Text>
+                    <Text style={[styles.typingText, { color: colors.gray500 }]}>{displayName} is typing...</Text>
                 </View>
             )}
 
@@ -642,13 +647,13 @@ export default function ChatScreen() {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
                 {taggingSearch !== null && filteredMembers.length > 0 && (
-                    <View style={styles.taggingList} key="tagging-list-container">
+                    <View style={[styles.taggingList, { backgroundColor: colors.surface, borderTopColor: colors.border }]} key="tagging-list-container">
                         <FlatList
                             data={filteredMembers}
                             keyExtractor={m => m.profiles?.username || m.user_id}
                             renderItem={({ item }) => (
                                 <TouchableOpacity 
-                                    style={styles.memberTag} 
+                                    style={[styles.memberTag, { borderBottomColor: colors.border }]} 
                                     onPress={() => item.profiles?.username && handleSelectTag(item.profiles.username)}
                                     activeOpacity={0.7}
                                 >
@@ -667,8 +672,8 @@ export default function ChatScreen() {
                                         </View>
                                     )}
                                     <View>
-                                        <Text style={styles.tagName}>{item.profiles?.name || 'User'}</Text>
-                                        <Text style={styles.tagUsername}>@{item.profiles?.username || 'user'}</Text>
+                                        <Text style={[styles.tagName, { color: colors.black }]}>{item.profiles?.name || 'User'}</Text>
+                                        <Text style={[styles.tagUsername, { color: colors.gray400 }]}>@{item.profiles?.username || 'user'}</Text>
                                     </View>
                                 </TouchableOpacity>
                             )}
@@ -678,12 +683,12 @@ export default function ChatScreen() {
                 )}
 
                 {replyTo && (
-                    <View style={styles.replyBar} key={replyTo.id}>
+                    <View style={[styles.replyBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]} key={replyTo.id}>
                         <View style={styles.replyBarContent}>
                             <View style={styles.replyIndicator} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.replyName}>{replyTo.profiles?.name || 'User'}</Text>
-                                <Text style={styles.replyPreviewText} numberOfLines={1}>
+                                <Text style={[styles.replyName, { color: isDark ? '#3AB2FF' : '#00A3FF' }]}>{replyTo.profiles?.name || 'User'}</Text>
+                                <Text style={[styles.replyPreviewText, { color: colors.gray500 }]} numberOfLines={1}>
                                     {replyTo.content || (replyTo.media_url ? '📷 Media' : '')}
                                 </Text>
                             </View>
@@ -694,7 +699,7 @@ export default function ChatScreen() {
                     </View>
                 )}
 
-                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md), backgroundColor: colors.background, borderTopColor: colors.border }]}>
                     {isPlatform ? (
                         <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}>
                             <View style={styles.platformNotice}>
@@ -706,19 +711,21 @@ export default function ChatScreen() {
                             <TouchableOpacity onPress={pickMedia} style={styles.attachBtn}>
                                 <Ionicons name="camera-outline" size={24} color={colors.gray500} />
                             </TouchableOpacity>
-                            <View style={styles.inputContainer}>
+                            <View style={[styles.inputContainer, { backgroundColor: isDark ? '#1A1A1A' : colors.gray100 }]}>
                                 <TextInput
                                     ref={textInputRef}
-                                    style={[styles.input, { maxHeight: 120 }]}
+                                    style={[styles.input, { maxHeight: 120, color: colors.black }]}
                                     placeholder="Message..."
+                                    placeholderTextColor={colors.gray400}
                                     value={input}
                                     onChangeText={handleInputChange}
                                     multiline
                                 />
                             </View>
                             <TouchableOpacity
-                                style={[styles.sendBtn, !input.trim() && !mediaUri && styles.sendBtnDisabled]}
+                                style={[styles.sendBtn, { backgroundColor: colors.black }, (!input.trim() && !mediaUri) && { backgroundColor: isDark ? '#262626' : colors.gray200 }]}
                                 onPress={handleSend}
+                                disabled={!input.trim() && !mediaUri || sending}
                             >
                                 <Ionicons name="arrow-up" size={20} color={colors.white} />
                             </TouchableOpacity>

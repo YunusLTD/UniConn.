@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, SafeAreaView, FlatList, Animated, Share, Clipboard } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { votePost, deletePost } from '../api/posts';
@@ -127,6 +128,7 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
 // ─── PostCard ───
 export default function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
     const router = useRouter();
+    const { colors: themeColors } = useTheme();
 
     const renderContentWithMentions = (content: string) => {
         if (!content) return null;
@@ -137,14 +139,14 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                 return (
                     <Text
                         key={index}
-                        style={{ color: colors.blue, fontFamily: fonts.semibold }}
+                        style={{ color: themeColors.blue, fontFamily: fonts.semibold }}
                         onPress={() => router.push(`/user/${username}`)}
                     >
                         {part}
                     </Text>
                 );
             }
-            return <Text key={index}>{part}</Text>;
+            return <Text key={index} style={{ color: themeColors.text }}>{part}</Text>;
         });
     };
     const { user } = useAuth();
@@ -323,23 +325,22 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
         : (post.image_url ? ['image'] : []);
 
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
             {/* Thread line + avatar */}
             <View style={styles.row}>
                 <View style={styles.leftCol}>
                     <TouchableOpacity
-                        style={styles.avatar}
+                        style={[styles.avatar, { backgroundColor: themeColors.elevated, borderColor: themeColors.border }]}
                         onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}
                         activeOpacity={0.8}
                     >
                         {post.profiles?.avatar_url ? (
                             <Image source={{ uri: post.profiles.avatar_url }} style={styles.avatarImg} />
                         ) : (
-                            <Text style={styles.avatarText}>{initials}</Text>
+                            <Text style={[styles.avatarText, { color: themeColors.gray500 }]}>{initials}</Text>
                         )}
                     </TouchableOpacity>
-                    {/* Vertical thread line */}
-                    <View style={styles.threadLine} />
+                    <View style={[styles.threadLine, { backgroundColor: themeColors.border }]} />
                 </View>
 
                 <View style={styles.rightCol}>
@@ -351,21 +352,21 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                     onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}
                                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                                 >
-                                    <Text style={styles.name}>{post.profiles?.name || 'Anonymous'}</Text>
-                                    {(post.profiles?.is_admin || post.profiles?.name === 'UniConn Platform') && (
+                                    <Text style={[styles.name, { color: themeColors.black }]}>{post.profiles?.name || 'Anonymous'}</Text>
+                                    {!!(post.profiles?.is_admin || post.profiles?.name === 'UniConn Platform') && (
                                         <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
                                     )}
                                 </TouchableOpacity>
-                                {isOwner && (
-                                    <View style={styles.youBadge}>
-                                        <Text style={styles.youText}>you</Text>
+                                {!!isOwner && (
+                                    <View style={[styles.youBadge, { backgroundColor: themeColors.elevated }]}>
+                                        <Text style={[styles.youText, { color: themeColors.blue }]}>you</Text>
                                     </View>
                                 )}
-                                <Text style={styles.dot}>·</Text>
-                                <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
+                                <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
+                                <Text style={[styles.time, { color: themeColors.gray400 }]}>{timeAgo(post.created_at)}</Text>
                             </View>
-                            {post.communities?.name && (
-                                <Text style={styles.communityTag}>
+                            {!!post.communities?.name && (
+                                <Text style={[styles.communityTag, { color: themeColors.gray500 }]}>
                                     {post.communities.is_official 
                                         ? (post.universities?.name || post.communities.name.replace(/ community/gi, ''))
                                         : post.communities.name.replace(/ community/gi, '')}
@@ -373,7 +374,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                             )}
                         </View>
                         <TouchableOpacity onPress={handleMenu} hitSlop={8} style={styles.menuBtn}>
-                            <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
+                            <Ionicons name="ellipsis-horizontal" size={18} color={themeColors.gray400} />
                         </TouchableOpacity>
                     </View>
 
@@ -384,7 +385,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                         disabled={hideNavigation}
                     >
                         {post.content ? (
-                            <Text style={styles.content}>
+                            <Text style={[styles.content, { color: themeColors.black }]}>
                                 {renderContentWithMentions(post.content)}
                             </Text>
                         ) : null}
@@ -392,14 +393,14 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
                     {/* Media */}
                     {media.length > 0 && (
-                        <View style={styles.mediaContainer}>
+                        <View style={[styles.mediaContainer, { backgroundColor: themeColors.elevated }]}>
                             <MediaGrid media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} />
                         </View>
                     )}
 
                     {/* Actions */}
                     <View style={styles.actions}>
-                        <View style={styles.voteContainer}>
+                        <View style={[styles.voteContainer, { backgroundColor: themeColors.elevated }]}>
                             <TouchableOpacity
                                 style={styles.voteBtn}
                                 onPress={() => handleVote(1)}
@@ -410,7 +411,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                         source={{ uri: 'https://img.icons8.com/?size=100&id=101309&format=png&color=000000' }}
                                         style={[
                                             styles.voteIcon,
-                                            { tintColor: myVote === 1 ? colors.blue : colors.gray500 }
+                                            { tintColor: myVote === 1 ? themeColors.blue : themeColors.gray500 }
                                         ]}
                                     />
                                 </Animated.View>
@@ -418,8 +419,9 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
                             <Text style={[
                                 styles.voteCountText,
-                                myVote === 1 && { color: colors.blue },
-                                myVote === -1 && { color: colors.danger }
+                                { color: themeColors.gray600 },
+                                myVote === 1 && { color: themeColors.blue },
+                                myVote === -1 && { color: themeColors.danger }
                             ]}>
                                 {voteCount}
                             </Text>
@@ -434,7 +436,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                         source={{ uri: 'https://img.icons8.com/?size=100&id=102257&format=png&color=000000' }}
                                         style={[
                                             styles.voteIcon,
-                                            { tintColor: myVote === -1 ? colors.danger : colors.gray500 }
+                                            { tintColor: myVote === -1 ? themeColors.danger : themeColors.gray500 }
                                         ]}
                                     />
                                 </Animated.View>
@@ -442,14 +444,14 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                         </View>
 
                         <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/post/${post.id}`)} hitSlop={6} disabled={hideNavigation}>
-                            <Ionicons name="chatbubble-outline" size={18} color={colors.gray500} />
+                            <Ionicons name="chatbubble-outline" size={18} color={themeColors.gray500} />
                             {(post.comments?.[0]?.count || 0) > 0 && (
-                                <Text style={styles.actionCount}>{post.comments[0].count}</Text>
+                                <Text style={[styles.actionCount, { color: themeColors.gray500 }]}>{post.comments[0].count}</Text>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.actionBtn} hitSlop={6} onPress={handleShare}>
-                            <Ionicons name="paper-plane-outline" size={18} color={colors.gray500} />
+                            <Ionicons name="paper-plane-outline" size={18} color={themeColors.gray500} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -512,9 +514,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
     },
     row: {
         flexDirection: 'row',
@@ -531,23 +531,19 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
         borderWidth: 0.5,
-        borderColor: colors.gray200,
     },
     avatarImg: { width: '100%', height: '100%' },
     avatarText: {
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.gray600,
     },
     threadLine: {
         width: 1.5,
         flex: 1,
-        backgroundColor: colors.gray200,
         marginTop: 8,
         borderRadius: 1,
         minHeight: 12,
@@ -569,28 +565,23 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.black,
     },
     dot: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray400,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray400,
     },
     communityTag: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray500,
         marginTop: 1,
     },
     content: {
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.gray800,
         lineHeight: 21,
         marginTop: 6,
     },
@@ -598,7 +589,6 @@ const styles = StyleSheet.create({
         marginTop: 10,
         borderRadius: radii.md,
         overflow: 'hidden',
-        backgroundColor: colors.gray100,
     },
     gridRow: {
         flexDirection: 'row',
@@ -635,7 +625,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     moreText: {
-        color: colors.white,
+        color: '#FFFFFF',
         fontFamily: fonts.bold,
         fontSize: 20,
     },
@@ -648,7 +638,6 @@ const styles = StyleSheet.create({
     voteContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.gray50,
         borderRadius: radii.full,
         paddingHorizontal: 4,
         paddingVertical: 2,
@@ -665,7 +654,6 @@ const styles = StyleSheet.create({
     voteCountText: {
         fontFamily: fonts.bold,
         fontSize: 13,
-        color: colors.gray600,
         minWidth: 20,
         textAlign: 'center',
     },
@@ -678,7 +666,6 @@ const styles = StyleSheet.create({
     actionCount: {
         fontFamily: fonts.medium,
         fontSize: 13,
-        color: colors.gray500,
     },
     viewerContainer: {
         flex: 1,
@@ -703,7 +690,7 @@ const styles = StyleSheet.create({
     viewerCount: {
         fontFamily: fonts.semibold,
         fontSize: 15,
-        color: colors.white,
+        color: '#FFFFFF',
     },
     viewerPage: {
         width,
@@ -724,7 +711,6 @@ const styles = StyleSheet.create({
     youText: {
         fontFamily: fonts.medium,
         fontSize: 10,
-        color: colors.blue,
         includeFontPadding: false,
     },
     menuBtn: {

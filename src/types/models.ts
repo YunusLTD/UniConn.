@@ -9,6 +9,8 @@ export interface Profile {
     department?: string | null;
     year_of_study?: string | null;
     student_id_url?: string | null;
+    campus_rank?: number | null;
+    user_score?: number | null;
     created_at?: string;
     updated_at?: string;
 }

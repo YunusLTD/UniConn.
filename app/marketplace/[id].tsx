@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Share, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { formatRelativeTime } from '../../src/utils/date';
 import { getMarketplaceListing } from '../../src/api/marketplace';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketplaceDetailScreen() {
+    const { colors, isDark } = useTheme();
     const { id, title: headerTitle } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -46,19 +48,21 @@ export default function MarketplaceDetailScreen() {
         : '?';
 
     return (
-        <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             <Stack.Screen 
                 options={{ 
                     title: (item?.title || (headerTitle as string) || 'Listing...'),
                     headerTitleStyle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black },
                     headerBackTitle: '',
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTintColor: colors.black,
                     headerLeft: () => (
-                        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+                        <TouchableOpacity onPress={() => router.back()} style={[styles.headerIconBtn, { backgroundColor: colors.background }]}>
                             <Ionicons name="chevron-back" size={24} color={colors.black} />
                         </TouchableOpacity>
                     ),
                     headerRight: () => (
-                        <TouchableOpacity onPress={handleShare} style={styles.headerIconBtn}>
+                        <TouchableOpacity onPress={handleShare} style={[styles.headerIconBtn, { backgroundColor: colors.background }]}>
                             <Ionicons name="share-outline" size={22} color={colors.black} />
                         </TouchableOpacity>
                     ),
@@ -83,9 +87,9 @@ export default function MarketplaceDetailScreen() {
                     onPress={() => setPreviewImage(item.image_url)}
                 >
                     {item.image_url ? (
-                        <Image source={{ uri: item.image_url }} style={styles.mainImage} />
+                        <Image source={{ uri: item.image_url }} style={[styles.mainImage, { backgroundColor: colors.background }]} />
                     ) : (
-                        <View style={styles.imagePlaceholder}>
+                        <View style={[styles.imagePlaceholder, { backgroundColor: colors.background }]}>
                             <Ionicons name={item.listing_type === 'request' ? 'search-outline' : 'image-outline'} size={64} color={colors.gray200} />
                         </View>
                     )}
@@ -94,28 +98,28 @@ export default function MarketplaceDetailScreen() {
                 <View style={styles.content}>
                     <View style={styles.titleRow}>
                         {item.listing_type === 'request' ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.blue + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, gap: 6 }}>
-                                <Ionicons name="search" size={16} color={colors.blue} />
-                                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.blue }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, gap: 6 }}>
+                                <Ionicons name="search" size={16} color={colors.primary} />
+                                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.primary }}>
                                     {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} is looking for...` : 'User is looking for...'}
                                 </Text>
                             </View>
                         ) : (
-                            <Text style={styles.price}>
+                            <Text style={[styles.price, { color: colors.black }]}>
                                 {item.price === 0 ? 'FREE' : `$${item.price?.toLocaleString() || 0}`}
                             </Text>
                         )}
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryText}>{item.category || 'Other'}</Text>
+                        <View style={[styles.categoryBadge, { backgroundColor: colors.surface }]}>
+                            <Text style={[styles.categoryText, { color: colors.gray600 }]}>{item.category || 'Other'}</Text>
                         </View>
                     </View>
 
-                    <Text style={styles.title}>{item.title}</Text>
+                    <Text style={[styles.title, { color: colors.black }]}>{item.title}</Text>
                     
                     <View style={styles.metaRow}>
                         <View style={styles.metaItem}>
                             <Ionicons name="time-outline" size={14} color={colors.gray400} />
-                            <Text style={styles.metaText}>
+                            <Text style={[styles.metaText, { color: colors.gray500 }]}>
                                 <Text style={{ color: colors.gray400 }}>Listed </Text>
                                 {formatRelativeTime(item.created_at)}
                             </Text>
@@ -123,28 +127,28 @@ export default function MarketplaceDetailScreen() {
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Description</Text>
-                        <Text style={styles.description}>{item.description || 'No description provided.'}</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.black }]}>Description</Text>
+                        <Text style={[styles.description, { color: colors.gray600 }]}>{item.description || 'No description provided.'}</Text>
                     </View>
 
                     <View style={styles.sellerSection}>
-                        <Text style={styles.sectionTitle}>{item.listing_type === 'request' ? 'Requested By' : 'Seller Information'}</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.black }]}>{item.listing_type === 'request' ? 'Requested By' : 'Seller Information'}</Text>
                         <TouchableOpacity 
-                            style={styles.sellerCard}
+                            style={[styles.sellerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                             onPress={() => router.push(`/user/${item.seller_id}`)}
                         >
-                            <View style={styles.avatar}>
+                            <View style={[styles.avatar, { backgroundColor: colors.background }]}>
                                 {item.profiles?.avatar_url ? (
                                     <Image source={{ uri: item.profiles.avatar_url }} style={styles.avatarImg} />
                                 ) : (
                                     <View style={styles.avatarInitials}>
-                                        <Text style={styles.initialsText}>{initials}</Text>
+                                        <Text style={[styles.initialsText, { color: colors.gray500 }]}>{initials}</Text>
                                     </View>
                                 )}
                             </View>
                             <View style={styles.sellerInfo}>
-                                <Text style={styles.sellerName}>{item.profiles?.name || 'Unknown User'}</Text>
-                                <Text style={styles.sellerSub}>Active on Campus</Text>
+                                <Text style={[styles.sellerName, { color: colors.black }]}>{item.profiles?.name || 'Unknown User'}</Text>
+                                <Text style={[styles.sellerSub, { color: colors.gray500 }]}>Active on Campus</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
                         </TouchableOpacity>
@@ -154,13 +158,13 @@ export default function MarketplaceDetailScreen() {
             )}
 
             {item && (
-                <View style={styles.footer}>
+                <View style={[styles.footer, { backgroundColor: isDark ? colors.surface : 'rgba(255,255,255,0.95)', borderTopColor: colors.border }]}>
                     <TouchableOpacity 
-                        style={styles.chatBtn}
+                        style={[styles.chatBtn, { backgroundColor: colors.primary }]}
                         onPress={() => router.push(`/chat/${item.seller_id}`)}
                     >
                         <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                        <Text style={styles.chatBtnText}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
+                        <Text style={[styles.chatBtnText, { color: colors.white }]}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -178,62 +182,56 @@ export default function MarketplaceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1 },
     centered: { justifyContent: 'center', alignItems: 'center' },
     headerIconBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray50,
         justifyContent: 'center',
         alignItems: 'center',
         marginHorizontal: 8,
     },
-    mainImage: { width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 4) / 5, backgroundColor: colors.gray50 },
-    imagePlaceholder: { width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 4) / 5, backgroundColor: colors.gray50, justifyContent: 'center', alignItems: 'center' },
+    mainImage: { width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 4) / 5 },
+    imagePlaceholder: { width: SCREEN_WIDTH, height: (SCREEN_WIDTH * 4) / 5, justifyContent: 'center', alignItems: 'center' },
     content: { padding: 20 },
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    price: { fontSize: 24, fontFamily: fonts.bold, color: colors.black },
-    categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.gray100, borderRadius: 12 },
-    categoryText: { fontSize: 12, fontFamily: fonts.semibold, color: colors.gray600, textTransform: 'capitalize' },
-    title: { fontSize: 22, fontFamily: fonts.bold, color: colors.black, marginBottom: 12 },
+    price: { fontSize: 24, fontFamily: fonts.bold },
+    categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    categoryText: { fontSize: 12, fontFamily: fonts.semibold, textTransform: 'capitalize' },
+    title: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 12 },
     metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
     metaItem: { flexDirection: 'row', alignItems: 'center' },
-    metaText: { fontSize: 13, fontFamily: fonts.medium, color: colors.gray500, marginLeft: 4 },
-    metaDivider: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.gray300, marginHorizontal: 12 },
+    metaText: { fontSize: 13, fontFamily: fonts.medium, marginLeft: 4 },
+    metaDivider: { width: 4, height: 4, borderRadius: 2, marginHorizontal: 12 },
     section: { marginBottom: 24 },
-    sectionTitle: { fontSize: 16, fontFamily: fonts.bold, color: colors.black, marginBottom: 8 },
-    description: { fontSize: 15, fontFamily: fonts.regular, color: colors.gray600, lineHeight: 22 },
+    sectionTitle: { fontSize: 16, fontFamily: fonts.bold, marginBottom: 8 },
+    description: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
     sellerSection: { marginBottom: 100 },
     sellerCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 
         padding: 12, 
-        backgroundColor: colors.gray50, 
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
-    avatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: colors.gray200 },
+    avatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
     avatarImg: { width: '100%', height: '100%' },
     avatarInitials: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-    initialsText: { fontSize: 16, fontFamily: fonts.bold, color: colors.gray500 },
+    initialsText: { fontSize: 16, fontFamily: fonts.bold },
     sellerInfo: { flex: 1, marginLeft: 12 },
-    sellerName: { fontSize: 16, fontFamily: fonts.semibold, color: colors.black },
-    sellerSub: { fontSize: 12, fontFamily: fonts.regular, color: colors.gray500, marginTop: 2 },
+    sellerName: { fontSize: 16, fontFamily: fonts.semibold },
+    sellerSub: { fontSize: 12, fontFamily: fonts.regular, marginTop: 2 },
     footer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         padding: 20,
-        backgroundColor: 'rgba(255,255,255,0.95)',
         borderTopWidth: 1,
-        borderTopColor: colors.gray100,
     },
     chatBtn: {
         height: 56,
-        backgroundColor: colors.black,
         borderRadius: 28,
         flexDirection: 'row',
         justifyContent: 'center',
@@ -244,10 +242,10 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 5,
     },
-    chatBtnText: { color: colors.white, fontSize: 16, fontFamily: fonts.bold },
-    errorText: { fontSize: 16, fontFamily: fonts.medium, color: colors.gray400, marginBottom: 16 },
-    backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.black, borderRadius: 20 },
-    backBtnText: { color: colors.white, fontSize: 14, fontFamily: fonts.bold },
+    chatBtnText: { fontSize: 16, fontFamily: fonts.bold },
+    errorText: { fontSize: 16, fontFamily: fonts.medium, marginBottom: 16 },
+    backBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
+    backBtnText: { fontSize: 14, fontFamily: fonts.bold },
     previewBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
     closePreview: { position: 'absolute', top: 60, right: 20, zIndex: 10 },
     fullImage: { width: '100%', height: '80%' },

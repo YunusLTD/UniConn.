@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, LayoutAnimation, Platform, UIManager, Image } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { getEvent, rsvpToEvent, toggleEventInterest } from '../../src/api/events';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -11,6 +12,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function EventDetailScreen() {
+    const { colors } = useTheme();
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { user } = useAuth();
@@ -73,17 +75,19 @@ export default function EventDetailScreen() {
     const endTime = event?.end_time ? new Date(event.end_time) : null;
 
     return (
-        <View style={{ flex: 1, backgroundColor: colors.white }}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
             <Stack.Screen
                 options={{
                     headerShown: true,
                     title: event?.title || 'Event Details',
-                    headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
-                    headerBackTitleVisible: false,
+                    headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17, color: colors.black },
+                    headerBackTitle: '',
                     headerShadowVisible: false,
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTintColor: colors.black,
                 }}
             />
-            <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
                 {/* Banner */}
                 {event?.image_url && (
                     <View style={styles.bannerContainer}>
@@ -99,7 +103,7 @@ export default function EventDetailScreen() {
                 ) : (
                     <>
                         <View style={styles.header}>
-                            <Text style={styles.title}>{event?.title}</Text>
+                            <Text style={[styles.title, { color: colors.black }]}>{event?.title}</Text>
                             <TouchableOpacity
                                 onPress={() => event?.communities?.slug && router.push(`/uni/${event.communities.slug}`)}
                                 style={styles.communityRow}
@@ -109,25 +113,25 @@ export default function EventDetailScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.statsSection}>
-                            <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: colors.gray100 }]}>
-                                <Text style={styles.statValue}>{interestedCount}</Text>
+                        <View style={[styles.statsSection, { backgroundColor: colors.surface }]}>
+                            <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: colors.border }]}>
+                                <Text style={[styles.statValue, { color: colors.black }]}>{interestedCount}</Text>
                                 <Text style={styles.statLabel}>Interested</Text>
                             </View>
                             <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{event?.event_participants?.filter((p: any) => p.status === 'going').length || 0}</Text>
+                                <Text style={[styles.statValue, { color: colors.black }]}>{event?.event_participants?.filter((p: any) => p.status === 'going').length || 0}</Text>
                                 <Text style={styles.statLabel}>Going</Text>
                             </View>
                         </View>
 
-                        <View style={styles.section}>
+                        <View style={[styles.section, { borderBottomColor: colors.border }]}>
                             <View style={styles.row}>
-                                <View style={styles.iconBlock}><Ionicons name="calendar-outline" size={20} color={colors.primary} /></View>
+                                <View style={[styles.iconBlock, { backgroundColor: colors.primary + '15' }]}><Ionicons name="calendar-outline" size={20} color={colors.primary} /></View>
                                 <View>
-                                    <Text style={styles.dateText}>
+                                    <Text style={[styles.dateText, { color: colors.black }]}>
                                         {startTime ? startTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '---'}
                                     </Text>
-                                    <Text style={styles.timeText}>
+                                    <Text style={[styles.timeText, { color: colors.gray500 }]}>
                                         {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
                                         {endTime ? ` - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                                     </Text>
@@ -135,43 +139,43 @@ export default function EventDetailScreen() {
                             </View>
                             {event?.location && (
                                 <View style={[styles.row, { marginTop: spacing.lg }]}>
-                                    <View style={styles.iconBlock}><Ionicons name="location-outline" size={20} color={colors.primary} /></View>
-                                    <Text style={styles.locationText}>{event.location}</Text>
+                                    <View style={[styles.iconBlock, { backgroundColor: colors.primary + '15' }]}><Ionicons name="location-outline" size={20} color={colors.primary} /></View>
+                                    <Text style={[styles.locationText, { color: colors.black }]}>{event.location}</Text>
                                 </View>
                             )}
                         </View>
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>About this event</Text>
-                            <Text style={styles.description}>{event?.description || 'No description provided.'}</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.black }]}>About this event</Text>
+                            <Text style={[styles.description, { color: colors.gray600 }]}>{event?.description || 'No description provided.'}</Text>
                         </View>
 
                         <View style={styles.rsvpSection}>
                             <TouchableOpacity
-                                style={[styles.interestAction, isInterested && styles.interestActionActive]}
+                                style={[styles.interestAction, { borderColor: colors.primary, backgroundColor: colors.surface }, isInterested && { backgroundColor: colors.primary }]}
                                 onPress={handleInterestToggle}
                             >
                                 <Ionicons name={isInterested ? "star" : "star-outline"} size={20} color={isInterested ? colors.white : colors.primary} />
-                                <Text style={[styles.interestActionText, isInterested && styles.interestActionTextActive]}>
+                                <Text style={[styles.interestActionText, isInterested && { color: colors.white }]}>
                                     {isInterested ? "I'm Interested" : "Mark as Interested"}
                                 </Text>
                             </TouchableOpacity>
 
                             <View style={styles.divider}>
-                                <View style={styles.line} />
-                                <Text style={styles.dividerText}>OR RSVP</Text>
-                                <View style={styles.line} />
+                                <View style={[styles.line, { backgroundColor: colors.border }]} />
+                                <Text style={[styles.dividerText, { color: colors.gray400 }]}>OR RSVP</Text>
+                                <View style={[styles.line, { backgroundColor: colors.border }]} />
                             </View>
 
                             <View style={styles.rsvpRow}>
                                 {(['going', 'not_going'] as const).map(s => (
                                     <TouchableOpacity
                                         key={s}
-                                        style={[styles.rsvpBtn, status === s && styles.rsvpActive]}
+                                        style={[styles.rsvpBtn, { backgroundColor: colors.background, borderColor: colors.border }, status === s && { backgroundColor: colors.black, borderColor: colors.black }]}
                                         onPress={() => handleRSVP(s)}
                                         activeOpacity={0.7}
                                     >
-                                        <Text style={[styles.rsvpText, status === s && styles.rsvpActiveText]}>
+                                        <Text style={[styles.rsvpText, { color: colors.black }, status === s && { color: colors.white }]}>
                                             {s === 'not_going' ? "Can't go" : "I'm Going"}
                                         </Text>
                                     </TouchableOpacity>
@@ -187,38 +191,38 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white },
-    errorText: { fontFamily: fonts.regular, fontSize: 15, color: colors.gray500 },
+    container: { flex: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    errorText: { fontFamily: fonts.regular, fontSize: 15 },
     bannerContainer: { height: 220, width: '100%', position: 'relative' },
     bannerImg: { width: '100%', height: '100%', resizeMode: 'cover' },
     header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
-    title: { fontFamily: fonts.bold, fontSize: 28, color: colors.black, lineHeight: 34 },
+    title: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 34 },
     communityRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-    communityName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.primary },
-    statsSection: { flexDirection: 'row', backgroundColor: colors.gray50, marginHorizontal: spacing.lg, borderRadius: 16, paddingVertical: 16, marginBottom: spacing.lg },
+    communityName: { fontFamily: fonts.semibold, fontSize: 14 },
+    statsSection: { flexDirection: 'row', marginHorizontal: spacing.lg, borderRadius: 16, paddingVertical: 16, marginBottom: spacing.lg },
     statItem: { flex: 1, alignItems: 'center' },
-    statValue: { fontFamily: fonts.bold, fontSize: 18, color: colors.black },
-    statLabel: { fontFamily: fonts.medium, fontSize: 12, color: colors.gray500, marginTop: 2 },
-    section: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.gray100 },
+    statValue: { fontFamily: fonts.bold, fontSize: 18 },
+    statLabel: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
+    section: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderBottomWidth: 0.5 },
     row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-    iconBlock: { width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(52, 120, 246, 0.08)', justifyContent: 'center', alignItems: 'center' },
-    dateText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
-    timeText: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray500, marginTop: 2 },
-    locationText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
-    sectionTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black, marginBottom: spacing.md },
-    description: { fontFamily: fonts.regular, fontSize: 16, color: colors.gray600, lineHeight: 24 },
+    iconBlock: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    dateText: { fontFamily: fonts.semibold, fontSize: 15 },
+    timeText: { fontFamily: fonts.medium, fontSize: 13, marginTop: 2 },
+    locationText: { fontFamily: fonts.semibold, fontSize: 15 },
+    sectionTitle: { fontFamily: fonts.bold, fontSize: 18, marginBottom: spacing.md },
+    description: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
     rsvpSection: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
-    interestAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 16, borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.white },
-    interestActionActive: { backgroundColor: colors.primary },
-    interestActionText: { fontFamily: fonts.bold, fontSize: 16, color: colors.primary },
-    interestActionTextActive: { color: colors.white },
+    interestAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 16, borderWidth: 2 },
+    interestActionActive: { },
+    interestActionText: { fontFamily: fonts.bold, fontSize: 16 },
+    interestActionTextActive: { },
     divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
-    line: { flex: 1, height: 1, backgroundColor: colors.gray100 },
-    dividerText: { fontFamily: fonts.bold, fontSize: 10, color: colors.gray400, letterSpacing: 1 },
+    line: { flex: 1, height: 1 },
+    dividerText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 1 },
     rsvpRow: { flexDirection: 'row', gap: spacing.md },
-    rsvpBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, backgroundColor: colors.gray50, alignItems: 'center', borderWidth: 1, borderColor: colors.gray200 },
-    rsvpActive: { backgroundColor: colors.black, borderColor: colors.black },
-    rsvpText: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
-    rsvpActiveText: { color: colors.white },
+    rsvpBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1 },
+    rsvpActive: { },
+    rsvpText: { fontFamily: fonts.bold, fontSize: 14 },
+    rsvpActiveText: { },
 });

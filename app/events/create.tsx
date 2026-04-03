@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable, DeviceEventEmitter } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { createEvent } from '../../src/api/events';
 import { getMyCommunities } from '../../src/api/communities';
 import { uploadMultipleMedia } from '../../src/api/upload';
@@ -15,6 +16,7 @@ export default function CreateEventScreen() {
     const router = useRouter();
     const navigation = useNavigation();
     const params = useLocalSearchParams();
+    const { colors, theme } = useTheme();
 
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
@@ -116,7 +118,7 @@ export default function CreateEventScreen() {
             title: 'Schedule Event',
             headerTitleAlign: 'center',
             headerBackTitleVisible: false,
-            headerStyle: { backgroundColor: colors.white },
+            headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.black,
             headerLeft: () => (
                 <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 16 }}>
@@ -137,22 +139,26 @@ export default function CreateEventScreen() {
                     ]}
                     hitSlop={20}
                 >
-                    {posting ? <Text style={[styles.doneBtn, { color: colors.gray400 }]}>Sharing</Text> : <Text style={styles.doneBtn}>Share</Text>}
+                    {posting ? <Text style={[styles.doneBtn, { color: colors.gray400 }]}>Sharing</Text> : <Text style={[styles.doneBtn, { color: colors.black }]}>Share</Text>}
                 </Pressable>
             )
         });
-    }, [title, posting]);
+    }, [title, posting, colors]);
 
     if (loading) {
         return (
-            <View style={styles.centered}>
+            <View style={[styles.centered, { backgroundColor: colors.background }]}>
                 <ActivityIndicator color={colors.black} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+            <Stack.Screen options={{
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.black
+            }} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={{ flex: 1 }}
@@ -161,28 +167,28 @@ export default function CreateEventScreen() {
                 <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
                     {/* Community Picker */}
-                    <TouchableOpacity style={styles.picker} onPress={() => setShowSelector(!showSelector)}>
+                    <TouchableOpacity style={[styles.picker, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setShowSelector(!showSelector)}>
                         <View style={styles.pickerLeft}>
-                            <View style={styles.pickerIcon}>
+                            <View style={[styles.pickerIcon, { backgroundColor: colors.background }]}>
                                 <Ionicons name="people-outline" size={20} color={colors.gray500} />
                             </View>
                             <View>
-                                <Text style={styles.pickerSub}>POSTING TO</Text>
-                                <Text style={styles.pickerName}>{selectedCommunity?.name?.replace(/Community/gi, '').trim() || 'Select Community'}</Text>
+                                <Text style={[styles.pickerSub, { color: colors.gray500 }]}>POSTING TO</Text>
+                                <Text style={[styles.pickerName, { color: colors.black }]}>{selectedCommunity?.name?.replace(/Community/gi, '').trim() || 'Select Community'}</Text>
                             </View>
                         </View>
                         <Ionicons name={showSelector ? "chevron-up" : "chevron-down"} size={20} color={colors.gray400} />
                     </TouchableOpacity>
 
                     {showSelector && (
-                        <View style={styles.selector}>
+                        <View style={[styles.selector, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             {communities.map(c => (
                                 <TouchableOpacity
                                     key={c.id}
-                                    style={[styles.selectorItem, selectedCommunity?.id === c.id && styles.selectorActive]}
+                                    style={[styles.selectorItem, selectedCommunity?.id === c.id && [styles.selectorActive, { backgroundColor: colors.background }]]}
                                     onPress={() => { setSelectedCommunity(c); setShowSelector(false); }}
                                 >
-                                    <Text style={[styles.selectorText, selectedCommunity?.id === c.id && styles.selectorTextActive]}>
+                                    <Text style={[styles.selectorText, { color: colors.gray500 }, selectedCommunity?.id === c.id && [styles.selectorTextActive, { color: colors.black }]]}>
                                         {c.name?.replace(/Community/gi, '').trim()}
                                     </Text>
                                     {selectedCommunity?.id === c.id && <Ionicons name="checkmark" size={18} color={colors.black} />}
@@ -192,7 +198,7 @@ export default function CreateEventScreen() {
                     )}
 
                     {/* Image Upload */}
-                    <TouchableOpacity style={styles.imageZone} onPress={handlePickImage} disabled={uploading}>
+                    <TouchableOpacity style={[styles.imageZone, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handlePickImage} disabled={uploading}>
                         {imageUrl ? (
                             <View style={styles.imagePreviewWrap}>
                                 <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
@@ -207,8 +213,8 @@ export default function CreateEventScreen() {
                                     <ActivityIndicator color={colors.gray400} />
                                 ) : (
                                     <>
-                                        <Ionicons name="image-outline" size={40} color={colors.gray300} />
-                                        <Text style={styles.imageLabel}>Add Event Cover Photo</Text>
+                                        <Ionicons name="image-outline" size={40} color={colors.gray400} />
+                                        <Text style={[styles.imageLabel, { color: colors.gray500 }]}>Add Event Cover Photo</Text>
                                     </>
                                 )}
                             </View>
@@ -218,9 +224,9 @@ export default function CreateEventScreen() {
                     {/* Form Fields */}
                     <View style={styles.form}>
                         <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>TITLE</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>TITLE</Text>
                             <TextInput
-                                style={styles.titleInput}
+                                style={[styles.titleInput, { color: colors.black }]}
                                 placeholder="What's the event?"
                                 placeholderTextColor={colors.gray400}
                                 value={title}
@@ -229,17 +235,17 @@ export default function CreateEventScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>WHEN</Text>
-                            <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowDatePicker(true)}>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>WHEN</Text>
+                            <TouchableOpacity style={[styles.datePickerBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setShowDatePicker(true)}>
                                 <Ionicons name="calendar-outline" size={20} color={colors.gray500} />
-                                <Text style={styles.dateText}>{formatSmartDate(eventDate)}</Text>
+                                <Text style={[styles.dateText, { color: colors.black }]}>{formatSmartDate(eventDate)}</Text>
                             </TouchableOpacity>
                             {showDatePicker && (
-                                <View style={styles.pickerContainer}>
+                                <View style={[styles.pickerContainer, { backgroundColor: colors.surface }]}>
                                     {Platform.OS === 'ios' && (
-                                        <View style={styles.pickerHeader}>
+                                        <View style={[styles.pickerHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                                             <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                                <Text style={styles.pickerDoneText}>Done</Text>
+                                                <Text style={[styles.pickerDoneText, { color: colors.black }]}>Done</Text>
                                             </TouchableOpacity>
                                         </View>
                                     )}
@@ -248,18 +254,18 @@ export default function CreateEventScreen() {
                                         mode="datetime"
                                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                         onChange={onDateChange}
-                                        textColor="black"
+                                        textColor={theme === 'dark' ? 'white' : 'black'}
                                     />
                                 </View>
                             )}
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>WHERE</Text>
-                            <View style={styles.locationWrap}>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>WHERE</Text>
+                            <View style={[styles.locationWrap, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
                                 <Ionicons name="location-outline" size={20} color={colors.gray500} />
                                 <TextInput
-                                    style={styles.locationInput}
+                                    style={[styles.locationInput, { color: colors.black }]}
                                     placeholder="Venue or Link"
                                     placeholderTextColor={colors.gray400}
                                     value={location}
@@ -269,9 +275,9 @@ export default function CreateEventScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>DESCRIPTION</Text>
                             <TextInput
-                                style={styles.descInput}
+                                style={[styles.descInput, { backgroundColor: colors.surface, color: colors.black, borderColor: colors.border, borderWidth: 1 }]}
                                 placeholder="Tell everyone more about it..."
                                 placeholderTextColor={colors.gray400}
                                 value={description}
@@ -289,26 +295,26 @@ export default function CreateEventScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: spacing.lg, paddingBottom: 100 },
-    doneBtn: { fontFamily: fonts.bold, fontSize: 16, color: colors.black, marginRight: spacing.md },
+    doneBtn: { fontFamily: fonts.bold, fontSize: 16, marginRight: spacing.md },
 
-    picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: colors.gray50, borderRadius: 16, marginBottom: 12 },
+    picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 16, marginBottom: 12 },
     pickerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    pickerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center' },
-    pickerSub: { fontFamily: fonts.semibold, fontSize: 10, color: colors.gray400, letterSpacing: 1 },
-    pickerName: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
+    pickerIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    pickerSub: { fontFamily: fonts.semibold, fontSize: 10, letterSpacing: 1 },
+    pickerName: { fontFamily: fonts.bold, fontSize: 14 },
 
-    selector: { backgroundColor: colors.white, borderRadius: 16, padding: 8, marginBottom: 16, borderWidth: 1, borderColor: colors.gray100 },
+    selector: { borderRadius: 16, padding: 8, marginBottom: 16, borderWidth: 1 },
     selectorItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: 10 },
-    selectorActive: { backgroundColor: colors.gray50 },
-    selectorText: { fontFamily: fonts.medium, fontSize: 14, color: colors.gray600 },
-    selectorTextActive: { color: colors.black, fontFamily: fonts.bold },
+    selectorActive: { },
+    selectorText: { fontFamily: fonts.medium, fontSize: 14 },
+    selectorTextActive: { fontFamily: fonts.bold },
 
-    imageZone: { width: '100%', height: 180, borderRadius: 20, backgroundColor: colors.gray50, marginBottom: 24, overflow: 'hidden', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.gray200 },
+    imageZone: { width: '100%', height: 180, borderRadius: 20, marginBottom: 24, overflow: 'hidden', borderStyle: 'dashed', borderWidth: 1 },
     imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    imageLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray400, marginTop: 8 },
+    imageLabel: { fontFamily: fonts.medium, fontSize: 13, marginTop: 8 },
     imagePreviewWrap: { flex: 1, position: 'relative' },
     imagePreview: { width: '100%', height: '100%' },
     imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
@@ -316,15 +322,14 @@ const styles = StyleSheet.create({
 
     form: { gap: 20 },
     inputGroup: { gap: 8 },
-    fieldLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.gray400, letterSpacing: 1 },
-    titleInput: { fontFamily: fonts.bold, fontSize: 24, color: colors.black, paddingVertical: 8 },
-    datePickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.gray50, padding: 16, borderRadius: 16 },
-    dateText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
-    locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.gray50, padding: 16, borderRadius: 16 },
-    locationInput: { flex: 1, fontFamily: fonts.medium, fontSize: 15, color: colors.black },
-    descInput: { fontFamily: fonts.regular, fontSize: 16, color: colors.black, backgroundColor: colors.gray50, padding: 16, borderRadius: 16, minHeight: 120, textAlignVertical: 'top' },
+    fieldLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1 },
+    titleInput: { fontFamily: fonts.bold, fontSize: 24, paddingVertical: 8 },
+    datePickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16 },
+    dateText: { fontFamily: fonts.semibold, fontSize: 15 },
+    locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16 },
+    locationInput: { flex: 1, fontFamily: fonts.medium, fontSize: 15 },
+    descInput: { fontFamily: fonts.regular, fontSize: 16, padding: 16, borderRadius: 16, minHeight: 120, textAlignVertical: 'top' },
     pickerContainer: {
-        backgroundColor: colors.gray50,
         borderRadius: 16,
         marginTop: 8,
         overflow: 'hidden',
@@ -333,13 +338,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         padding: 12,
-        backgroundColor: colors.gray100,
         borderBottomWidth: 1,
-        borderBottomColor: colors.gray200,
     },
     pickerDoneText: {
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.black,
     },
 });

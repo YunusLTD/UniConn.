@@ -3,11 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { login as loginApi } from '../../src/api/auth';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+    const { colors, isDark } = useTheme();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.topHeader}>
                 {router.canGoBack() ? (
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
@@ -45,9 +47,9 @@ export default function LoginScreen() {
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                         <Ionicons name="globe-outline" size={20} color={colors.gray500} />
-                        <Text style={styles.headerText}>EN</Text>
+                        <Text style={[styles.headerText, { color: colors.gray500 }]}>EN</Text>
                     </TouchableOpacity>
-                    <View style={[styles.dividerVertical, { marginHorizontal: 12 }]} />
+                    <View style={[styles.dividerVertical, { marginHorizontal: 12, backgroundColor: colors.gray200 }]} />
                     <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                         <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
                     </TouchableOpacity>
@@ -59,23 +61,23 @@ export default function LoginScreen() {
                 style={{ flex: 1 }}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.card}>
+                    <View style={[styles.card, { backgroundColor: colors.surface }]}>
                         {/* Logo */}
                         <View style={styles.logoSection}>
-                            <View style={styles.logo}>
+                            <View style={[styles.logo, { backgroundColor: colors.black }]}>
                                 <Ionicons name="school" size={32} color={colors.white} />
                             </View>
                         </View>
 
-                        <Text style={styles.title}>Welcome Back</Text>
-                        <Text style={styles.subtitle}>Log in to access your campus network.</Text>
+                        <Text style={[styles.title, { color: colors.black }]}>Welcome Back</Text>
+                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>Log in to access your campus network.</Text>
 
                         {/* Form */}
                         <View style={styles.form}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Email</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>Email</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
                                     placeholder="name@gmail.com"
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
@@ -86,10 +88,10 @@ export default function LoginScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Password</Text>
-                                <View style={styles.passwordWrap}>
+                                <Text style={[styles.label, { color: colors.black }]}>Password</Text>
+                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}>
                                     <TextInput
-                                        style={styles.passwordInput}
+                                        style={[styles.passwordInput, { color: colors.black }]}
                                         placeholder="••••••••"
                                         placeholderTextColor={colors.gray400}
                                         secureTextEntry={!showPassword}
@@ -107,11 +109,11 @@ export default function LoginScreen() {
                             </View>
 
                             <TouchableOpacity style={styles.forgotBtn}>
-                                <Text style={styles.forgotText}>Forgot password?</Text>
+                                <Text style={[styles.forgotText, { color: colors.gray400 }]}>Forgot password?</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.submitBtn, loading && { opacity: 0.8 }]}
+                                style={[styles.submitBtn, { backgroundColor: colors.black }, loading && { opacity: 0.8 }]}
                                 onPress={handleLogin}
                                 disabled={loading}
                                 activeOpacity={0.9}
@@ -119,17 +121,17 @@ export default function LoginScreen() {
                                 {loading ? (
                                     <ActivityIndicator color={colors.white} size="small" />
                                 ) : (
-                                    <Text style={styles.submitText}>Log In</Text>
+                                    <Text style={[styles.submitText, { color: colors.white }]}>Log In</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
 
                         {/* Footer */}
-                        <View style={styles.footer}>
+                        <View style={[styles.footer, { borderTopColor: colors.gray100 }]}>
                             <View style={styles.footerRow}>
-                                <Text style={styles.footerText}>Don’t have an account? </Text>
+                                <Text style={[styles.footerText, { color: colors.gray500 }]}>Don’t have an account? </Text>
                                 <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                                    <Text style={styles.footerAction}>Apply for access</Text>
+                                    <Text style={[styles.footerAction, { color: colors.black }]}>Apply for access</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -143,7 +145,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F7F8FA', // Light aesthetic background
     },
     headerRight: {
         flexDirection: 'row',
@@ -168,12 +169,10 @@ const styles = StyleSheet.create({
     headerText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.gray600,
     },
     dividerVertical: {
         width: 1,
         height: 20,
-        backgroundColor: colors.gray200,
     },
     scrollContent: {
         flexGrow: 1,
@@ -182,8 +181,7 @@ const styles = StyleSheet.create({
         paddingBottom: spacing.xxl,
     },
     card: {
-        backgroundColor: colors.white,
-        borderRadius: 32, // Adjusted for responsiveness
+        borderRadius: 32,
         paddingHorizontal: 20,
         paddingVertical: 32,
         width: '100%',
@@ -201,20 +199,17 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 16,
-        backgroundColor: colors.black,
         justifyContent: 'center',
         alignItems: 'center',
     },
     title: {
         fontFamily: fonts.bold,
-        fontSize: 26, // Reduced size
-        color: '#0F172A',
+        fontSize: 26,
         textAlign: 'center',
     },
     subtitle: {
         fontFamily: fonts.medium,
-        fontSize: 15, // Reduced size
-        color: '#64748B',
+        fontSize: 15,
         textAlign: 'center',
         marginTop: 8,
         marginBottom: 32,
@@ -229,35 +224,28 @@ const styles = StyleSheet.create({
     },
     label: {
         fontFamily: fonts.bold,
-        fontSize: 14, // Reduced size
-        color: '#0F172A',
+        fontSize: 14,
     },
     input: {
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 16, // Adjusted radius
+        borderRadius: 16,
         paddingHorizontal: 16,
-        paddingVertical: 14, // Reduced vertical padding
+        paddingVertical: 14,
         fontFamily: fonts.regular,
-        fontSize: 15, // Reduced size
-        color: colors.black,
-        backgroundColor: colors.white,
+        fontSize: 15,
     },
     passwordWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 16, // Adjusted radius
+        borderRadius: 16,
         paddingHorizontal: 16,
-        paddingVertical: 14, // Reduced vertical padding
-        backgroundColor: colors.white,
+        paddingVertical: 14,
     },
     passwordInput: {
         flex: 1,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
     },
     forgotBtn: {
         alignSelf: 'flex-end',
@@ -266,26 +254,22 @@ const styles = StyleSheet.create({
     forgotText: {
         fontFamily: fonts.semibold,
         fontSize: 13,
-        color: '#94A3B8',
     },
     submitBtn: {
-        backgroundColor: colors.black,
         borderRadius: radii.full,
-        height: 56, // Reduced height
+        height: 56,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 12,
     },
     submitText: {
         fontFamily: fonts.bold,
-        color: colors.white,
-        fontSize: 16, // Reduced size
+        fontSize: 16,
     },
     footer: {
         marginTop: 32,
         paddingTop: 24,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
     },
     footerRow: {
         flexDirection: 'row',
@@ -294,12 +278,10 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontFamily: fonts.medium,
-        fontSize: 14, // Reduced size
-        color: '#64748B',
+        fontSize: 14,
     },
     footerAction: {
         fontFamily: fonts.bold,
-        fontSize: 14, // Reduced size
-        color: colors.black,
+        fontSize: 14,
     },
 });

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image as RNImage } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { getPost, getComments, addComment, deleteComment } from '../../src/api/posts';
 import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../../src/components/PostCard';
@@ -24,6 +25,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function PostScreen() {
+    const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -192,7 +194,7 @@ export default function PostScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={[styles.container, { backgroundColor: colors.background }]}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
@@ -202,8 +204,8 @@ export default function PostScreen() {
             {loading ? (
                 <ShadowLoader />
             ) : !post ? (
-                <View style={styles.loadingContainer}>
-                    <Text style={styles.errorText}>Post not found</Text>
+                <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+                    <Text style={[styles.errorText, { color: colors.gray500 }]}>Post not found</Text>
                 </View>
             ) : (
                 <FlatList
@@ -214,15 +216,15 @@ export default function PostScreen() {
                         const initial = item.profiles?.name?.[0]?.toUpperCase() || '?';
                         const marginLeft = Math.min(item.depth * 32, 64); // Cap indent
                         return (
-                            <View style={[styles.commentCard, { paddingLeft: spacing.lg + marginLeft }]}>
+                            <View style={[styles.commentCard, { paddingLeft: spacing.lg + marginLeft, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                                 <TouchableOpacity
                                     onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}
-                                    style={[styles.commentAvatar, item.depth > 0 && { width: 24, height: 24, borderRadius: 12 }]}
+                                    style={[styles.commentAvatar, { backgroundColor: colors.background }, item.depth > 0 && { width: 24, height: 24, borderRadius: 12 }]}
                                 >
                                     {item.profiles?.avatar_url ? (
                                         <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.commentAvatarImg} />
                                     ) : (
-                                        <Text style={[styles.commentAvatarText, item.depth > 0 && { fontSize: 10 }]}>{initial}</Text>
+                                        <Text style={[styles.commentAvatarText, { color: colors.gray600 }, item.depth > 0 && { fontSize: 10 }]}>{initial}</Text>
                                     )}
                                 </TouchableOpacity>
                                 <TouchableOpacity 
@@ -233,16 +235,16 @@ export default function PostScreen() {
                                 >
                                     <View style={styles.commentHeader}>
                                         <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
-                                            <Text style={styles.commentAuthor}>{item.profiles?.name || 'Unknown'}</Text>
+                                            <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || 'Unknown'}</Text>
                                         </TouchableOpacity>
-                                        <Text style={styles.commentTime}>{timeAgo(item.created_at)}</Text>
+                                        <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
                                     </View>
-                                    <Text style={styles.commentContent}>
+                                    <Text style={[styles.commentContent, { color: colors.gray700 }]}>
                                         {renderContentWithMentions(item.content)}
                                     </Text>
                                     <View style={styles.commentActions}>
                                         <TouchableOpacity onPress={() => handleReply(item.id, item.profiles?.name || 'Unknown')}>
-                                            <Text style={styles.replyBtnText}>Reply</Text>
+                                            <Text style={[styles.replyBtnText, { color: colors.gray500 }]}>Reply</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </TouchableOpacity>
@@ -252,8 +254,8 @@ export default function PostScreen() {
                     ListHeaderComponent={
                         <>
                             <PostCard post={post} hideNavigation={true} />
-                            <View style={styles.repliesHeader}>
-                                <Text style={styles.repliesLabel}>
+                            <View style={[styles.repliesHeader, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+                                <Text style={[styles.repliesLabel, { color: colors.gray500 }]}>
                                     {comments.length > 0 ? `${comments.length} ${comments.length === 1 ? 'reply' : 'replies'}` : 'Replies'}
                                 </Text>
                             </View>
@@ -261,31 +263,31 @@ export default function PostScreen() {
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyComments}>
-                            <Text style={styles.emptyText}>No replies yet. Be the first.</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>No replies yet. Be the first.</Text>
                         </View>
                     }
                 />
             )}
 
             {!loading && post && (
-                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10), backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                     {taggingSearch !== null && filteredMembers.length > 0 && (
-                        <View style={styles.taggingList}>
+                        <View style={[styles.taggingList, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                             <FlatList
                                 data={filteredMembers}
                                 keyExtractor={m => m.profiles.id}
                                 renderItem={({ item }) => (
-                                    <TouchableOpacity style={styles.memberTag} onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}>
+                                    <TouchableOpacity style={[styles.memberTag, { borderBottomColor: colors.border }]} onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}>
                                         {item.profiles.avatar_url ? (
                                             <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
                                         ) : (
-                                            <View style={[styles.tagAvatar, { backgroundColor: colors.gray200, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <View style={[styles.tagAvatar, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
                                                 <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.gray600 }}>{item.profiles.name?.[0]?.toUpperCase() || '?'}</Text>
                                             </View>
                                         )}
                                         <View>
-                                            <Text style={styles.tagName}>{item.profiles.name}</Text>
-                                            {item.profiles.username && <Text style={styles.tagUsername}>@{item.profiles.username}</Text>}
+                                            <Text style={[styles.tagName, { color: colors.black }]}>{item.profiles.name}</Text>
+                                            {item.profiles.username && <Text style={[styles.tagUsername, { color: colors.gray400 }]}>@{item.profiles.username}</Text>}
                                         </View>
                                     </TouchableOpacity>
                                 )}
@@ -294,8 +296,8 @@ export default function PostScreen() {
                         </View>
                     )}
                     {replyingTo && (
-                        <View style={styles.replyingToBanner}>
-                            <Text style={styles.replyingToText}>Replying to {replyingTo.name}</Text>
+                        <View style={[styles.replyingToBanner, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+                            <Text style={[styles.replyingToText, { color: colors.gray600 }]}>Replying to {replyingTo.name}</Text>
                             <TouchableOpacity onPress={cancelReply} hitSlop={10}>
                                 <Ionicons name="close-circle" size={18} color={colors.gray500} />
                             </TouchableOpacity>
@@ -303,7 +305,7 @@ export default function PostScreen() {
                     )}
                     <View style={styles.inputBar}>
                         <TextInput
-                            style={styles.commentInput}
+                            style={[styles.commentInput, { color: colors.black, backgroundColor: colors.background, borderColor: colors.border }]}
                             placeholder={replyingTo ? `Reply to ${replyingTo.name}…` : "Write a comment…"}
                             placeholderTextColor={colors.gray400}
                             value={newComment}
@@ -311,7 +313,7 @@ export default function PostScreen() {
                             multiline
                         />
                         <TouchableOpacity
-                            style={[styles.sendBtn, !newComment.trim() && { opacity: 0.3 }]}
+                            style={[styles.sendBtn, { backgroundColor: colors.black }, !newComment.trim() && { opacity: 0.3 }]}
                             onPress={handleAddComment}
                             disabled={submitting || !newComment.trim()}
                             hitSlop={8}
@@ -330,37 +332,29 @@ export default function PostScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-    errorText: { fontFamily: fonts.regular, fontSize: 15, color: colors.gray500 },
-
+    container: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    errorText: { fontFamily: fonts.regular, fontSize: 15 },
     repliesHeader: {
         paddingHorizontal: spacing.lg,
         paddingVertical: 12,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
-        backgroundColor: colors.white,
     },
     repliesLabel: {
         fontFamily: fonts.semibold,
         fontSize: 13,
-        color: colors.gray500,
     },
-
     commentCard: {
         flexDirection: 'row',
         paddingHorizontal: spacing.lg,
         paddingVertical: 14,
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray100,
         gap: 12,
     },
     commentAvatar: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 2,
@@ -368,7 +362,6 @@ const styles = StyleSheet.create({
     commentAvatarText: {
         fontFamily: fonts.semibold,
         fontSize: 12,
-        color: colors.gray600,
     },
     commentBody: { flex: 1 },
     commentHeader: {
@@ -379,17 +372,14 @@ const styles = StyleSheet.create({
     commentAuthor: {
         fontFamily: fonts.semibold,
         fontSize: 13,
-        color: colors.black,
     },
     commentTime: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray400,
     },
     commentContent: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray700,
         lineHeight: 20,
         marginTop: 3,
     },
@@ -400,9 +390,7 @@ const styles = StyleSheet.create({
     replyBtnText: {
         fontFamily: fonts.semibold,
         fontSize: 12,
-        color: colors.gray500,
     },
-
     emptyComments: {
         alignItems: 'center',
         paddingVertical: spacing.xxl,
@@ -410,13 +398,9 @@ const styles = StyleSheet.create({
     emptyText: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray400,
     },
-
     inputContainer: {
-        backgroundColor: colors.white,
         borderTopWidth: 0.5,
-        borderTopColor: colors.gray200,
     },
     replyingToBanner: {
         flexDirection: 'row',
@@ -424,14 +408,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
         paddingVertical: 8,
-        backgroundColor: colors.gray50,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
     },
     replyingToText: {
         fontFamily: fonts.medium,
         fontSize: 12,
-        color: colors.gray600,
     },
     inputBar: {
         flexDirection: 'row',
@@ -444,8 +425,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
-        backgroundColor: colors.gray50,
         borderRadius: radii.xl,
         paddingHorizontal: 16,
         paddingVertical: 10,
@@ -453,13 +432,11 @@ const styles = StyleSheet.create({
         minHeight: 40,
         paddingTop: Platform.OS === 'ios' ? 12 : 10,
         borderWidth: 1,
-        borderColor: colors.gray200,
     },
     sendBtn: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: colors.black,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 2,
@@ -469,21 +446,13 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 100,
     },
-
     taggingList: {
         position: 'absolute',
         bottom: '100%',
         left: 0,
         right: 0,
         maxHeight: 250,
-        backgroundColor: colors.white,
         borderTopWidth: 1,
-        borderTopColor: colors.gray100,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 10,
     },
     memberTag: {
         flexDirection: 'row',
@@ -491,9 +460,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray50
     },
     tagAvatar: { width: 32, height: 32, borderRadius: 16 },
-    tagName: { fontFamily: fonts.bold, fontSize: 14, color: colors.black },
-    tagUsername: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray400 },
+    tagName: { fontFamily: fonts.bold, fontSize: 14 },
+    tagUsername: { fontFamily: fonts.regular, fontSize: 12 },
 });

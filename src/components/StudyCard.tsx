@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Clipboard, Alert } from 'react-native';
-import { colors, spacing, fonts, radii } from '../constants/theme';
+import { spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ interface StudyCardProps {
 }
 
 const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = ({ question, onDelete }) => {
+    const { colors } = useTheme();
     const router = useRouter();
     const { user } = useAuth();
     const [actionVisible, setActionVisible] = useState(false);
@@ -108,28 +110,28 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
 
     return (
         <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             activeOpacity={0.9}
             onPress={() => router.push(`/study/${question.id}`)}
         >
             <View style={styles.header}>
-                <View style={[styles.avatar, !question.profiles?.avatar_url && styles.avatarPlaceholder]}>
+                <View style={[styles.avatar, { backgroundColor: colors.background }, !question.profiles?.avatar_url && styles.avatarPlaceholder]}>
                     {question.profiles?.avatar_url ? (
                         <Image source={{ uri: question.profiles.avatar_url }} style={styles.avatarImg} />
                     ) : (
-                        <Text style={styles.avatarText}>{initial}</Text>
+                        <Text style={[styles.avatarText, { color: colors.gray500 }]}>{initial}</Text>
                     )}
                 </View>
                 <View style={styles.headerInfo}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={styles.name}>{question.profiles?.name || 'Anonymous'}</Text>
+                        <Text style={[styles.name, { color: colors.black }]}>{question.profiles?.name || 'Anonymous'}</Text>
                         {isMe && <Text style={[styles.name, { color: colors.gray400, fontSize: 13 }]}>{'(You)'}</Text>}
                     </View>
-                    <Text style={styles.time}>{new Date(question.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {question.subject}</Text>
+                    <Text style={[styles.time, { color: colors.gray500 }]}>{new Date(question.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {question.subject}</Text>
                 </View>
                 <View style={styles.badgeRow}>
-                    <View style={styles.subjectBadge}>
-                        <Text style={styles.subjectText}>{question.subject}</Text>
+                    <View style={[styles.subjectBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Text style={[styles.subjectText, { color: colors.gray600 }]}>{question.subject}</Text>
                     </View>
                     <TouchableOpacity onPress={handleMenu} hitSlop={8} style={{ marginLeft: 8 }}>
                         <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
@@ -138,8 +140,8 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
             </View>
 
             <View style={styles.content}>
-                <Text style={styles.title} numberOfLines={2}>{question.title}</Text>
-                <Text style={styles.description} numberOfLines={3}>{question.content}</Text>
+                <Text style={[styles.title, { color: colors.black }]} numberOfLines={2}>{question.title}</Text>
+                <Text style={[styles.description, { color: colors.gray600 }]} numberOfLines={3}>{question.content}</Text>
             </View>
 
             {
@@ -148,10 +150,10 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
                 )
             }
 
-            <View style={styles.footer}>
+            <View style={[styles.footer, { borderTopColor: colors.border }]}>
                 <View style={styles.action}>
                     <Ionicons name="chatbubble-outline" size={18} color={colors.gray500} />
-                    <Text style={styles.actionText}>{question.answers_count || 0} {question.answers_count === 1 ? 'Reply' : 'Replies'}</Text>
+                    <Text style={[styles.actionText, { color: colors.gray500 }]}>{question.answers_count || 0} {question.answers_count === 1 ? 'Reply' : 'Replies'}</Text>
                 </View>
                 <View style={styles.action}>
                     <Text style={[styles.actionText, { color: colors.black, fontFamily: fonts.bold }]}>Help out</Text>
@@ -178,18 +180,11 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.white,
         marginHorizontal: spacing.md,
         marginVertical: spacing.sm,
         borderRadius: 20,
         padding: 16,
         borderWidth: 0.5,
-        borderColor: colors.gray100,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
     },
     header: {
         flexDirection: 'row',
@@ -203,7 +198,6 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     avatarPlaceholder: {
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -214,7 +208,6 @@ const styles = StyleSheet.create({
     avatarText: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.gray500,
     },
     headerInfo: {
         flex: 1,
@@ -223,29 +216,24 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.black,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray500,
     },
     badgeRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     subjectBadge: {
-        backgroundColor: colors.gray50,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 12,
         borderWidth: 0.5,
-        borderColor: colors.gray100,
     },
     subjectText: {
         fontFamily: fonts.semibold,
         fontSize: 10,
-        color: colors.gray600,
         textTransform: 'uppercase',
     },
     content: {
@@ -254,14 +242,12 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: fonts.bold,
         fontSize: 17,
-        color: colors.black,
         lineHeight: 22,
         marginBottom: 6,
     },
     description: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray600,
         lineHeight: 20,
     },
     image: {
@@ -276,7 +262,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingTop: 12,
         borderTopWidth: 0.5,
-        borderTopColor: colors.gray50,
     },
     action: {
         flexDirection: 'row',
@@ -286,7 +271,6 @@ const styles = StyleSheet.create({
     actionText: {
         fontFamily: fonts.medium,
         fontSize: 13,
-        color: colors.gray500,
     },
 });
 

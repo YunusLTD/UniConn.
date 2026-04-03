@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, Share, Clipboard } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hapticLight, hapticSelection } from '../utils/haptics';
@@ -23,6 +24,7 @@ export interface ActionModalProps {
 
 export default function ActionModal({ visible, onClose, options, title }: ActionModalProps) {
     const insets = useSafeAreaInsets();
+    const { colors: themeColors } = useTheme();
     const animatedValue = React.useRef(new Animated.Value(0)).current;
 
     React.useEffect(() => {
@@ -70,13 +72,14 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                 <Animated.View style={[
                     styles.sheet,
                     { 
+                        backgroundColor: themeColors.surface,
                         transform: [{ translateY: modalTranslateY }],
                         paddingBottom: Math.max(insets.bottom, spacing.xl)
                     }
                 ]}>
-                    <View style={styles.indicator} />
+                    <View style={[styles.indicator, { backgroundColor: themeColors.gray200 }]} />
                     
-                    {title && <Text style={styles.title}>{title}</Text>}
+                    {title && <Text style={[styles.title, { color: themeColors.gray400 }]}>{title}</Text>}
 
                     <View style={styles.optionsContainer}>
                         {options.map((option, index) => (
@@ -90,25 +93,25 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                                 }}
                                 activeOpacity={0.7}
                             >
-                                <View style={[styles.iconFrame, option.destructive && styles.destructiveIconFrame]}>
+                                <View style={[styles.iconFrame, { backgroundColor: themeColors.gray50 }, option.destructive && styles.destructiveIconFrame]}>
                                     <Ionicons 
                                         name={option.icon as any} 
                                         size={22} 
-                                        color={option.destructive ? colors.danger : colors.black} 
+                                        color={option.destructive ? themeColors.danger : themeColors.black} 
                                     />
                                 </View>
-                                <Text style={[styles.optionLabel, option.destructive && styles.destructiveLabel]}>
+                                <Text style={[styles.optionLabel, { color: themeColors.black }, option.destructive && { color: themeColors.danger }]}>
                                     {option.label}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => {
+                    <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: themeColors.gray100 }]} onPress={() => {
                         hapticSelection();
                         onClose();
                     }} activeOpacity={0.8}>
-                        <Text style={styles.cancelText}>Cancel</Text>
+                        <Text style={[styles.cancelText, { color: themeColors.black }]}>Cancel</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>

@@ -3,11 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { register as registerApi } from '../../src/api/auth';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
+    const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,13 +37,13 @@ export default function RegisterScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.headerRight}>
                 <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                     <Ionicons name="globe-outline" size={20} color={colors.gray500} />
-                    <Text style={styles.headerText}>EN</Text>
+                    <Text style={[styles.headerText, { color: colors.gray500 }]}>EN</Text>
                 </TouchableOpacity>
-                <View style={[styles.dividerVertical, { marginHorizontal: 12 }]} />
+                <View style={[styles.dividerVertical, { marginHorizontal: 12, backgroundColor: colors.gray200 }]} />
                 <TouchableOpacity style={styles.headerItem} hitSlop={8}>
                     <Ionicons name="help-circle-outline" size={22} color={colors.gray500} />
                 </TouchableOpacity>
@@ -52,21 +54,21 @@ export default function RegisterScreen() {
                 style={{ flex: 1 }}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.card}>
+                    <View style={[styles.card, { backgroundColor: colors.surface }]}>
                         <View style={styles.logoSection}>
-                            <View style={styles.logo}>
+                            <View style={[styles.logo, { backgroundColor: colors.black }]}>
                                 <Ionicons name="school" size={32} color={colors.white} />
                             </View>
                         </View>
 
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join your campus community and stay connected.</Text>
+                        <Text style={[styles.title, { color: colors.black }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: colors.gray500 }]}>Join your campus community and stay connected.</Text>
 
                         <View style={styles.form}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Full Name</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>Full Name</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
                                     placeholder="John Doe"
                                     placeholderTextColor={colors.gray400}
                                     value={name}
@@ -75,9 +77,9 @@ export default function RegisterScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Email Address</Text>
+                                <Text style={[styles.label, { color: colors.black }]}>Email Address</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.black, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}
                                     placeholder="name@university.edu"
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
@@ -88,10 +90,10 @@ export default function RegisterScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Password</Text>
-                                <View style={styles.passwordWrap}>
+                                <Text style={[styles.label, { color: colors.black }]}>Password</Text>
+                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? colors.gray800 : colors.gray50 }]}>
                                     <TextInput
-                                        style={styles.passwordInput}
+                                        style={[styles.passwordInput, { color: colors.black }]}
                                         placeholder="••••••••"
                                         placeholderTextColor={colors.gray400}
                                         secureTextEntry={!showPassword}
@@ -109,7 +111,7 @@ export default function RegisterScreen() {
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.submitBtn, loading && { opacity: 0.8 }]}
+                                style={[styles.submitBtn, { backgroundColor: colors.black }, loading && { opacity: 0.8 }]}
                                 onPress={handleRegister}
                                 disabled={loading}
                                 activeOpacity={0.9}
@@ -117,16 +119,16 @@ export default function RegisterScreen() {
                                 {loading ? (
                                     <ActivityIndicator color={colors.white} size="small" />
                                 ) : (
-                                    <Text style={styles.submitText}>Create Account</Text>
+                                    <Text style={[styles.submitText, { color: colors.white }]}>Create Account</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.footer}>
+                        <View style={[styles.footer, { borderTopColor: colors.gray100 }]}>
                             <View style={styles.footerRow}>
-                                <Text style={styles.footerText}>Already have an account? </Text>
+                                <Text style={[styles.footerText, { color: colors.gray500 }]}>Already have an account? </Text>
                                 <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-                                    <Text style={styles.footerAction}>Log in</Text>
+                                    <Text style={[styles.footerAction, { color: colors.black }]}>Log in</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -140,7 +142,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F7F8FA',
     },
     headerRight: {
         flexDirection: 'row',
@@ -157,12 +158,10 @@ const styles = StyleSheet.create({
     headerText: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.gray600,
     },
     dividerVertical: {
         width: 1,
         height: 20,
-        backgroundColor: colors.gray200,
     },
     scrollContent: {
         flexGrow: 1,
@@ -171,7 +170,6 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.xl,
     },
     card: {
-        backgroundColor: colors.white,
         borderRadius: 32,
         paddingHorizontal: 20,
         paddingVertical: 32,
@@ -189,20 +187,17 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 16,
-        backgroundColor: colors.black,
         justifyContent: 'center',
         alignItems: 'center',
     },
     title: {
         fontFamily: fonts.bold,
         fontSize: 26,
-        color: '#0F172A',
         textAlign: 'center',
     },
     subtitle: {
         fontFamily: fonts.medium,
         fontSize: 15,
-        color: '#64748B',
         textAlign: 'center',
         marginTop: 8,
         marginBottom: 32,
@@ -217,37 +212,29 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: '#0F172A',
     },
     input: {
         borderWidth: 1,
-        borderColor: '#E2E8F0',
         borderRadius: 16,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
-        backgroundColor: colors.white,
     },
     passwordWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
         borderRadius: 16,
         paddingHorizontal: 16,
         paddingVertical: 14,
-        backgroundColor: colors.white,
     },
     passwordInput: {
         flex: 1,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
     },
     submitBtn: {
-        backgroundColor: colors.black,
         borderRadius: radii.full,
         height: 56,
         justifyContent: 'center',
@@ -256,14 +243,12 @@ const styles = StyleSheet.create({
     },
     submitText: {
         fontFamily: fonts.bold,
-        color: colors.white,
         fontSize: 16,
     },
     footer: {
         marginTop: 32,
         paddingTop: 24,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
     },
     footerRow: {
         flexDirection: 'row',
@@ -273,11 +258,9 @@ const styles = StyleSheet.create({
     footerText: {
         fontFamily: fonts.medium,
         fontSize: 14,
-        color: '#64748B',
     },
     footerAction: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.black,
     },
 });

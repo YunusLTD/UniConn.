@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { colors, spacing, fonts, radii } from '../src/constants/theme';
+import { spacing, fonts, radii } from '../src/constants/theme';
+import { useTheme } from '../src/context/ThemeContext';
 import { useAuth } from '../src/context/AuthContext';
 import { getProfile, updateProfile } from '../src/api/users';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { apiFetch } from '../src/api/client';
 import ActionModal from '../src/components/ActionModal';
 
 export default function EditProfileScreen() {
+    const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -119,7 +121,7 @@ export default function EditProfileScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="small" color={colors.black} />
             </View>
         );
@@ -128,17 +130,17 @@ export default function EditProfileScreen() {
     const initial = (name || user?.email || '?').charAt(0).toUpperCase();
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
-            <View style={styles.header}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+            <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="close" size={24} color={colors.black} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Edit Profile</Text>
+                <Text style={[styles.headerTitle, { color: colors.black }]}>Edit Profile</Text>
                 <TouchableOpacity onPress={handleUpdate} disabled={updating} style={styles.saveHeaderBtn}>
                     {updating ? (
                         <ActivityIndicator size="small" color={colors.black} />
                     ) : (
-                        <Text style={styles.saveHeaderText}>Save</Text>
+                        <Text style={[styles.saveHeaderText, { color: colors.black }]}>Save</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -154,26 +156,26 @@ export default function EditProfileScreen() {
                         onPress={handlePickImage}
                         disabled={uploading}
                     >
-                        <View style={styles.avatarLarge}>
+                        <View style={[styles.avatarLarge, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
                             {avatarUrl ? (
                                 <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
                             ) : (
-                                <Text style={styles.avatarTextLarge}>{initial}</Text>
+                                <Text style={[styles.avatarTextLarge, { color: colors.gray400 }]}>{initial}</Text>
                             )}
                             {uploading && (
                                 <View style={styles.uploadOverlay}>
-                                    <ActivityIndicator size="small" color={colors.white} />
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
                                 </View>
                             )}
                         </View>
-                        <Text style={styles.avatarEditText}>Change Profile Picture</Text>
+                        <Text style={[styles.avatarEditText, { color: colors.black }]}>Change Profile Picture</Text>
                     </TouchableOpacity>
 
                     <View style={styles.form}>
                         <View style={styles.field}>
-                            <Text style={styles.label}>Display Name</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Display Name</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={name}
                                 onChangeText={setName}
                                 placeholder="Your name"
@@ -182,11 +184,11 @@ export default function EditProfileScreen() {
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={styles.label}>Username</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Username</Text>
                             <View style={styles.usernameInputContainer}>
-                                <Text style={styles.usernamePrefix}>@</Text>
+                                <Text style={[styles.usernamePrefix, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.gray400 }]}>@</Text>
                                 <TextInput
-                                    style={[styles.input, { flex: 1, borderLeftWidth: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+                                    style={[styles.input, { flex: 1, borderLeftWidth: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                     value={username}
                                     onChangeText={setUsername}
                                     placeholder="username"
@@ -197,9 +199,9 @@ export default function EditProfileScreen() {
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={styles.label}>Bio</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Bio</Text>
                             <TextInput
-                                style={[styles.input, styles.textArea]}
+                                style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={bio}
                                 onChangeText={setBio}
                                 placeholder="Tell us about yourself..."
@@ -209,12 +211,12 @@ export default function EditProfileScreen() {
                             />
                         </View>
 
-                        <Text style={[styles.label, { marginTop: spacing.md }]}>Personal Details (Optional)</Text>
+                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>Personal Details (Optional)</Text>
 
                         <View style={styles.field}>
-                            <Text style={styles.label}>Hometown</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Hometown</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={hometown}
                                 onChangeText={setHometown}
                                 placeholder="Where are you from?"
@@ -223,9 +225,9 @@ export default function EditProfileScreen() {
                         </View>
                         
                         <View style={styles.field}>
-                            <Text style={styles.label}>Age</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Age</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={age}
                                 onChangeText={setAge}
                                 placeholder="Age"
@@ -235,9 +237,9 @@ export default function EditProfileScreen() {
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={styles.label}>Relationship Status</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Relationship Status</Text>
                             <TouchableOpacity 
-                                style={[styles.input, { justifyContent: 'center' }]}
+                                style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => setShowRelModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: relationshipStatus ? colors.black : colors.gray400, textTransform: 'capitalize' }}>
@@ -268,7 +270,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
         height: 56,
@@ -277,19 +279,16 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray100,
     },
     headerTitle: {
         fontFamily: fonts.bold,
         fontSize: 17,
-        color: colors.black,
     },
     backBtn: { padding: 4 },
     saveHeaderBtn: { padding: 4 },
     saveHeaderText: {
         fontFamily: fonts.bold,
         fontSize: 16,
-        color: colors.black,
     },
     scrollContent: { padding: spacing.lg },
     avatarEditContainer: {
@@ -300,7 +299,6 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
@@ -309,7 +307,6 @@ const styles = StyleSheet.create({
     avatarTextLarge: {
         fontFamily: fonts.bold,
         fontSize: 36,
-        color: colors.gray500,
     },
     uploadOverlay: {
         ...StyleSheet.absoluteFillObject,
@@ -321,40 +318,32 @@ const styles = StyleSheet.create({
         marginTop: 12,
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.black,
     },
     form: { gap: spacing.lg },
     field: { gap: 8 },
     label: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.gray600,
         marginLeft: 4,
     },
     input: {
-        backgroundColor: colors.gray50,
         borderRadius: radii.sm,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
     usernameInputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     usernamePrefix: {
-        backgroundColor: colors.gray100,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.gray500,
         borderWidth: 1,
-        borderColor: colors.gray100,
         borderTopLeftRadius: radii.sm,
         borderBottomLeftRadius: radii.sm,
     },

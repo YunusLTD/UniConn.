@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
+import { useTheme } from '../../src/context/ThemeContext';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -27,6 +28,7 @@ const SLIDES = [
 ];
 
 export default function IntroScreen() {
+    const { colors } = useTheme();
     const router = useRouter();
     const { completeOnboarding } = useOnboarding();
     const [activeIndex, setActiveIndex] = useState(0);
@@ -43,19 +45,19 @@ export default function IntroScreen() {
     const slide = SLIDES[activeIndex];
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
             {/* Logo */}
             <View style={styles.header}>
-                <View style={styles.logo}>
-                    <Text style={styles.logoText}>U</Text>
+                <View style={[styles.logo, { backgroundColor: colors.black }]}>
+                    <Text style={[styles.logoText, { color: colors.white }]}>U</Text>
                 </View>
             </View>
 
             {/* Slide Content */}
             <View style={styles.content}>
                 <Text style={styles.emoji}>{slide.emoji}</Text>
-                <Text style={styles.title}>{slide.title}</Text>
-                <Text style={styles.description}>{slide.description}</Text>
+                <Text style={[styles.title, { color: colors.black }]}>{slide.title}</Text>
+                <Text style={[styles.description, { color: colors.gray500 }]}>{slide.description}</Text>
             </View>
 
             {/* Footer */}
@@ -66,14 +68,15 @@ export default function IntroScreen() {
                             key={index}
                             style={[
                                 styles.indicator,
-                                activeIndex === index && styles.activeIndicator,
+                                { backgroundColor: colors.gray200 },
+                                activeIndex === index && [styles.activeIndicator, { backgroundColor: colors.black }],
                             ]}
                         />
                     ))}
                 </View>
 
-                <TouchableOpacity style={styles.button} onPress={handleNext} activeOpacity={0.8}>
-                    <Text style={styles.buttonText}>
+                <TouchableOpacity style={[styles.button, { backgroundColor: colors.black }]} onPress={handleNext} activeOpacity={0.8}>
+                    <Text style={[styles.buttonText, { color: colors.white }]}>
                         {activeIndex === SLIDES.length - 1 ? 'Get Started' : 'Continue'}
                     </Text>
                 </TouchableOpacity>
@@ -86,7 +89,7 @@ export default function IntroScreen() {
                             router.replace('/(auth)/login');
                         }}
                     >
-                        <Text style={styles.skipText}>Skip</Text>
+                        <Text style={[styles.skipText, { color: colors.gray400 }]}>Skip</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -97,7 +100,6 @@ export default function IntroScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
         paddingHorizontal: spacing.xl,
     },
     header: {
@@ -108,14 +110,12 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 14,
-        backgroundColor: colors.black,
         justifyContent: 'center',
         alignItems: 'center',
     },
     logoText: {
         fontFamily: fonts.bold,
         fontSize: 22,
-        color: colors.white,
     },
     content: {
         flex: 1,
@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: fonts.bold,
         fontSize: 36,
-        color: colors.black,
         textAlign: 'center',
         lineHeight: 42,
         marginBottom: spacing.md,
@@ -139,7 +138,6 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         fontSize: 16,
         textAlign: 'center',
-        color: colors.gray500,
         lineHeight: 24,
     },
     footer: {
@@ -154,22 +152,18 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: colors.gray200,
         marginHorizontal: spacing.xs,
     },
     activeIndicator: {
-        backgroundColor: colors.black,
         width: 24,
     },
     button: {
-        backgroundColor: colors.black,
         paddingVertical: 16,
         borderRadius: radii.md,
         alignItems: 'center',
     },
     buttonText: {
         fontFamily: fonts.semibold,
-        color: colors.white,
         fontSize: 16,
     },
     skipBtn: {
@@ -179,6 +173,5 @@ const styles = StyleSheet.create({
     skipText: {
         fontFamily: fonts.regular,
         fontSize: 14,
-        color: colors.gray400,
     },
 });

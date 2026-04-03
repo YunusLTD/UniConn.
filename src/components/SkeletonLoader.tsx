@@ -1,38 +1,42 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
-import { colors, spacing, radii } from '../constants/theme';
+import { spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SkeletonLoader() {
-    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+    const { colors, isDark } = useTheme();
+    const pulseAnim = useRef(new Animated.Value(isDark ? 0.2 : 0.4)).current;
 
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
                 Animated.timing(pulseAnim, {
-                    toValue: 0.7,
-                    duration: 600,
+                    toValue: isDark ? 0.4 : 0.8,
+                    duration: 800,
                     useNativeDriver: true,
                 }),
                 Animated.timing(pulseAnim, {
-                    toValue: 0.3,
-                    duration: 600,
+                    toValue: isDark ? 0.2 : 0.4,
+                    duration: 800,
                     useNativeDriver: true,
                 }),
             ])
         ).start();
-    }, [pulseAnim]);
+    }, [pulseAnim, isDark]);
+
+    const skeletonColor = isDark ? '#262626' : colors.gray200;
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             {[1, 2, 3, 4, 5].map((key) => (
-                <View key={key} style={styles.card}>
+                <View key={key} style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                     <View style={styles.row}>
-                        <Animated.View style={[styles.avatar, { opacity: pulseAnim }]} />
+                        <Animated.View style={[styles.avatar, { opacity: pulseAnim, backgroundColor: skeletonColor }]} />
                         <View style={styles.content}>
-                            <Animated.View style={[styles.line, { width: '35%', opacity: pulseAnim }]} />
-                            <Animated.View style={[styles.line, { width: '85%', marginTop: 10, opacity: pulseAnim }]} />
-                            <Animated.View style={[styles.line, { width: '65%', marginTop: 6, opacity: pulseAnim }]} />
-                            <Animated.View style={[styles.mediaPlaceholder, { opacity: pulseAnim }]} />
+                            <Animated.View style={[styles.line, { width: '35%', opacity: pulseAnim, backgroundColor: skeletonColor }]} />
+                            <Animated.View style={[styles.line, { width: '85%', marginTop: 10, opacity: pulseAnim, backgroundColor: skeletonColor }]} />
+                            <Animated.View style={[styles.line, { width: '65%', marginTop: 6, opacity: pulseAnim, backgroundColor: skeletonColor }]} />
+                            <Animated.View style={[styles.mediaPlaceholder, { opacity: pulseAnim, backgroundColor: isDark ? '#1A1A1A' : colors.gray100 }]} />
                         </View>
                     </View>
                 </View>
@@ -44,14 +48,11 @@ export default function SkeletonLoader() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
     },
     card: {
         paddingVertical: 14,
         paddingHorizontal: spacing.lg,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
-        backgroundColor: colors.white,
     },
     row: {
         flexDirection: 'row',
@@ -60,7 +61,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray200,
         marginRight: 12,
     },
     content: {
@@ -70,13 +70,12 @@ const styles = StyleSheet.create({
     line: {
         height: 12,
         borderRadius: radii.sm,
-        backgroundColor: colors.gray200,
     },
     mediaPlaceholder: {
         height: 160,
         borderRadius: radii.md,
-        backgroundColor: colors.gray100,
         marginTop: 12,
         width: '100%',
     },
 });
+

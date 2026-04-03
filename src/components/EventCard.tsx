@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { colors, spacing, fonts, radii } from '../constants/theme';
+import { spacing, fonts, radii } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { deleteEvent, toggleEventInterest } from '../api/events';
@@ -25,6 +26,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function EventCard({ event, showDelete = false, onDelete }: { event: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
+    const { colors } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
     const [isInterested, setIsInterested] = useState(!!event.is_interested);
@@ -85,22 +87,22 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
     };
 
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             <View style={styles.row}>
                 {/* Left side matched to PostCard */}
                 <View style={styles.leftCol}>
                     <TouchableOpacity
-                        style={styles.avatar}
+                        style={[styles.avatar, { backgroundColor: colors.surface, borderColor: colors.border }]}
                         onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}
                         activeOpacity={0.8}
                     >
                         {event?.profiles?.avatar_url ? (
                             <Image source={{ uri: event.profiles.avatar_url }} style={styles.avatarImg} />
                         ) : (
-                            <Text style={styles.avatarText}>{initial}</Text>
+                            <Text style={[styles.avatarText, { color: colors.gray500 }]}>{initial}</Text>
                         )}
                     </TouchableOpacity>
-                    <View style={styles.threadLine} />
+                    <View style={[styles.threadLine, { backgroundColor: colors.border }]} />
                 </View>
 
                 {/* Right side content */}
@@ -109,17 +111,17 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         <View style={{ flex: 1 }}>
                             <View style={styles.nameRow}>
                                 <TouchableOpacity onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}>
-                                    <Text style={styles.name}>{event?.profiles?.name || 'Anonymous'}</Text>
+                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || 'Anonymous'}</Text>
                                 </TouchableOpacity>
-                                <Text style={styles.dot}>·</Text>
-                                <Text style={styles.time}>{timeAgo(event.created_at)}</Text>
+                                <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
+                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(event.created_at)}</Text>
                             </View>
                             <View style={styles.typeTag}>
-                                <Text style={styles.typeTagText}>EVENT</Text>
+                                <Text style={[styles.typeTagText, { color: colors.primary }]}>EVENT</Text>
                                 {event.communities?.name && (
                                     <>
-                                        <Text style={styles.tagDot}>·</Text>
-                                        <Text style={styles.communityName}>{event.communities.name}</Text>
+                                        <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
+                                        <Text style={[styles.communityName, { color: colors.gray500 }]}>{event.communities.name}</Text>
                                     </>
                                 )}
                             </View>
@@ -135,22 +137,22 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         onPress={() => router.push(`/events/${event.id}`)}
                         activeOpacity={0.9}
                     >
-                        <Text style={styles.title} numberOfLines={2}>{event.title}</Text>
+                        <Text style={[styles.title, { color: colors.black }]} numberOfLines={2}>{event.title}</Text>
 
-                        <View style={styles.eventDetailsBox}>
-                            <View style={styles.dateBadge}>
-                                <Text style={styles.dateMonth}>{eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
-                                <Text style={styles.dateDay}>{eventDate.getDate()}</Text>
+                        <View style={[styles.eventDetailsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <View style={[styles.dateBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                                <Text style={[styles.dateMonth, { color: colors.danger }]}>{eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
+                                <Text style={[styles.dateDay, { color: colors.black }]}>{eventDate.getDate()}</Text>
                             </View>
                             <View style={styles.metaCol}>
                                 <View style={styles.metaRow}>
                                     <Ionicons name="time-outline" size={13} color={colors.gray500} />
-                                    <Text style={styles.metaText}>{formattedDate}, {formattedTime}</Text>
+                                    <Text style={[styles.metaText, { color: colors.gray600 }]}>{formattedDate}, {formattedTime}</Text>
                                 </View>
                                 {event.location && (
                                     <View style={styles.metaRow}>
                                         <Ionicons name="location-outline" size={13} color={colors.gray500} />
-                                        <Text style={styles.metaText} numberOfLines={1}>{event.location}</Text>
+                                        <Text style={[styles.metaText, { color: colors.gray600 }]} numberOfLines={1}>{event.location}</Text>
                                     </View>
                                 )}
                             </View>
@@ -165,23 +167,23 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
 
                     <View style={styles.footerRow}>
                         <TouchableOpacity
-                            style={[styles.interestBtn, isInterested && styles.interestBtnActive]}
+                            style={[styles.interestBtn, { backgroundColor: colors.gray100 }, isInterested && { backgroundColor: colors.primary }]}
                             onPress={handleInterest}
                             activeOpacity={0.7}
                         >
                             <Ionicons name={isInterested ? "star" : "star-outline"} size={16} color={isInterested ? colors.white : colors.gray500} />
-                            <Text style={[styles.interestBtnText, isInterested && styles.interestBtnTextActive]}>
+                            <Text style={[styles.interestBtnText, { color: colors.gray600 }, isInterested && { color: colors.white }]}>
                                 {isInterested ? 'Interested' : 'Interested'}
                             </Text>
                         </TouchableOpacity>
 
                         <View style={styles.statsRow}>
                             <View style={styles.avatarsPreview}>
-                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray100, zIndex: 3 }]} />
-                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray200, zIndex: 2, marginLeft: -10 }]} />
-                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray300, zIndex: 1, marginLeft: -10 }]} />
+                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray100, borderColor: colors.surface, zIndex: 3 }]} />
+                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray200, borderColor: colors.surface, zIndex: 2, marginLeft: -10 }]} />
+                                <View style={[styles.miniAvatar, { backgroundColor: colors.gray300, borderColor: colors.surface, zIndex: 1, marginLeft: -10 }]} />
                             </View>
-                            <Text style={styles.statsText}>{interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested</Text>
+                            <Text style={[styles.statsText, { color: colors.gray500 }]}>{interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested</Text>
                         </View>
                     </View>
                 </View>
@@ -192,9 +194,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.white,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray200,
     },
     row: {
         flexDirection: 'row',
@@ -211,19 +211,16 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
         borderWidth: 0.5,
-        borderColor: colors.gray200,
     },
     avatarImg: { width: '100%', height: '100%' },
-    avatarText: { fontFamily: fonts.bold, fontSize: 15, color: colors.gray600 },
+    avatarText: { fontFamily: fonts.bold, fontSize: 15 },
     threadLine: {
         width: 1.5,
         flex: 1,
-        backgroundColor: colors.gray200,
         marginTop: 8,
         borderRadius: 1,
         minHeight: 12,
@@ -246,17 +243,14 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.semibold,
         fontSize: 14,
-        color: colors.black,
     },
     dot: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray400,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray400,
     },
     typeTag: {
         flexDirection: 'row',
@@ -267,55 +261,45 @@ const styles = StyleSheet.create({
     typeTagText: {
         fontFamily: fonts.bold,
         fontSize: 10,
-        color: colors.gray400,
         letterSpacing: 0.5,
     },
     tagDot: {
         fontSize: 10,
-        color: colors.gray300,
     },
     communityName: {
         fontFamily: fonts.regular,
         fontSize: 11,
-        color: colors.gray500,
     },
     title: {
         fontFamily: fonts.bold,
         fontSize: 17,
-        color: colors.black,
         lineHeight: 22,
         marginBottom: 10,
     },
     eventDetailsBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.gray50,
         borderRadius: 12,
         padding: 10,
         gap: 12,
         borderWidth: 1,
-        borderColor: colors.gray100,
     },
     dateBadge: {
         width: 42,
         height: 44,
-        backgroundColor: colors.white,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: colors.gray200,
     },
     dateMonth: {
         fontFamily: fonts.bold,
         fontSize: 10,
-        color: colors.danger, // Using standard color for month
         includeFontPadding: false,
     },
     dateDay: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.black,
         marginTop: -1,
         includeFontPadding: false,
     },
@@ -330,14 +314,12 @@ const styles = StyleSheet.create({
     metaText: {
         fontFamily: fonts.medium,
         fontSize: 12,
-        color: colors.gray600,
     },
     bannerContainer: {
         marginTop: 12,
         borderRadius: 12,
         overflow: 'hidden',
         height: 140,
-        backgroundColor: colors.gray100,
     },
     bannerImg: {
         width: '100%',
@@ -357,18 +339,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: radii.full,
-        backgroundColor: colors.gray100,
-    },
-    interestBtnActive: {
-        backgroundColor: colors.primary,
     },
     interestBtnText: {
         fontFamily: fonts.bold,
         fontSize: 13,
-        color: colors.gray600,
-    },
-    interestBtnTextActive: {
-        color: colors.white,
     },
     statsRow: {
         flexDirection: 'row',
@@ -384,11 +358,9 @@ const styles = StyleSheet.create({
         height: 18,
         borderRadius: 9,
         borderWidth: 2,
-        borderColor: colors.white,
     },
     statsText: {
         fontFamily: fonts.medium,
         fontSize: 12,
-        color: colors.gray500,
     },
 });
