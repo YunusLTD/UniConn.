@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Dimensions, Image, TouchableOpacity, SafeAreaView, Animated, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Dimensions, Image, TouchableOpacity, SafeAreaView, Animated, Pressable, ActivityIndicator } from 'react-native';
 import { colors, fonts, spacing } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -210,8 +210,9 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                             source={{ uri: currentStory.media_url }}
                             style={styles.image}
                             resizeMode={ResizeMode.COVER}
-                            shouldPlay={!isPaused && visible}
+                            shouldPlay={!isPaused && visible && isMediaLoaded}
                             isLooping={false}
+                            onLoad={() => setIsMediaLoaded(true)}
                             onPlaybackStatusUpdate={(status: any) => {
                                 if (status.isLoaded && status.durationMillis) {
                                     const p = status.positionMillis / status.durationMillis;
@@ -232,6 +233,12 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                     <Animated.View style={[styles.centeredOverlay, { transform: [{ scale: likeAnim }], opacity: likeAnim }]}>
                         <Ionicons name="heart" size={100} color={colors.white} />
                     </Animated.View>
+
+                    {!isMediaLoaded && (
+                        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.black }]}>
+                            <ActivityIndicator size="large" color={colors.white} />
+                        </View>
+                    )}
 
                     <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent']} style={styles.topGradient} />
                     <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.bottomGradient} />

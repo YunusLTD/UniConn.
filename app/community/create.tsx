@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform, Switch, DeviceEventEmitter } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { createCommunity, getCommunity, updateCommunity } from '../../src/api/communities';
@@ -87,8 +87,10 @@ export default function CreateCommunityScreen() {
             if (isEdit) {
                 await updateCommunity(id as string, data);
                 Alert.alert('Success', 'Community updated successfully');
+                DeviceEventEmitter.emit('communityUpdated');
             } else {
                 await createCommunity(data as any);
+                DeviceEventEmitter.emit('communityCreated');
             }
             router.back();
         } catch (e: any) {

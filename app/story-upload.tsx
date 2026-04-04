@@ -165,21 +165,30 @@ export default function StoryUploadScreen() {
 
                         <View style={styles.setupContent}>
                             <View style={styles.iconCircle}>
-                                <Ionicons name="videocam" size={48} color={colors.white} />
+                                <Ionicons name="flash-outline" size={48} color={colors.white} />
                             </View>
-                            <Text style={styles.setupHero}>Record the Campus Pulse</Text>
-                            <Text style={styles.setupSub}>Your moment will be merged with others at your location to create a collective timeline.</Text>
+                            <Text style={styles.setupHero}>Your Moment, Live</Text>
+                            <Text style={styles.setupSub}>Share what's happening right now with everyone on campus.</Text>
                         </View>
 
                         <View style={styles.setupFooter}>
-                            <TouchableOpacity style={styles.primaryBtn} onPress={takeMedia}>
-                                <Ionicons name="camera" size={20} color="black" />
-                                <Text style={styles.primaryBtnText}>Open Camera</Text>
+                            <TouchableOpacity style={styles.primaryBtn} onPress={takeMedia} activeOpacity={0.8}>
+                                <Ionicons name="camera" size={24} color="black" />
+                                <View>
+                                    <Text style={styles.primaryBtnText}>Open Camera</Text>
+                                    <Text style={styles.btnSubText}>Capture a live moment</Text>
+                                </View>
                             </TouchableOpacity>
                             
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={pickMedia}>
-                                <Ionicons name="images" size={18} color="white" />
-                                <Text style={styles.secondaryBtnText}>Choose from Library</Text>
+                            <TouchableOpacity style={styles.secondaryBtn} onPress={pickMedia} activeOpacity={0.7}>
+                                <View style={styles.libraryIconWrap}>
+                                    <Ionicons name="images" size={20} color="white" />
+                                </View>
+                                <View>
+                                    <Text style={styles.secondaryBtnText}>Choose from Library</Text>
+                                    <Text style={[styles.btnSubText, { color: 'rgba(255,255,255,0.4)' }]}>Upload photo or video</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
                             </TouchableOpacity>
                         </View>
                     </SafeAreaView>
@@ -199,10 +208,12 @@ const styles = StyleSheet.create({
     setupHero: { color: 'white', fontFamily: fonts.bold, fontSize: 24, textAlign: 'center', marginBottom: 12 },
     setupSub: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.regular, fontSize: 15, textAlign: 'center', lineHeight: 22 },
     setupFooter: { gap: 12, marginBottom: spacing.xl },
-    primaryBtn: { backgroundColor: 'white', height: 56, borderRadius: 28, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    primaryBtnText: { fontFamily: fonts.bold, fontSize: 16, color: 'black' },
-    secondaryBtn: { height: 56, borderRadius: 28, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-    secondaryBtnText: { fontFamily: fonts.semibold, fontSize: 15, color: 'white' },
+    primaryBtn: { backgroundColor: 'white', height: 68, borderRadius: 34, flexDirection: 'row', paddingHorizontal: 24, alignItems: 'center', gap: 16 },
+    primaryBtnText: { fontFamily: fonts.bold, fontSize: 17, color: 'black' },
+    secondaryBtn: { height: 68, borderRadius: 34, flexDirection: 'row', paddingHorizontal: 24, alignItems: 'center', gap: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    secondaryBtnText: { fontFamily: fonts.semibold, fontSize: 16, color: 'white' },
+    btnSubText: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(0,0,0,0.5)', marginTop: -2 },
+    libraryIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
     
     previewContainer: { flex: 1 },
     previewImage: { width: width, height: height, ...StyleSheet.absoluteFillObject },

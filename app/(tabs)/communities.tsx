@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, Alert, TextInput, DeviceEventEmitter } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -53,6 +53,13 @@ export default function CommunitiesScreen() {
     };
 
     useEffect(() => { loadData(); }, [activeTab]);
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('communityCreated', () => {
+            loadData(true);
+        });
+        return () => sub.remove();
+    }, [activeTab]);
 
     useEffect(() => {
         const delay = setTimeout(() => {
