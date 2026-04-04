@@ -16,7 +16,7 @@ export default function CreateEventScreen() {
     const router = useRouter();
     const navigation = useNavigation();
     const params = useLocalSearchParams();
-    const { colors, theme } = useTheme();
+    const { colors, theme, isDark } = useTheme();
 
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
@@ -110,7 +110,6 @@ export default function CreateEventScreen() {
     };
 
     useLayoutEffect(() => {
-        router.setParams({}); // dummy to ensure router context
         const isReady = !!title.trim() && !posting;
 
         navigation.setOptions({
@@ -143,7 +142,7 @@ export default function CreateEventScreen() {
                 </Pressable>
             )
         });
-    }, [title, posting, colors]);
+    }, [title, posting, colors, navigation]);
 
     if (loading) {
         return (
@@ -254,7 +253,7 @@ export default function CreateEventScreen() {
                                         mode="datetime"
                                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                         onChange={onDateChange}
-                                        textColor={theme === 'dark' ? 'white' : 'black'}
+                                        textColor={isDark ? '#FFFFFF' : '#000000'}
                                     />
                                 </View>
                             )}

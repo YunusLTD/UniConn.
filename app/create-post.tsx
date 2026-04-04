@@ -440,7 +440,13 @@ export default function CreatePostModal() {
                             </TouchableOpacity>
                             {showDatePicker && (
                                 <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                    <DateTimePicker value={eventDate} mode="datetime" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={onDateChange} />
+                                    <DateTimePicker 
+                                        value={eventDate} 
+                                        mode="datetime" 
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'} 
+                                        onChange={onDateChange} 
+                                        textColor={isDark ? '#FFFFFF' : '#000000'}
+                                    />
                                     {Platform.OS === 'ios' && (
                                         <TouchableOpacity style={[styles.doneBtn, { backgroundColor: colors.black }]} onPress={() => setShowDatePicker(false)}>
                                             <Text style={[styles.doneText, { color: colors.white }]}>Done</Text>
