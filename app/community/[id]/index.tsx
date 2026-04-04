@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useLayoutEffect, useCallback } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors, spacing, fonts, radii } from '../../../src/constants/theme';
+import { spacing, fonts, radii } from '../../../src/constants/theme';
 import { getCommunity, joinCommunity, leaveCommunity, deleteCommunity } from '../../../src/api/communities';
 import { getFeed } from '../../../src/api/feed';
 import PostCard from '../../../src/components/PostCard';
@@ -12,9 +12,8 @@ import JobCard from '../../../src/components/JobCard';
 import MarketCard from '../../../src/components/MarketCard';
 import PollCard from '../../../src/components/PollCard';
 import EventCalendar from '../../../src/components/EventCalendar';
-import ResourceVault from '../../../src/components/ResourceVault';
 import ShadowLoader from '../../../src/components/ShadowLoader';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -31,10 +30,12 @@ export default function CommunityDetailScreen() {
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
 
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const [community, setCommunity] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'all' | 'events' | 'jobs' | 'study' | 'market' | 'resources'>('all');
+    const [activeTab, setActiveTab] = useState<'all' | 'events' | 'market'>('all');
     const [eventViewMode, setEventViewMode] = useState<'list' | 'calendar'>('list');
     const [submitting, setSubmitting] = useState(false);
 
@@ -47,7 +48,6 @@ export default function CommunityDetailScreen() {
             const commRes = await getCommunity(id as string);
             if (commRes.data) {
                 setCommunity(commRes.data);
-                // Update parent stack title to avoid file path leaking
                 navigation.setOptions({ title: commRes.data.name });
             }
             const postsRes = await getFeed(1, 40, id as string);
@@ -111,7 +111,7 @@ export default function CommunityDetailScreen() {
 
     const handleShare = async () => {
         try {
-            await Share.share({ message: `Join ${community?.name} on UniConnect! The ultimate student hub.` });
+            await Share.share({ message: `Join ${community?.name} on UniConn! The ultimate student hub.` });
         } catch (e) { }
     };
 
@@ -134,22 +134,15 @@ export default function CommunityDetailScreen() {
     if (!community) return <View style={styles.centered}><Text style={{ color: colors.gray400 }}>Community not found</Text></View>;
 
     const filteredPosts = posts.filter(p => {
-        if (isStudyGroup) return true;
         const type = p.feed_type?.toLowerCase();
         if (activeTab === 'events') return type === 'event';
-        if (activeTab === 'jobs') return type === 'job';
-        if (activeTab === 'study') return type === 'study_group';
         if (activeTab === 'market') return type === 'market';
-        // 'all' tab: only show posts and polls (other types have dedicated tabs)
         if (activeTab === 'all') return type === 'post' || type === 'poll' || !type;
         return true;
     });
 
     const getEmptyMessage = () => {
-        if (isStudyGroup) return "No shared notes yet. Start the conversation!";
         if (activeTab === 'events') return "No upcoming events posted.";
-        if (activeTab === 'jobs') return "No opportunities found right now.";
-        if (activeTab === 'study') return "No research groups found.";
         if (activeTab === 'market') return "The marketplace is empty.";
         return "Be the first to share something here!";
     };
@@ -165,7 +158,7 @@ export default function CommunityDetailScreen() {
     };
 
     const CommunityHeader = () => (
-        <View style={{ backgroundColor: colors.white }}>
+        <View style={{ backgroundColor: colors.background }}>
             {/* Immersive Cover Section */}
             <View style={styles.coverWrapper}>
                 {community.image_url ? (
@@ -231,35 +224,35 @@ export default function CommunityDetailScreen() {
 
                 <View style={styles.mainActionsColumn}>
                     <TouchableOpacity 
-                        style={[styles.chatBtn, { backgroundColor: colors.black }, (!community.is_member && community.is_private) && { opacity: 0.5 }]} 
+                        style={[styles.chatBtn, { backgroundColor: colors.text === '#FFFFFF' ? colors.gray800 : colors.black }, (!community.is_member && community.is_private) && { opacity: 0.5 }]} 
                         onPress={handleOpenChat} 
                         activeOpacity={0.8}
                         disabled={!community.is_member && community.is_private}
                     >
-                        <Ionicons name="chatbubbles" size={20} color={colors.white} />
-                        <Text style={styles.chatBtnText}>{community.is_member ? 'Enter Chat Room' : (community.is_private ? 'Members Only' : 'Join to Chat')}</Text>
+                        <Ionicons name="chatbubbles" size={20} color={colors.background === '#000000' ? colors.black : colors.white} />
+                        <Text style={[styles.chatBtnText, { color: colors.background === '#000000' ? colors.black : colors.white }]}>{community.is_member ? 'Enter Chat Room' : (community.is_private ? 'Members Only' : 'Join to Chat')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.secondaryActionRow}>
                         <TouchableOpacity
-                            style={[styles.postBtn, { borderColor: colors.gray200 }]}
+                            style={[styles.postBtn, { borderColor: colors.gray200, backgroundColor: colors.surface }]}
                             onPress={() => router.push({ pathname: '/create-post', params: { communityId: id } } as any)}
                         >
-                            <Ionicons name="add" size={20} color={colors.black} />
-                            <Text style={styles.postBtnText}>Post Something</Text>
+                            <Ionicons name="add" size={20} color={colors.text} />
+                            <Text style={[styles.postBtnText, { color: colors.text }]}>Post Something</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.joinBtn, community.is_member && styles.leaveBtn]}
+                            style={[styles.joinBtn, community.is_member && styles.leaveBtn, { backgroundColor: community.is_member ? colors.gray100 : '#00A3FF' }]}
                             onPress={handleJoinLeave}
                         >
-                            <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && styles.leaveBtnText]}>
+                            <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && { color: colors.gray600 }]}>
                                 {community.is_member ? 'Member' : (community.membership_status === 'pending' ? 'Requested' : (community.is_private ? 'Request' : 'Join Hub'))}
                             </Text>
                         </TouchableOpacity>
 
                         {isAdmin && (
-                            <TouchableOpacity style={styles.dangerIconBtn} onPress={handleDeleteCommunity}>
+                            <TouchableOpacity style={[styles.dangerIconBtn, { backgroundColor: isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.1)' }]} onPress={handleDeleteCommunity}>
                                 <Ionicons name="trash-outline" size={20} color={colors.danger} />
                             </TouchableOpacity>
                         )}
@@ -268,16 +261,16 @@ export default function CommunityDetailScreen() {
             </View>
 
             {/* Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.minimalTabsContainer, { backgroundColor: colors.white }]} contentContainerStyle={{ paddingRight: 20 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.minimalTabsContainer, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingRight: 20 }}>
                 <View style={[styles.minimalTabs, { borderBottomColor: colors.gray100 }]}>
-                    {(['all', 'events', 'study', 'jobs', 'market', 'resources'] as const).map(tab => (
+                    {(['all', 'events', 'market'] as const).map(tab => (
                         <TouchableOpacity
                             key={tab}
                             onPress={() => setActiveTab(tab)}
-                            style={[styles.minTab, activeTab === tab && { borderBottomColor: colors.black }]}
+                            style={[styles.minTab, activeTab === tab && { borderBottomColor: colors.text }]}
                         >
-                            <Text style={[styles.minTabText, activeTab === tab && { color: colors.black }]}>
-                                {tab === 'all' ? 'FEED' : tab.toUpperCase()}
+                            <Text style={[styles.minTabText, activeTab === tab ? { color: colors.text } : { color: colors.gray400 }]}>
+                                {tab === 'all' ? 'FEED' : (tab === 'market' ? 'MARKETPLACE' : tab.toUpperCase())}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -285,20 +278,20 @@ export default function CommunityDetailScreen() {
             </ScrollView>
 
             {activeTab === 'events' && (
-                <View style={[styles.eventToggleBar, { backgroundColor: colors.white }]}>
+                <View style={[styles.eventToggleBar, { backgroundColor: colors.background }]}>
                     <TouchableOpacity
-                        style={[styles.toggleBtn, eventViewMode === 'list' && { backgroundColor: colors.black }]}
+                        style={[styles.toggleBtn, eventViewMode === 'list' ? { backgroundColor: colors.text } : { backgroundColor: colors.gray100 }]}
                         onPress={() => setEventViewMode('list')}
                     >
-                        <Ionicons name="list" size={16} color={eventViewMode === 'list' ? colors.white : colors.gray500} />
-                        <Text style={[styles.toggleText, eventViewMode === 'list' && { color: colors.white }]}>List View</Text>
+                        <Ionicons name="list" size={16} color={eventViewMode === 'list' ? colors.background : colors.gray500} />
+                        <Text style={[styles.toggleText, eventViewMode === 'list' ? { color: colors.background } : { color: colors.gray500 }]}>List View</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.toggleBtn, eventViewMode === 'calendar' && { backgroundColor: colors.black }]}
+                        style={[styles.toggleBtn, eventViewMode === 'calendar' ? { backgroundColor: colors.text } : { backgroundColor: colors.gray100 }]}
                         onPress={() => setEventViewMode('calendar')}
                     >
-                        <Ionicons name="calendar" size={16} color={eventViewMode === 'calendar' ? colors.white : colors.gray500} />
-                        <Text style={[styles.toggleText, eventViewMode === 'calendar' && { color: colors.white }]}>Calendar</Text>
+                        <Ionicons name="calendar" size={16} color={eventViewMode === 'calendar' ? colors.background : colors.gray500} />
+                        <Text style={[styles.toggleText, eventViewMode === 'calendar' ? { color: colors.background } : { color: colors.gray500 }]}>Calendar</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -309,7 +302,6 @@ export default function CommunityDetailScreen() {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-            {/* Hide parent header completely to use our floating one */}
             <Stack.Screen options={{ headerShown: false }} />
 
             <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
@@ -331,19 +323,6 @@ export default function CommunityDetailScreen() {
                         <View>
                             <CommunityHeader />
                             <EventCalendar events={posts.filter(p => p.feed_type?.toLowerCase() === 'event')} />
-                            <View style={{ height: 100 }} />
-                        </View>
-                    }
-                    showsVerticalScrollIndicator={false}
-                />
-            ) : activeTab === 'resources' ? (
-                <FlatList
-                    data={[]}
-                    renderItem={() => null}
-                    ListHeaderComponent={
-                        <View>
-                            <CommunityHeader />
-                            <ResourceVault communityId={id as string} />
                             <View style={{ height: 100 }} />
                         </View>
                     }
@@ -371,7 +350,7 @@ export default function CommunityDetailScreen() {
                     renderItem={renderItem}
                     ListHeaderComponent={<CommunityHeader />}
                     ListEmptyComponent={
-                        <View style={[styles.emptyWrap, { backgroundColor: colors.white }]}>
+                        <View style={[styles.emptyWrap, { backgroundColor: colors.background }]}>
                             <Ionicons name={isStudyGroup ? "book-outline" : "chatbubble-ellipses-outline"} size={48} color={colors.gray200} />
                             <Text style={styles.emptyText}>{getEmptyMessage()}</Text>
                         </View>
@@ -384,7 +363,7 @@ export default function CommunityDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16 },
@@ -411,30 +390,29 @@ const styles = StyleSheet.create({
     descriptionText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 24, marginBottom: 24 },
     mainActionsColumn: { gap: 12 },
     chatBtn: { height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-    chatBtnText: { fontFamily: fonts.bold, color: 'white', fontSize: 16 },
+    chatBtnText: { fontFamily: fonts.bold, fontSize: 16 },
     secondaryActionRow: { flexDirection: 'row', gap: 12 },
     postBtn: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
     postBtnText: { fontFamily: fonts.semibold, fontSize: 14 },
-    joinBtn: { width: 100, height: 48, borderRadius: 12, backgroundColor: '#00A3FF', justifyContent: 'center', alignItems: 'center' },
+    joinBtn: { width: 100, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     joinBtnText: { fontFamily: fonts.bold, color: 'white', fontSize: 14 },
-    leaveBtn: { backgroundColor: '#F0F0F0' },
-    leaveBtnText: { color: '#666' },
-    dangerIconBtn: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.1)', justifyContent: 'center', alignItems: 'center' },
+    leaveBtn: {},
+    dangerIconBtn: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     minimalTabsContainer: { marginTop: 10 },
     minimalTabs: { flexDirection: 'row', paddingHorizontal: 20, borderBottomWidth: 1 },
     minTab: { paddingVertical: 16, marginRight: 24, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    minTabText: { fontFamily: fonts.bold, fontSize: 12, color: colors.gray400, letterSpacing: 1 },
+    minTabText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1 },
     eventToggleBar: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
-    toggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.full, backgroundColor: '#F5F5F5' },
-    toggleText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.gray500 },
+    toggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.full },
+    toggleText: { fontFamily: fonts.semibold, fontSize: 12 },
     emptyWrap: { paddingVertical: 80, alignItems: 'center', paddingHorizontal: spacing.xl },
     emptyText: { fontFamily: fonts.medium, fontSize: 15, color: colors.gray400, marginTop: 16, textAlign: 'center' },
-    lockedState: { flex: 1, padding: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-    lockedIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.gray50, justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: colors.gray100 },
-    lockedTitle: { fontFamily: fonts.bold, fontSize: 22, color: colors.black, marginBottom: 16 },
+    lockedState: { flex: 1, padding: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    lockedIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.gray100, justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: colors.gray200 },
+    lockedTitle: { fontFamily: fonts.bold, fontSize: 22, color: colors.text, marginBottom: 16 },
     lockedText: { fontFamily: fonts.regular, fontSize: 15, color: colors.gray500, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-    requestButton: { backgroundColor: colors.black, paddingHorizontal: 32, paddingVertical: 14, borderRadius: radii.full },
-    requestButtonText: { fontFamily: fonts.bold, color: colors.white, fontSize: 15 },
+    requestButton: { backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: radii.full },
+    requestButtonText: { fontFamily: fonts.bold, color: colors.background, fontSize: 15 },
     emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 200, paddingVertical: 40 },
     emptyMessage: { fontFamily: fonts.medium, fontSize: 16, color: colors.gray300, marginTop: 16, textAlign: 'center' },
     listContent: { paddingBottom: 100 },

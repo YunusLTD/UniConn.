@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Image, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
 import { createCommunity, getCommunity, updateCommunity } from '../../src/api/communities';
 import { uploadMultipleMedia } from '../../src/api/upload';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '../../src/context/ThemeContext';
 
 const TYPES = [
     { key: 'course', label: 'Course', icon: 'book-outline' as const },
@@ -15,6 +16,8 @@ const TYPES = [
 ];
 
 export default function CreateCommunityScreen() {
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { edit, id } = useLocalSearchParams();
     const isEdit = edit === 'true';
     
@@ -96,17 +99,19 @@ export default function CreateCommunityScreen() {
     };
 
     return (
-        <>
+        <View style={styles.container}>
             <Stack.Screen
                 options={{
                     title: isEdit ? 'Edit Community' : 'New Community',
-                    headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17 },
+                    headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17, color: colors.text },
+                    headerStyle: { backgroundColor: colors.background },
+                    headerTintColor: colors.text,
                     headerRight: () => (
                         <TouchableOpacity onPress={handleAction} disabled={loading || !name.trim()}>
                             {loading ? (
-                                <ActivityIndicator size="small" color={colors.black} />
+                                <ActivityIndicator size="small" color={colors.text} />
                             ) : (
-                                <Text style={[styles.headerAction, !name.trim() && { opacity: 0.3 }]}>
+                                <Text style={[styles.headerAction, { color: colors.text }, !name.trim() && { opacity: 0.3 }]}>
                                     {isEdit ? 'Save' : 'Create'}
                                 </Text>
                             )}
@@ -115,8 +120,8 @@ export default function CreateCommunityScreen() {
                 }}
             />
             {fetching && (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'white', zIndex: 10, justifyContent: 'center', alignItems: 'center' }]}>
-                    <ActivityIndicator size="large" color={colors.black} />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, zIndex: 10, justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color={colors.text} />
                 </View>
             )}
             <KeyboardAvoidingView
@@ -124,7 +129,7 @@ export default function CreateCommunityScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
             >
-                <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+                <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     {/* Banner */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>COMMUNITY BANNER</Text>
@@ -150,6 +155,7 @@ export default function CreateCommunityScreen() {
                             value={name}
                             onChangeText={setName}
                             autoFocus
+                            selectionColor={colors.primary}
                         />
                     </View>
 
@@ -164,6 +170,7 @@ export default function CreateCommunityScreen() {
                             onChangeText={setDescription}
                             multiline
                             numberOfLines={3}
+                            selectionColor={colors.primary}
                         />
                     </View>
 
@@ -181,7 +188,7 @@ export default function CreateCommunityScreen() {
                                     <Ionicons
                                         name={type.icon}
                                         size={16}
-                                        color={selectedType === type.key ? colors.white : colors.gray600}
+                                        color={selectedType === type.key ? (isDark ? colors.black : colors.white) : colors.gray600}
                                     />
                                     <Text style={[styles.typeLabel, selectedType === type.key && styles.typeLabelActive]}>
                                         {type.label}
@@ -197,7 +204,7 @@ export default function CreateCommunityScreen() {
                         <View style={styles.privacyRow}>
                             <View style={styles.privacyInfo}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Ionicons name={isPrivate ? 'lock-closed' : 'earth'} size={20} color={colors.black} />
+                                    <Ionicons name={isPrivate ? 'lock-closed' : 'earth'} size={20} color={colors.text} />
                                     <Text style={styles.privacyTitle}>{isPrivate ? 'Private Community' : 'Public Community'}</Text>
                                 </View>
                                 <Text style={styles.privacyDesc}>
@@ -210,8 +217,9 @@ export default function CreateCommunityScreen() {
                             <Switch
                                 value={isPrivate}
                                 onValueChange={setIsPrivate}
-                                trackColor={{ false: colors.gray200, true: colors.black }}
-                                thumbColor={colors.white}
+                                trackColor={{ false: colors.gray200, true: colors.text }}
+                                thumbColor={colors.background}
+                                ios_backgroundColor={colors.gray200}
                             />
                         </View>
                     </View>
@@ -219,14 +227,14 @@ export default function CreateCommunityScreen() {
                     <View style={{ height: 40 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
-        </>
+        </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
     content: { padding: spacing.lg },
-    headerAction: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
+    headerAction: { fontFamily: fonts.semibold, fontSize: 15 },
     inputGroup: { marginBottom: spacing.xl },
     label: {
         fontFamily: fonts.semibold,
@@ -237,14 +245,14 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderColor: colors.gray200,
+        borderColor: colors.border,
         paddingHorizontal: 16,
         paddingVertical: 14,
         borderRadius: radii.md,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
-        backgroundColor: colors.gray50,
+        color: colors.text,
+        backgroundColor: colors.surface,
     },
     textArea: { minHeight: 80, textAlignVertical: 'top' },
     typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -256,36 +264,36 @@ const styles = StyleSheet.create({
         paddingVertical: 9,
         borderRadius: radii.full,
         borderWidth: 1,
-        borderColor: colors.gray200,
-        backgroundColor: colors.white,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
     },
-    typeChipActive: { backgroundColor: colors.black, borderColor: colors.black },
+    typeChipActive: { backgroundColor: colors.text, borderColor: colors.text },
     typeLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.gray600 },
-    typeLabelActive: { color: colors.white },
+    typeLabelActive: { color: colors.background },
     privacyRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: colors.gray50,
+        backgroundColor: colors.surface,
         padding: 16,
         borderRadius: radii.md,
         borderWidth: 1,
-        borderColor: colors.gray200,
+        borderColor: colors.border,
     },
     privacyInfo: { flex: 1, marginRight: 16 },
-    privacyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
+    privacyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
     privacyDesc: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray500, marginTop: 4, lineHeight: 18 },
     imagePicker: {
         width: '100%',
         height: 140,
         borderRadius: radii.md,
-        backgroundColor: colors.gray50,
+        backgroundColor: colors.surface,
         borderWidth: 1.5,
-        borderColor: colors.gray200,
+        borderColor: colors.border,
         borderStyle: 'dashed',
         overflow: 'hidden',
     },
     imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.sm },
-    imagePlaceholderText: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray400 },
+    imagePlaceholderText: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray400, textAlign: 'center', paddingHorizontal: 20 },
     previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
 });

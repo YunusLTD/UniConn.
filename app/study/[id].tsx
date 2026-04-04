@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getStudyQuestion, getStudyAnswers, createStudyAnswer } from '../../src/api/study';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useToast } from '../../src/context/ToastContext';
 
 export default function StudyDetailScreen() {
+    const { colors, isDark } = useTheme();
     const { id } = useLocalSearchParams();
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -19,6 +21,8 @@ export default function StudyDetailScreen() {
     const [answerText, setAnswerText] = useState('');
     const [sending, setSending] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
+
+    const styles = useMemo(() => createStyles(colors), [colors]);
 
     const loadData = async () => {
         try {
@@ -56,13 +60,13 @@ export default function StudyDetailScreen() {
 
     if (loading) return (
         <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.black} />
+            <ActivityIndicator size="small" color={colors.text} />
         </View>
     );
 
     if (!question) return (
         <View style={styles.loadingContainer}>
-            <Text>Question not found</Text>
+            <Text style={{ color: colors.gray400 }}>Question not found</Text>
         </View>
     );
 
@@ -70,7 +74,13 @@ export default function StudyDetailScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
-            <Stack.Screen options={{ title: 'Study Discussion', headerBackTitle: '' }} />
+            <Stack.Screen options={{ 
+                title: 'Study Discussion', 
+                headerBackTitle: '',
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.text,
+                headerTitleStyle: { color: colors.text, fontFamily: fonts.bold }
+            }} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -153,6 +163,7 @@ export default function StudyDetailScreen() {
                     <TextInput
                         style={styles.input}
                         placeholder="Type your answer or explanation..."
+                        placeholderTextColor={colors.gray400}
                         value={answerText}
                         onChangeText={setAnswerText}
                         multiline
@@ -175,15 +186,16 @@ export default function StudyDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
+        backgroundColor: colors.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: colors.background,
     },
     scrollContent: {
         paddingBottom: 20,
@@ -225,7 +237,7 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.black,
+        color: colors.text,
     },
     subText: {
         fontFamily: fonts.regular,
@@ -236,14 +248,14 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bold,
         fontSize: 22,
         lineHeight: 28,
-        color: colors.black,
+        color: colors.text,
         marginBottom: 12,
     },
     content: {
         fontFamily: fonts.regular,
         fontSize: 16,
         lineHeight: 24,
-        color: colors.gray700,
+        color: colors.gray600,
         marginBottom: 16,
     },
     image: {
@@ -264,7 +276,7 @@ const styles = StyleSheet.create({
     answersTitle: {
         fontFamily: fonts.bold,
         fontSize: 16,
-        color: colors.black,
+        color: colors.text,
     },
     emptyAnswers: {
         padding: 40,
@@ -295,7 +307,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     answerAvatarPlaceholder: {
-        backgroundColor: colors.gray50,
+        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -307,7 +319,7 @@ const styles = StyleSheet.create({
     answerName: {
         fontFamily: fonts.bold,
         fontSize: 14,
-        color: colors.black,
+        color: colors.text,
     },
     answerTime: {
         fontFamily: fonts.regular,
@@ -318,7 +330,7 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         fontSize: 15,
         lineHeight: 22,
-        color: colors.gray800,
+        color: colors.gray700,
     },
     inputBar: {
         flexDirection: 'row',
@@ -327,7 +339,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderTopWidth: 0.5,
         borderTopColor: colors.gray100,
-        backgroundColor: colors.white,
+        backgroundColor: colors.background,
     },
     input: {
         flex: 1,
@@ -339,13 +351,13 @@ const styles = StyleSheet.create({
         backgroundColor: colors.gray50,
         fontFamily: fonts.regular,
         fontSize: 15,
-        color: colors.black,
+        color: colors.text,
     },
     sendBtn: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: colors.black,
+        backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 10,

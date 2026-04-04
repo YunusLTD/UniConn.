@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { spacing, fonts, radii } from '../src/constants/theme';
 import { getNotifications, markAsRead } from '../src/api/notifications';
@@ -30,13 +30,17 @@ const NOTIF_ICONS: Record<string, string> = {
     comment_reply: 'return-up-back-outline',
     post_mention: 'at-outline',
     message_mention: 'at-outline',
+    community_request: 'people-outline',
+    community_approval: 'checkmark-circle-outline',
+    community_decline: 'close-circle-outline',
 };
 
 export default function NotificationsScreen() {
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const { colors, isDark } = useTheme();
 
     const { refreshUnreadCount } = useNotifications();
 
@@ -69,6 +73,10 @@ export default function NotificationsScreen() {
                 router.push(`/chat/${reference_id}` as any);
             } else if ((type === 'post' || type === 'post_upvote' || type === 'comment' || type === 'comment_reply' || type === 'post_mention' || type.includes('mention')) && reference_id) {
                 router.push(`/post/${reference_id}` as any);
+            } else if (type === 'community_request' && reference_id) {
+                router.push(`/community/${reference_id}/members` as any);
+            } else if (type.startsWith('community_') && reference_id) {
+                 router.push(`/community/${reference_id}` as any);
             }
         } catch (e) {
             console.log('Error handling notification click:', e);
@@ -77,14 +85,14 @@ export default function NotificationsScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-                <ActivityIndicator size="small" color={colors.black} />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.text} />
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.container}>
             <FlatList
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
@@ -95,16 +103,14 @@ export default function NotificationsScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.card, 
-                                { backgroundColor: colors.surface, borderBottomColor: colors.border },
-                                !item.read && { backgroundColor: isDark ? '#1A1A1A' : colors.gray50 }
+                                !item.read && styles.cardUnread
                             ]}
                             onPress={() => handleMarkRead(item)}
                             activeOpacity={0.7}
                         >
                             <View style={[
                                 styles.iconBlock, 
-                                { backgroundColor: isDark ? '#262626' : colors.gray100 },
-                                !item.read && { backgroundColor: isDark ? '#333333' : colors.gray200 }
+                                !item.read && styles.iconBlockUnread
                             ]}>
                                 <Ionicons
                                     name={iconName as any}
@@ -113,21 +119,21 @@ export default function NotificationsScreen() {
                                 />
                             </View>
                             <View style={styles.info}>
-                                <Text style={[styles.title, { color: colors.gray600 }, !item.read && [styles.titleUnread, { color: colors.black }]]}>
+                                <Text style={[styles.title, !item.read && styles.titleUnread]} numberOfLines={1}>
                                     {item.title}
                                 </Text>
-                                <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>{item.message}</Text>
-                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
+                                <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
+                                <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
                             </View>
-                            {!item.read && <View style={[styles.dot, { backgroundColor: colors.black }]} />}
+                            {!item.read && <View style={styles.dot} />}
                         </TouchableOpacity>
                     );
                 }}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyIcon}>🔔</Text>
-                        <Text style={[styles.emptyTitle, { color: colors.black }]}>All caught up</Text>
-                        <Text style={[styles.emptySub, { color: colors.gray500 }]}>You'll see notifications here</Text>
+                        <Ionicons name="notifications-outline" size={64} color={colors.gray200} />
+                        <Text style={styles.emptyTitle}>All caught up</Text>
+                        <Text style={styles.emptySub}>We will notify you about important updates here</Text>
                     </View>
                 }
             />
@@ -135,16 +141,21 @@ export default function NotificationsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
         paddingVertical: 14,
         borderBottomWidth: 0.5,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
         gap: 14,
+    },
+    cardUnread: {
+        backgroundColor: isDark ? colors.gray50 : '#F3F4F6', // Slight accent for unread
     },
     iconBlock: {
         width: 40,
@@ -152,33 +163,41 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: isDark ? '#262626' : colors.gray100,
+    },
+    iconBlockUnread: {
+        backgroundColor: isDark ? '#333333' : colors.gray200,
     },
     info: { flex: 1 },
     title: {
         fontFamily: fonts.regular,
         fontSize: 14,
+        color: colors.gray600,
     },
     titleUnread: {
         fontFamily: fonts.semibold,
+        color: colors.text,
     },
     body: {
         fontFamily: fonts.regular,
         fontSize: 12,
+        color: colors.gray500,
         marginTop: 2,
         lineHeight: 16,
     },
     time: {
         fontFamily: fonts.regular,
         fontSize: 11,
+        color: colors.gray400,
         marginTop: 4,
     },
     dot: {
         width: 8,
         height: 8,
         borderRadius: 4,
+        backgroundColor: colors.blue,
     },
-    emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: spacing.xl },
-    emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 20 },
-    emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4 },
+    emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: 40 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.text, marginTop: 16 },
+    emptySub: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, marginTop: 4, textAlign: 'center' },
 });

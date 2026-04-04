@@ -181,6 +181,7 @@ export default function ChatScreen() {
                             const member = members.find(m => m.user_id === newMessage.sender_id);
                             if (member) newMessage.profiles = member.profiles;
                         }
+                        // Connect reply_to manually if it's in our local state but not hydrated
                         if (newMessage.reply_to_message_id && !newMessage.reply_to) {
                             const original = prev.find(m => m.id === newMessage.reply_to_message_id);
                             if (original) newMessage.reply_to = original;
@@ -241,16 +242,13 @@ export default function ChatScreen() {
                 'broadcast',
                 { event: 'new_msg' },
                 (payload) => {
-                    console.log('Realtime: New message (Broadcast)', payload);
                     const newMessage = payload.payload;
                     setMessages(prev => {
                         if (prev.find(m => m.id === newMessage.id)) return prev;
-                        // For broadcast, we set isOptimistic false because it's 'live' from peer
                         return [...prev, { ...newMessage, isOptimistic: false }];
                     });
                     setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
 
-                    // Mark as read immediately if current chat
                     if (newMessage.sender_id !== user?.id) {
                         try {
                             markReadByReference('message', id as string);
@@ -315,10 +313,15 @@ export default function ChatScreen() {
 
         const content = input.trim();
         const media = mediaUri;
-        const tempId = Date.now().toString();
+        
+        // Use a real UUID for both local state, broadcast and DB to ensure perfect sync
+        const messageUUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
 
         const optimisticMessage = {
-            id: tempId,
+            id: messageUUID,
             content: content,
             sender_id: user?.id,
             media_url: media,
@@ -336,7 +339,7 @@ export default function ChatScreen() {
         setReplyTo(null); // Clear reply state immediately after building optimistic message
         setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
 
-        // Broadcast to Peer
+        // Instant Broadcast to Peer for ultra-low latency
         channelRef.current?.send({
             type: 'broadcast',
             event: 'new_msg',
@@ -355,12 +358,17 @@ export default function ChatScreen() {
                     mediaType = isVideo ? 'video' : 'image';
                 }
             }
-            const res = await sendMessage(id as string, content, uploadedUrl, mediaType, replyTo?.id);
+            
+            // Validate UUID syntax for replyTo.id.
+            const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+            const validReplyId = (replyTo?.id && isUUID(replyTo.id)) ? replyTo.id : undefined;
+
+            const res = await sendMessage(id as string, content, uploadedUrl, mediaType, validReplyId, messageUUID);
             if (res?.data) {
-                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...res.data, isOptimistic: false } : m));
+                setMessages(prev => prev.map(m => m.id === messageUUID ? { ...m, ...res.data, isOptimistic: false } : m));
             }
         } catch (e) {
-            setMessages(prev => prev.filter(m => m.id !== tempId));
+            setMessages(prev => prev.filter(m => m.id !== messageUUID));
             console.log('Error sending message', e);
             alert('Failed to send message');
         } finally {

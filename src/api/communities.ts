@@ -61,3 +61,15 @@ export const updateCommunity = async (id: string, data: any) => {
         body: JSON.stringify(data),
     });
 };
+
+export const getPendingRequests = async (id: string) => {
+    return await apiFetch(`/communities/${id}/pending`);
+};
+
+export const approveJoinRequest = async (id: string, userId: string) => {
+    return await apiFetch(`/communities/${id}/approve/${userId}`, { method: 'POST' });
+};
+
+export const rejectJoinRequest = async (id: string, userId: string) => {
+    return await apiFetch(`/communities/${id}/reject/${userId}`, { method: 'POST' });
+};

@@ -19,7 +19,7 @@ export const getMessages = async (conversationId: string) => {
     return await apiFetch(`/messages/${conversationId}/messages`);
 };
 
-export const sendMessage = async (conversationId: string, content: string | null, media_url?: string, media_type?: string, reply_to_message_id?: string) => {
+export const sendMessage = async (conversationId: string, content: string | null, media_url?: string, media_type?: string, reply_to_message_id?: string, messageId?: string) => {
     const body: any = {};
     if (content) body.content = content;
     if (media_url) {
@@ -27,6 +27,7 @@ export const sendMessage = async (conversationId: string, content: string | null
         body.media_type = media_type || 'image';
     }
     if (reply_to_message_id) body.reply_to_message_id = reply_to_message_id;
+    if (messageId) body.message_id = messageId;
     return await apiFetch(`/messages/${conversationId}/messages`, {
         method: 'POST',
         body: JSON.stringify(body),
