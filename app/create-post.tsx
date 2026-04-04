@@ -217,8 +217,6 @@ export default function CreatePostModal() {
     const TYPES: { key: typeof creationType, icon: string, label: string }[] = [
         { key: 'post', icon: 'document-text-outline', label: 'Post' },
         { key: 'poll', icon: 'stats-chart-outline', label: 'Poll' },
-        { key: 'job', icon: 'briefcase-outline', label: 'Job' },
-        { key: 'market', icon: 'cart-outline', label: 'Sell' },
     ];
 
     const formatSmartDate = (date: Date) => {
@@ -298,15 +296,21 @@ export default function CreatePostModal() {
                     </TouchableOpacity>
                     <Text style={[styles.headerTitle, { color: colors.black }]}>{params.edit === 'true' ? 'Edit' : 'New'} {creationType === 'study' ? 'Mini Community' : creationType === 'market' ? 'Listing' : creationType}</Text>
                     <TouchableOpacity
-                        style={[styles.postBtn, { backgroundColor: colors.black }, posting && { opacity: 0.5 }]}
+                        style={[
+                            styles.postBtn, 
+                            { 
+                                backgroundColor: colors.text, 
+                                opacity: (content.trim().length > 0 || (creationType === 'poll' && pollQuestion.trim().length > 0)) && !posting ? 1 : 0.5 
+                            }
+                        ]}
                         onPress={handlePost}
-                        disabled={posting}
+                        disabled={posting || !(content.trim().length > 0 || (creationType === 'poll' && pollQuestion.trim().length > 0))}
                         activeOpacity={0.7}
                     >
                         {posting ? (
-                            <ActivityIndicator size="small" color={colors.white} />
+                            <ActivityIndicator size="small" color={colors.background} />
                         ) : (
-                            <Text style={[styles.postBtnText, { color: colors.white }]}>
+                            <Text style={[styles.postBtnText, { color: colors.background }]}>
                                 {params.edit === 'true' ? 'Save' : (creationType === 'post' ? 'Share' : 'Launch')}
                             </Text>
                         )}
@@ -360,7 +364,7 @@ export default function CreatePostModal() {
                     {TYPES.map(t => (
                         <TouchableOpacity
                             key={t.key}
-                            style={[styles.typeBtn, { backgroundColor: isDark ? colors.gray800 : colors.gray100 }, creationType === t.key && { backgroundColor: colors.black }]}
+                            style={[styles.typeBtn, { backgroundColor: colors.gray100 }, creationType === t.key && { backgroundColor: colors.black }]}
                             onPress={() => !params.edit && setCreationType(t.key)}
                             disabled={!!params.edit}
                         >

@@ -459,26 +459,19 @@ export default function UserProfileScreen() {
                             )}
                         </View>
 
-                        {profile?.universities?.name && (
+                        {(profile?.universities?.name || profile?.department) && (
                             <View style={styles.metaRow}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
-                                <Text style={[styles.metaText, { color: colors.gray500 }]}>{profile.universities.name}</Text>
+                                <Text style={[styles.metaText, { color: colors.gray500 }]}>
+                                    {profile?.universities?.name}
+                                    {profile?.department ? ` • ${profile.department}` : ''}
+                                </Text>
                             </View>
                         )}
 
                         {profile?.bio ? (
                             <Text style={[styles.bioText, { color: colors.black }]}>{profile.bio}</Text>
                         ) : null}
-
-                        {profile?.department && (
-                            <View style={styles.metaRow}>
-                                <Ionicons name="ribbon-outline" size={13} color={colors.gray500} />
-                                <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile.department}
-                                    {profile.year_of_study ? ` • Class of ${profile.year_of_study.split(',')[0].trim()}` : ''}
-                                </Text>
-                            </View>
-                        )}
 
                         {(profile?.hometown || profile?.age || profile?.relationship_status) && (
                             <View style={styles.detailsRow}>
@@ -675,7 +668,8 @@ export default function UserProfileScreen() {
 
             <StoryViewer
                 visible={viewerVisible}
-                event={storyEvent}
+                stories={storyEvent ? [{ id: profile?.id, user: profile, stories: [storyEvent] }] : []}
+                initialUserIndex={0}
                 onClose={() => setViewerVisible(false)}
             />
         </View>

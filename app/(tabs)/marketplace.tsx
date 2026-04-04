@@ -170,7 +170,7 @@ export default function MarketplaceScreen() {
                     </View>
                 ) : (new Date().getTime() - new Date(item.created_at).getTime()) < 86400000 ? (
                     <View style={[styles.freeBadge, { backgroundColor: colors.black }]}>
-                        <Text style={styles.freeBadgeText}>{t('new_badge')}</Text>
+                        <Text style={[styles.freeBadgeText, { color: colors.white }]}>{t('new_badge')}</Text>
                     </View>
                 ) : null}
             </TouchableOpacity>

@@ -182,6 +182,11 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
 
     const isOwner = user?.id === post.user_id;
 
+    const [isVoting, setIsVoting] = useState(false);
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+
+    const isEdited = post.updated_at && (new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 10000);
+
     const handleMenu = () => {
         hapticLight();
         setActionVisible(true);
@@ -244,16 +249,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     };
 
     const handleShare = async () => {
-        try {
-            const shareUrl = `https://uni-platform.app/post/${post.id}`;
-            await Share.share({
-                title: 'UniConnect Post',
-                message: `Check out this post on Uni Platform: ${shareUrl}`,
-                url: shareUrl,
-            });
-        } catch (e) {
-            console.error('Share error', e);
-        }
+        setShareModalVisible(true);
     };
 
     const handleEdit = () => {
@@ -287,6 +283,9 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
     ];
 
     const handleVote = async (value: number) => {
+        if (isVoting) return;
+        setIsVoting(true);
+
         // 1. Optimistic Update
         const oldVote = myVote || 0;
         const newVote = oldVote === value ? 0 : value; // Toggle off if clicking current vote
@@ -306,14 +305,14 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
             // 3. Confirm with Server
             if (res.data) {
                 setMyVote(res.data.my_vote);
-                // Note: We don't necessarily update voteCount here unless the server returns the absolute total score
-                // as setVoteCount(res.data.vote_count). Assuming the local calc is safe.
             }
         } catch (e) {
             // 4. Rollback on Error
             setMyVote(oldVote);
             setVoteCount(prev => prev - countDiff);
             console.error('Vote error', e);
+        } finally {
+            setIsVoting(false);
         }
     };
 
@@ -364,6 +363,12 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                 )}
                                 <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
                                 <Text style={[styles.time, { color: themeColors.gray400 }]}>{timeAgo(post.created_at)}</Text>
+                                {isEdited && (
+                                    <>
+                                        <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
+                                        <Text style={[styles.time, { color: themeColors.gray400 }]}>edited</Text>
+                                    </>
+                                )}
                             </View>
                             {!!post.communities?.name && (
                                 <Text style={[styles.communityTag, { color: themeColors.gray500 }]}>
@@ -508,9 +513,18 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                 options={reportOptions}
                 title="Why are you reporting?"
             />
+
+            <PostShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                post={post}
+            />
         </View>
     );
 }
+
+// Add import
+import PostShareModal from './PostShareModal';
 
 const styles = StyleSheet.create({
     card: {

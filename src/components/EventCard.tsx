@@ -26,7 +26,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function EventCard({ event, showDelete = false, onDelete }: { event: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
     const [isInterested, setIsInterested] = useState(!!event.is_interested);
@@ -43,6 +43,9 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
     const formattedTime = eventDate.toLocaleTimeString('en-US', {
         hour: '2-digit', minute: '2-digit',
     });
+ 
+    const endTime = event.end_time ? new Date(event.end_time) : null;
+    const isPassed = endTime ? (endTime < new Date()) : (eventDate < new Date());
 
     const handleInterest = async () => {
         if (loading) return;
@@ -137,7 +140,14 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         onPress={() => router.push(`/events/${event.id}`)}
                         activeOpacity={0.9}
                     >
-                        <Text style={[styles.title, { color: colors.black }]} numberOfLines={2}>{event.title}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <Text style={[styles.title, { color: colors.black, marginBottom: 0 }]} numberOfLines={2}>{event.title}</Text>
+                            {isPassed && (
+                                <View style={[styles.passedBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
+                                    <Text style={styles.passedBadgeText}>PASSED</Text>
+                                </View>
+                            )}
+                        </View>
 
                         <View style={[styles.eventDetailsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <View style={[styles.dateBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -167,8 +177,14 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
 
                     <View style={styles.footerRow}>
                         <TouchableOpacity
-                            style={[styles.interestBtn, { backgroundColor: colors.gray100 }, isInterested && { backgroundColor: colors.primary }]}
+                            style={[
+                                styles.interestBtn, 
+                                { backgroundColor: colors.gray100 }, 
+                                isInterested && { backgroundColor: colors.primary },
+                                isPassed && { opacity: 0.5 }
+                            ]}
                             onPress={handleInterest}
+                            disabled={isPassed || loading}
                             activeOpacity={0.7}
                         >
                             <Ionicons name={isInterested ? "star" : "star-outline"} size={16} color={isInterested ? colors.white : colors.gray500} />
@@ -362,5 +378,18 @@ const styles = StyleSheet.create({
     statsText: {
         fontFamily: fonts.medium,
         fontSize: 12,
+    },
+    passedBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        borderWidth: 0.5,
+        borderColor: 'rgba(0,0,0,0.1)',
+    },
+    passedBadgeText: {
+        fontFamily: fonts.bold,
+        fontSize: 9,
+        color: '#999',
+        letterSpacing: 0.5,
     },
 });

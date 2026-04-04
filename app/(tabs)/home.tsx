@@ -28,8 +28,8 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const [selectedStoryEvent, setSelectedStoryEvent] = useState<any>(null);
     const [viewerVisible, setViewerVisible] = useState(false);
+    const [initialStoryUserIndex, setInitialStoryUserIndex] = useState(0);
 
     const loadFeed = async (pageNum = 1, isRefresh = false) => {
         try {
@@ -118,7 +118,7 @@ export default function HomeScreen() {
                 data={[{ id: 'me' }, ...stories]}
                 keyExtractor={item => item.id}
                 showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
+                renderItem={({ item, index }) => {
                     if (item.id === 'me') {
                         return (
                             <StoryCircle
@@ -133,12 +133,11 @@ export default function HomeScreen() {
                     return (
                         <StoryCircle
                             id={item.id}
-                            title={item.location?.name || item.custom_name || 'Event'}
-                            image_url={item.stories?.[0]?.media_url} // Preview first POV
+                            title={item.user?.name || 'Friend'}
+                            image_url={item.user?.avatar_url || item.stories?.[0]?.media_url}
                             media_type={item.stories?.[0]?.media_type}
-                            isPOV={item.is_hotspot_event}
                             onPress={() => {
-                                setSelectedStoryEvent(item);
+                                setInitialStoryUserIndex(index - 1);
                                 setViewerVisible(true);
                             }}
                         />
@@ -193,7 +192,8 @@ export default function HomeScreen() {
 
             <StoryViewer 
                 visible={viewerVisible} 
-                event={selectedStoryEvent} 
+                stories={stories}
+                initialUserIndex={initialStoryUserIndex}
                 onClose={() => setViewerVisible(false)} 
             />
         </View>

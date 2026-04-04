@@ -91,6 +91,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 const data = response.notification.request.content.data;
                 if (data?.type === 'message' && data.reference_id) {
                     router.push(`/chat/${data.reference_id}` as any);
+                } else if ((data?.type === 'poll_vote' || data?.type === 'community_poll') && data.reference_id) {
+                    router.push(`/polls/${data.reference_id}` as any);
                 } else if (data?.reference_id) {
                     // Generic handler for others
                     router.push(`/post/${data.reference_id}` as any);

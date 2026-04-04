@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { spacing, fonts, radii } from '../src/constants/theme';
 import { getNotifications, markAsRead } from '../src/api/notifications';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../src/context/NotificationContext';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/context/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -30,9 +31,14 @@ const NOTIF_ICONS: Record<string, string> = {
     comment_reply: 'return-up-back-outline',
     post_mention: 'at-outline',
     message_mention: 'at-outline',
+    poll_vote: 'stats-chart-outline',
+    community_poll: 'stats-chart-outline',
+    friend_request: 'person-add-outline',
+    friend_accept: 'person-outline',
     community_request: 'people-outline',
     community_approval: 'checkmark-circle-outline',
     community_decline: 'close-circle-outline',
+    system: 'notifications-outline',
 };
 
 export default function NotificationsScreen() {
@@ -47,7 +53,10 @@ export default function NotificationsScreen() {
     const loadData = async () => {
         try {
             const res = await getNotifications();
-            if (res?.data) setNotifications(res.data);
+            if (res?.data) {
+                // Show all notifications for now to ensure visibility
+                setNotifications(res.data);
+            }
         } catch (e) {
             console.log('Error loading notifications', e);
         } finally {
@@ -55,7 +64,11 @@ export default function NotificationsScreen() {
         }
     };
 
-    useEffect(() => { loadData(); }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
 
     const handleMarkRead = async (notification: any) => {
         const { id, read, type, reference_id } = notification;
@@ -71,6 +84,8 @@ export default function NotificationsScreen() {
             // Navigate to content
             if ((type === 'message' || type === 'message_mention') && reference_id) {
                 router.push(`/chat/${reference_id}` as any);
+            } else if ((type === 'poll_vote' || type === 'community_poll') && reference_id) {
+                router.push(`/polls/${reference_id}` as any);
             } else if ((type === 'post' || type === 'post_upvote' || type === 'comment' || type === 'comment_reply' || type === 'post_mention' || type.includes('mention')) && reference_id) {
                 router.push(`/post/${reference_id}` as any);
             } else if (type === 'community_request' && reference_id) {

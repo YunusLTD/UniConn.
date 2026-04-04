@@ -16,6 +16,7 @@ import { supabase } from '../../src/api/supabase';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import ActionModal from '../../src/components/ActionModal';
 import { getCommunityMembers } from '../../src/api/communities';
+import SharedPostCard from '../../src/components/SharedPostCard';
 
 const SwipeableMessage = ({ children, onSwipe }: any) => {
     const translateX = useRef(new Animated.Value(0)).current;
@@ -597,11 +598,35 @@ export default function ChatScreen() {
                                     )
                                 )}
 
-                                {!!item.content && (
-                                    <Text style={[styles.messageText, { color: isMine ? '#FFFFFF' : colors.black }]}>
-                                        {renderContent(item.content, isMine)}
-                                    </Text>
-                                )}
+                                {(() => {
+                                    const postLinkMatch = item.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
+                                    if (postLinkMatch) {
+                                        const postId = postLinkMatch[1];
+                                        return <SharedPostCard postId={postId} isMine={isMine} />;
+                                    }
+                                    return null;
+                                })()}
+
+                                {(() => {
+                                    if (!item.content) return null;
+                                    const hasPostShare = item.content.includes('https://uni-platform.app/post/');
+                                    const isAutoShare = hasPostShare && item.content.startsWith('Check out this post:');
+                                    
+                                    if (isAutoShare) return null; 
+                                    
+                                    let displayContent = item.content;
+                                    if (hasPostShare) {
+                                        displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
+                                    }
+                                    
+                                    if (!displayContent) return null;
+
+                                    return (
+                                        <Text style={[styles.messageText, { color: isMine ? '#FFFFFF' : colors.black }]}>
+                                            {renderContent(displayContent, isMine)}
+                                        </Text>
+                                    );
+                                })()}
 
                                 <View style={styles.timestampRow}>
                                     <Text style={[styles.timestamp, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>

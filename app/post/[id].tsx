@@ -238,6 +238,9 @@ export default function PostScreen() {
                                             <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || 'Unknown'}</Text>
                                         </TouchableOpacity>
                                         <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
+                                        {item.updated_at && (new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 10000) && (
+                                            <Text style={[styles.commentTime, { color: colors.gray400 }]}>· (edited)</Text>
+                                        )}
                                     </View>
                                     <Text style={[styles.commentContent, { color: colors.gray700 }]}>
                                         {renderContentWithMentions(item.content)}

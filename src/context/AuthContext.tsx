@@ -59,7 +59,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [savedAccounts, setSavedAccounts] = useState<{ id: string, name: string, username?: string, avatar_url?: string, token: string }[]>([]);
 
     useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Supabase Auth Event:', event);
+            if (session) {
+                await AsyncStorage.setItem('auth_token', session.access_token);
+                setToken(session.access_token);
+                // Also update the saved account token
+                if (session.user) {
+                   setSavedAccounts(prev => {
+                       const newList = prev.map(a => a.id === session.user.id ? { ...a, token: session.access_token } : a);
+                       AsyncStorage.setItem('saved_accounts', JSON.stringify(newList));
+                       return newList;
+                   });
+                }
+            } else if (event === 'SIGNED_OUT') {
+                await AsyncStorage.removeItem('auth_token');
+                setToken(null);
+                setUser(null);
+                setOnlineUsers([]);
+            }
+        });
+
         loadAuth();
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const updateHeartbeat = async () => {

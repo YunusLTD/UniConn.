@@ -24,7 +24,7 @@ export default function SkeletonLoader() {
         ).start();
     }, [pulseAnim, isDark]);
 
-    const skeletonColor = isDark ? '#262626' : colors.gray200;
+    const skeletonColor = isDark ? colors.gray100 : colors.gray200;
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>

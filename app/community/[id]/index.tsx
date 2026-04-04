@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useLayoutEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { spacing, fonts, radii } from '../../../src/constants/theme';
@@ -66,28 +66,47 @@ export default function CommunityDetailScreen() {
     );
 
     const handleJoinLeave = async () => {
-        if (!community) return;
-        setSubmitting(true);
-        try {
-            if (community.is_member) {
-                Alert.alert('Leave Community', `Are you sure you want to leave ${community.name}?`, [
+        if (!community || submitting) return;
+        
+        // Handle Member Leave or Request Retraction
+        if (community.is_member || community.membership_status === 'pending') {
+            const isPending = community.membership_status === 'pending';
+            Alert.alert(
+                isPending ? 'Retract Request' : 'Leave Community', 
+                `Are you sure you want to ${isPending ? 'retract your join request for' : 'leave'} ${community.name}?`, 
+                [
                     { text: 'Cancel', style: 'cancel' },
                     {
-                        text: 'Leave', style: 'destructive', onPress: async () => {
-                            await leaveCommunity(id as string);
-                            await loadData();
+                        text: isPending ? 'Retract' : 'Leave', 
+                        style: 'destructive', 
+                        onPress: async () => {
+                            setSubmitting(true);
+                            try {
+                                await leaveCommunity(id as string);
+                                await loadData();
+                            } catch (e) {
+                                console.log('Error leaving/retracting:', e);
+                            } finally {
+                                setSubmitting(false);
+                            }
                         }
                     }
-                ]);
-            } else {
-                const res = await joinCommunity(id as string);
-                if (res.status === 'pending') {
-                    Alert.alert('Request Sent', 'This community is private. An admin will review your request.');
-                }
-                await loadData();
+                ]
+            );
+            return;
+        }
+
+        // Handle Join Request
+        setSubmitting(true);
+        try {
+            const res = await joinCommunity(id as string);
+            if (res.status === 'pending') {
+                Alert.alert('Request Sent', 'This community is private. An admin will review your request.');
             }
+            await loadData();
         } catch (e) {
             console.log('Error updating membership:', e);
+            Alert.alert('Error', 'Failed to join community');
         } finally {
             setSubmitting(false);
         }
@@ -250,12 +269,23 @@ export default function CommunityDetailScreen() {
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[styles.joinBtn, community.is_member && styles.leaveBtn, { backgroundColor: community.is_member ? colors.gray100 : '#00A3FF' }]}
+                                style={[
+                                    styles.joinBtn, 
+                                    (community.is_member || community.membership_status === 'pending') && styles.leaveBtn, 
+                                    { backgroundColor: community.is_member || community.membership_status === 'pending' ? colors.gray100 : '#00A3FF' },
+                                    submitting && { opacity: 0.7 }
+                                ]}
                                 onPress={handleJoinLeave}
+                                activeOpacity={0.7}
+                                disabled={submitting}
                             >
-                                <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && { color: colors.gray600 }]}>
-                                    {community.is_member ? 'Member' : (community.membership_status === 'pending' ? 'Requested' : (community.is_private ? 'Request' : 'Join Hub'))}
-                                </Text>
+                                {submitting ? (
+                                    <ActivityIndicator size="small" color={community.is_member || community.membership_status === 'pending' ? colors.gray600 : 'white'} />
+                                ) : (
+                                    <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && { color: colors.gray600 }]}>
+                                        {community.is_member ? 'Member' : (community.membership_status === 'pending' ? 'Requested' : (community.is_private ? 'Request' : 'Join Hub'))}
+                                    </Text>
+                                )}
                             </TouchableOpacity>
 
                             {isAdmin && (
@@ -355,8 +385,29 @@ export default function CommunityDetailScreen() {
                         Join this community to see its feed and connect with students. Content is hidden to protect privacy.
                     </Text>
                     {community.membership_status !== 'pending' && (
-                        <TouchableOpacity style={styles.requestButton} onPress={handleJoinLeave}>
-                            <Text style={styles.requestButtonText}>Request to Join</Text>
+                        <TouchableOpacity 
+                            style={[styles.requestButton, submitting && { opacity: 0.7 }]} 
+                            onPress={handleJoinLeave}
+                            disabled={submitting}
+                        >
+                            {submitting ? (
+                                <ActivityIndicator size="small" color="white" />
+                            ) : (
+                                <Text style={styles.requestButtonText}>Request to Join</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
+                    {community.membership_status === 'pending' && (
+                        <TouchableOpacity 
+                            style={[styles.requestButton, { backgroundColor: colors.gray100 }, submitting && { opacity: 0.7 }]} 
+                            onPress={handleJoinLeave}
+                            disabled={submitting}
+                        >
+                            {submitting ? (
+                                <ActivityIndicator size="small" color={colors.gray600} />
+                            ) : (
+                                <Text style={[styles.requestButtonText, { color: colors.gray600 }]}>Cancel Request</Text>
+                            )}
                         </TouchableOpacity>
                     )}
                 </View>

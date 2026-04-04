@@ -40,7 +40,7 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
                     width,
                     height,
                     borderRadius,
-                    backgroundColor: isDark ? '#262626' : colors.gray200,
+                    backgroundColor: isDark ? colors.gray100 : colors.gray200,
                     opacity,
                 },
                 style,

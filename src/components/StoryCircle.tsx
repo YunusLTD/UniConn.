@@ -12,7 +12,6 @@ interface StoryCircleProps {
     media_type?: string;
     title: string;
     isUnread?: boolean;
-    isPOV?: boolean;
     onPress: () => void;
     isMe?: boolean;
 }
@@ -22,7 +21,6 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
     media_type,
     title, 
     isUnread = true, 
-    isPOV = false, 
     onPress, 
     isMe = false 
 }) => {
@@ -34,7 +32,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
             <View style={styles.avatarContainer}>
                 {isUnread ? (
                     <LinearGradient
-                        colors={isPOV ? ['#000000', '#A154F2', '#4B5563'] : ['#A154F2', '#9CA3AF', '#000000']}
+                        colors={['#A154F2', '#9CA3AF', '#000000']}
                         style={styles.gradientBorder}
                     >
                         <View style={[styles.innerCircle, { backgroundColor: colors.surface }]}>
@@ -71,11 +69,6 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
                     </View>
                 )}
 
-                {isPOV && (
-                    <View style={[styles.povBadge, { borderColor: colors.surface }]}>
-                        <Ionicons name="videocam" size={10} color="#FFFFFF" />
-                    </View>
-                )}
             </View>
             <Text style={[styles.title, { color: colors.gray500 }, isMe && { fontFamily: fonts.semibold, color: colors.black }]} numberOfLines={1}>
                 {isMe ? 'Me' : title}
@@ -151,18 +144,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    povBadge: {
-        position: 'absolute',
-        top: 2,
-        right: 2,
-        backgroundColor: '#0072FF',
-        width: 18,
-        height: 18,
-        borderRadius: 9,
-        borderWidth: 1.5,
-        justifyContent: 'center',
-        alignItems: 'center',
-    }
 });
 
 export default StoryCircle;

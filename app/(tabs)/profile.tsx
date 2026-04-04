@@ -226,7 +226,8 @@ export default function ProfileScreen() {
                             <View style={styles.metaRow}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile?.universities?.name} {profile?.department ? `• ${profile.department}` : ''}
+                                    {profile?.universities?.name}
+                                    {profile?.department ? ` • ${profile.department}` : ''}
                                 </Text>
                             </View>
                         )}
@@ -235,7 +236,7 @@ export default function ProfileScreen() {
                             {profile?.bio || 'Add a bio to tell students about yourself'}
                         </Text>
 
-                        {(profile?.hometown || profile?.age || profile?.year_of_study) && (
+                        {(profile?.hometown || profile?.age) && (
                             <View style={styles.detailsRow}>
                                 {profile?.hometown && (
                                     <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
@@ -247,12 +248,6 @@ export default function ProfileScreen() {
                                     <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                         <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
                                         <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.age} yrs</Text>
-                                    </View>
-                                )}
-                                {profile?.year_of_study && (
-                                    <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                        <Ionicons name="school-outline" size={12} color={colors.gray500} />
-                                        <Text style={[styles.detailText, { color: colors.gray600 }]}>Class of {profile.year_of_study.split(',')[0].trim()}</Text>
                                     </View>
                                 )}
                             </View>
@@ -509,7 +504,8 @@ export default function ProfileScreen() {
 
             <StoryViewer 
                 visible={viewerVisible} 
-                event={storyEvent} 
+                stories={storyEvent ? [{ id: profile?.id, user: profile, stories: [storyEvent] }] : []}
+                initialUserIndex={0}
                 onClose={() => setViewerVisible(false)} 
             />
 

@@ -84,9 +84,19 @@ export default function MessagesScreen() {
                                 )}
                             </View>
                             <Text style={[styles.lastMsg, { color: colors.gray500 }]} numberOfLines={1}>
-                                {item.last_message
-                                    ? (item.last_message.content || (item.last_message.media_type === 'video' ? '🎥 Video' : '📷 Photo'))
-                                    : 'No messages yet'}
+                                {(() => {
+                                    if (!item.last_message) return 'No messages yet';
+                                    
+                                    const isSharedPost = item.last_message.content?.includes('https://uni-platform.app/post/');
+                                    if (isSharedPost) {
+                                        const isMine = item.last_message.sender_id === user?.id;
+                                        const sender = item.participants?.find((p: any) => p.user_id === item.last_message.sender_id);
+                                        const firstName = sender?.profiles?.name?.split(' ')[0] || 'Someone';
+                                        return isMine ? 'You shared this post' : `${firstName} shared this post`;
+                                    }
+                                    
+                                    return item.last_message.content || (item.last_message.media_type === 'video' ? '🎥 Video' : '📷 Photo');
+                                })()}
                             </Text>
                         </View>
                         {item.unread_count > 0 && (
