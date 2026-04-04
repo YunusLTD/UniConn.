@@ -38,7 +38,7 @@ const TABS: { key: TabType, icon: string }[] = [
 export default function ProfileScreen() {
     const { logout, user, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
     const { theme, setTheme, colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
 
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -55,6 +55,8 @@ export default function ProfileScreen() {
     const [viewerVisible, setViewerVisible] = useState(false);
     const [fetchingStory, setFetchingStory] = useState(false);
     const [showRankModal, setShowRankModal] = useState(false);
+    const [showLanguageModal, setShowLanguageModal] = useState(false);
+    const [showThemeModal, setShowThemeModal] = useState(false);
     const router = useRouter();
 
     const loadProfileData = async () => {
@@ -331,10 +333,7 @@ export default function ProfileScreen() {
 
                             <TouchableOpacity 
                                 style={[styles.menuItem, { borderBottomColor: colors.border }]} 
-                                onPress={() => {
-                                    const nextTheme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-                                    setTheme(nextTheme);
-                                }}
+                                onPress={() => setShowThemeModal(true)}
                             >
                                 <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}>
                                     <Ionicons 
@@ -347,7 +346,23 @@ export default function ProfileScreen() {
                                     <Text style={[styles.menuText, { color: colors.black }]}>Theme</Text>
                                     <Text style={[styles.menuSubText, { color: colors.gray500 }]}>Currently: {theme.charAt(0).toUpperCase() + theme.slice(1)}</Text>
                                 </View>
-                                <Ionicons name="swap-horizontal" size={16} color={colors.gray300} />
+                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.menuItem, { borderBottomColor: colors.border }]} 
+                                onPress={() => setShowLanguageModal(true)}
+                            >
+                                <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}>
+                                    <Ionicons name="language-outline" size={20} color={colors.black} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>{t('language')}</Text>
+                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>
+                                        {language === 'en' ? t('lang_en') : language === 'tr' ? t('lang_tr') : t('lang_ka')}
+                                    </Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
 
                             <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/friends/requests')}>
@@ -497,6 +512,63 @@ export default function ProfileScreen() {
                 event={storyEvent} 
                 onClose={() => setViewerVisible(false)} 
             />
+
+            {/* Theme Selection Modal */}
+            <Modal visible={showThemeModal} transparent animationType="fade" onRequestClose={() => setShowThemeModal(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowThemeModal(false)}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>Select Theme</Text>
+                            <TouchableOpacity onPress={() => setShowThemeModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.black} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ gap: 8 }}>
+                            {(['light', 'dark', 'system'] as const).map(m => (
+                                <TouchableOpacity 
+                                    key={m} 
+                                    style={[styles.selectorItem, theme === m && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.black }]} 
+                                    onPress={() => { setTheme(m); setShowThemeModal(false); }}
+                                >
+                                    <Ionicons 
+                                        name={m === 'light' ? 'sunny-outline' : m === 'dark' ? 'moon-outline' : 'phone-portrait-outline'} 
+                                        size={20} color={colors.black} 
+                                    />
+                                    <Text style={[styles.selectorText, { color: colors.black }]}>{m.charAt(0).toUpperCase() + m.slice(1)}</Text>
+                                    {theme === m && <Ionicons name="checkmark-circle" size={20} color="#00A3FF" />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Language Selection Modal */}
+            <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('language')}</Text>
+                            <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.black} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ gap: 8 }}>
+                            {(['en', 'tr', 'ka'] as const).map(l => (
+                                <TouchableOpacity 
+                                    key={l} 
+                                    style={[styles.selectorItem, language === l && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.black }]} 
+                                    onPress={() => { setLanguage(l); setShowLanguageModal(false); }}
+                                >
+                                    <Text style={{ fontSize: 18 }}>{l === 'en' ? '🇺🇸' : l === 'tr' ? '🇹🇷' : '🇬🇪'}</Text>
+                                    <Text style={[styles.selectorText, { color: colors.black }]}>{l === 'en' ? t('lang_en') : l === 'tr' ? t('lang_tr') : t('lang_ka')}</Text>
+                                    {language === l && <Ionicons name="checkmark-circle" size={20} color="#00A3FF" />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -618,6 +690,8 @@ const styles = StyleSheet.create({
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { fontFamily: fonts.bold, fontSize: 20 },
     legalText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 24 },
+    selectorItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, gap: 12, borderWidth: 1, borderColor: 'transparent' },
+    selectorText: { flex: 1, fontFamily: fonts.bold, fontSize: 16 },
 
     // Account Switcher
     accountItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 0.5 },

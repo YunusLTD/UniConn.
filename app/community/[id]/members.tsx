@@ -149,11 +149,11 @@ export default function CommunityMembersScreen() {
                             {item.isPending ? (
                                 <View style={styles.actionRow}>
                                     <TouchableOpacity 
-                                        style={[styles.smallBtn, { backgroundColor: colors.primary }]} 
+                                        style={[styles.smallBtn, { backgroundColor: '#00A3FF' }]} 
                                         onPress={() => handleApprove(profile.id)}
                                         disabled={!!actionLoading}
                                     >
-                                        <Text style={[styles.smallBtnText, { color: colors.background }]}>Accept</Text>
+                                        <Text style={[styles.smallBtnText, { color: 'white' }]}>Accept</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                         style={[styles.smallBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.danger }]} 

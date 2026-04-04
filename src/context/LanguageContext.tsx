@@ -122,6 +122,10 @@ const translations = {
         ask_for_help_header: 'Ask for Help',
         schedule_event_header: 'Schedule Event',
         share_pov_header: 'Share Your POV',
+        language: 'Language',
+        lang_en: 'English',
+        lang_tr: 'Turkish',
+        lang_ka: 'Georgian',
     },
     tr: {
         welcome: 'Tekrar Hoş Geldiniz',
@@ -241,6 +245,10 @@ const translations = {
         ask_for_help_header: 'Yardım İste',
         schedule_event_header: 'Etkinlik Planla',
         share_pov_header: 'POV Paylaş',
+        language: 'Dil',
+        lang_en: 'İngilizce',
+        lang_tr: 'Türkçe',
+        lang_ka: 'Gürcüce',
     },
     ka: {
         welcome: 'მოგესალმებით',
@@ -360,6 +368,10 @@ const translations = {
         ask_for_help_header: 'ითხოვე დახმარება',
         schedule_event_header: 'დაგეგმე ღონისძიება',
         share_pov_header: 'გააზიარე POV',
+        language: 'ენა',
+        lang_en: 'ინგლისური',
+        lang_tr: 'თურქული',
+        lang_ka: 'ქართული',
     }
 };
 
