@@ -222,12 +222,32 @@ export default function ProfileScreen() {
                             )}
                         </View>
 
-                        {(profile?.universities?.name || profile?.department) && (
+                        {profile?.universities?.name && (
                             <View style={styles.metaRow}>
+                                <Ionicons name="business-outline" size={13} color={colors.gray500} />
+                                <Text style={[styles.metaText, { color: colors.gray500 }]}>
+                                    {profile.universities.name}
+                                </Text>
+                            </View>
+                        )}
+
+                        {(profile?.department || profile?.year_of_study) && (
+                            <View style={[styles.metaRow, { marginTop: 2 }]}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile?.universities?.name}
-                                    {profile?.department ? ` • ${profile.department}` : ''}
+                                    {profile.department}
+                                    {profile.department && profile.year_of_study ? ' • ' : ''}
+                                    {profile.year_of_study ? (() => {
+                                        const y = parseInt(profile.year_of_study);
+                                        let label = '';
+                                        if (y === 1) label = 'One';
+                                        else if (y === 2) label = 'Two';
+                                        else if (y === 3) label = 'Three';
+                                        else if (y === 4) label = 'Four';
+                                        else label = String(profile.year_of_study).slice(-2);
+                                        
+                                        return `Class of ${label.startsWith("'") ? label : (isNaN(y) || y > 10 ? "'" + label : label)}`;
+                                    })() : ''}
                                 </Text>
                             </View>
                         )}
@@ -236,22 +256,28 @@ export default function ProfileScreen() {
                             {profile?.bio || 'Add a bio to tell students about yourself'}
                         </Text>
 
-                        {(profile?.hometown || profile?.age) && (
-                            <View style={styles.detailsRow}>
-                                {profile?.hometown && (
-                                    <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                        <Ionicons name="location-outline" size={12} color={colors.gray500} />
-                                        <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.hometown}</Text>
+                                {(profile?.hometown || profile?.age || profile?.relationship_status) && (
+                                    <View style={styles.detailsRow}>
+                                        {profile?.hometown && (
+                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
+                                                <Ionicons name="location-outline" size={12} color={colors.gray500} />
+                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.hometown}</Text>
+                                            </View>
+                                        )}
+                                        {profile?.age && (
+                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
+                                                <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
+                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.age} yrs</Text>
+                                            </View>
+                                        )}
+                                        {profile?.relationship_status && (
+                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
+                                                <Ionicons name="heart-outline" size={12} color={colors.gray500} />
+                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.relationship_status}</Text>
+                                            </View>
+                                        )}
                                     </View>
                                 )}
-                                {profile?.age && (
-                                    <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                        <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
-                                        <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.age} yrs</Text>
-                                    </View>
-                                )}
-                            </View>
-                        )}
                     </View>
 
                     {/* Completion Prompt */}
@@ -320,6 +346,19 @@ export default function ProfileScreen() {
                 <View style={styles.contentArea}>
                     {activeTab === 'settings' ? (
                         <View style={styles.settingsSection}>
+                            <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/friends/requests')}>
+                                <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="people-outline" size={20} color={colors.black} /></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>Friend Requests</Text>
+                                </View>
+                                {pendingRequests > 0 && (
+                                    <View style={[styles.requestBadge, { backgroundColor: colors.black }]}>
+                                        <Text style={[styles.requestBadgeText, { color: colors.white }]}>{pendingRequests}</Text>
+                                    </View>
+                                )}
+                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
+                            </TouchableOpacity>
+
                             <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/notifications')}>
                                 <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="notifications-outline" size={20} color={colors.black} /></View>
                                 <Text style={[styles.menuText, { color: colors.black }]}>Notifications</Text>
@@ -357,19 +396,6 @@ export default function ProfileScreen() {
                                         {language === 'en' ? t('lang_en') : language === 'tr' ? t('lang_tr') : t('lang_ka')}
                                     </Text>
                                 </View>
-                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/friends/requests')}>
-                                <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="people-outline" size={20} color={colors.black} /></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.menuText, { color: colors.black }]}>Friend Requests</Text>
-                                </View>
-                                {pendingRequests > 0 && (
-                                    <View style={[styles.requestBadge, { backgroundColor: colors.black }]}>
-                                        <Text style={[styles.requestBadgeText, { color: colors.white }]}>{pendingRequests}</Text>
-                                    </View>
-                                )}
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
 

@@ -158,16 +158,7 @@ export default function EventDetailScreen() {
                             )}
                         </View>
 
-                        <View style={[styles.statsSection, { backgroundColor: colors.surface }]}>
-                            <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: colors.border }]}>
-                                <Text style={styles.statValue}>{interestedCount}</Text>
-                                <Text style={styles.statLabel}>Interested</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{event?.event_participants?.filter((p: any) => p.status === 'going').length || 0}</Text>
-                                <Text style={styles.statLabel}>Going</Text>
-                            </View>
-                        </View>
+
 
                         <View style={[styles.section, { borderBottomColor: colors.border }]}>
                             <View style={styles.row}>

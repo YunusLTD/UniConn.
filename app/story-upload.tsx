@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, SafeAreaView, Dimensions, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import {
+    View, Text, StyleSheet, TouchableOpacity, Image, Alert,
+    ActivityIndicator, SafeAreaView, Dimensions, TextInput,
+    KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback,
+    Animated,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, fonts, radii } from '../src/constants/theme';
+import { spacing, fonts, radii } from '../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -10,16 +15,42 @@ import { createStory } from '../src/api/stories';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
+import * as Haptics from 'expo-haptics';
 
 const { width, height } = Dimensions.get('window');
 
 export default function StoryUploadScreen() {
     const router = useRouter();
-    const [media, setMedia] = useState<{ uri: string, type: 'image' | 'video' } | null>(null);
+    const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
     const [caption, setCaption] = useState('');
     const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
     const [loading, setLoading] = useState(false);
-    const [hotspot, setHotspot] = useState<string | null>(null);
+    const [isMediaReady, setIsMediaReady] = useState(false);
+
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(40)).current;
+    const cameraScale = useRef(new Animated.Value(0.9)).current;
+    const libraryScale = useRef(new Animated.Value(0.9)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        // Entry animation
+        Animated.parallel([
+            Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+            Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true }),
+            Animated.spring(cameraScale, { toValue: 1, tension: 80, friction: 8, delay: 200, useNativeDriver: true }),
+            Animated.spring(libraryScale, { toValue: 1, tension: 80, friction: 8, delay: 350, useNativeDriver: true }),
+        ]).start();
+
+        // Pulsing icon animation  
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.08, duration: 1800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -27,44 +58,46 @@ export default function StoryUploadScreen() {
             if (lStat === 'granted') {
                 const loc = await Location.getCurrentPositionAsync({});
                 setLocation(loc.coords);
-                // In a real app, we'd call a backend to check if this coordinate is a hotspot
-                // For MVP, we'll assume they're at a hotspot if they're near campus coords
-                setHotspot("Campus Center"); 
             }
         })();
     }, []);
 
+    // Reset media-ready state when media changes
+    useEffect(() => {
+        setIsMediaReady(false);
+    }, [media?.uri]);
+
     const pickMedia = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images', 'videos'],
             allowsEditing: true,
             aspect: [9, 16],
             quality: 0.8,
         });
-
         if (!result.canceled) {
             setMedia({ uri: result.assets[0].uri, type: result.assets[0].type as 'image' | 'video' });
         }
     };
 
     const takeMedia = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return Alert.alert('Error', 'Camera permission required');
-        
+        if (status !== 'granted') return Alert.alert('Permission Needed', 'Camera access is required to capture moments.');
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images', 'videos'],
             allowsEditing: true,
             aspect: [9, 16],
             quality: 0.8,
         });
-
         if (!result.canceled) {
             setMedia({ uri: result.assets[0].uri, type: result.assets[0].type as 'image' | 'video' });
         }
     };
 
     const handleUpload = async () => {
-        if (!media) return Alert.alert('Error', 'Please capture or select a moment.');
+        if (!media) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setLoading(true);
         try {
             const uploadRes = await uploadMultipleMedia([{ uri: media.uri, type: media.type }]);
@@ -76,158 +109,438 @@ export default function StoryUploadScreen() {
                 media_type,
                 content: caption.trim(),
                 latitude: location?.latitude,
-                longitude: location?.longitude
+                longitude: location?.longitude,
             });
 
-            Alert.alert('Success', 'Your Moment is now live!', [
-                { text: 'Great', onPress: () => router.back() }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Posted!', 'Your story is now live 🎉', [
+                { text: 'Done', onPress: () => router.back() },
             ]);
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Upload failed');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert('Upload Failed', e.message || 'Something went wrong. Try again.');
         } finally {
             setLoading(false);
         }
     };
 
+    const handleDiscard = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setMedia(null);
+        setCaption('');
+        setIsMediaReady(false);
+    };
+
+    // ─── PREVIEW SCREEN ────────────────────────────────────────
+    if (media) {
+        return (
+            <View style={styles.container}>
+                <StatusBar style="light" />
+
+                {/* Media */}
+                {media.type === 'video' ? (
+                    <Video
+                        source={{ uri: media.uri }}
+                        style={styles.fullMedia}
+                        resizeMode={ResizeMode.COVER}
+                        shouldPlay={isMediaReady}
+                        isLooping
+                        isMuted={false}
+                        onReadyForDisplay={() => setIsMediaReady(true)}
+                    />
+                ) : (
+                    <Image
+                        source={{ uri: media.uri }}
+                        style={styles.fullMedia}
+                        resizeMode="cover"
+                        onLoad={() => setIsMediaReady(true)}
+                    />
+                )}
+
+                {/* Loading overlay for heavy media */}
+                {!isMediaReady && (
+                    <View style={styles.mediaLoader}>
+                        <ActivityIndicator size="large" color="white" />
+                        <Text style={styles.mediaLoaderText}>Loading preview…</Text>
+                    </View>
+                )}
+
+                {/* Top + Bottom gradients */}
+                <LinearGradient
+                    colors={['rgba(0,0,0,0.65)', 'transparent']}
+                    style={styles.topGrad}
+                />
+                <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.85)']}
+                    style={styles.bottomGrad}
+                />
+
+                {/* Overlay UI */}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={StyleSheet.absoluteFillObject}
+                >
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <SafeAreaView style={styles.overlayContainer}>
+                            {/* Header */}
+                            <View style={styles.previewHeader}>
+                                <TouchableOpacity onPress={handleDiscard} style={styles.headerPill}>
+                                    <Ionicons name="arrow-back" size={20} color="white" />
+                                    <Text style={styles.headerPillText}>Discard</Text>
+                                </TouchableOpacity>
+
+                                <View style={styles.headerPill}>
+                                    <View style={[styles.liveIndicator, { backgroundColor: media.type === 'video' ? '#EF4444' : '#22C55E' }]} />
+                                    <Text style={styles.headerPillText}>
+                                        {media.type === 'video' ? 'Video' : 'Photo'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Footer */}
+                            <View style={styles.previewFooter}>
+                                <View style={styles.captionRow}>
+                                    <Ionicons name="text-outline" size={18} color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
+                                    <TextInput
+                                        style={styles.captionInput}
+                                        placeholder="Add a caption…"
+                                        placeholderTextColor="rgba(255,255,255,0.45)"
+                                        value={caption}
+                                        onChangeText={setCaption}
+                                        multiline
+                                        returnKeyType="done"
+                                        onSubmitEditing={() => Keyboard.dismiss()}
+                                        blurOnSubmit
+                                    />
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.shareBtn}
+                                    onPress={handleUpload}
+                                    disabled={loading}
+                                    activeOpacity={0.85}
+                                >
+                                    <LinearGradient
+                                        colors={loading ? ['#6B21A8', '#4C1D95'] : ['#A855F7', '#7C3AED']}
+                                        style={styles.shareBtnGradient}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                    >
+                                        {loading ? (
+                                            <View style={styles.loadingRow}>
+                                                <ActivityIndicator color="white" size="small" />
+                                                <Text style={styles.shareBtnText}>Uploading…</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={styles.loadingRow}>
+                                                <Ionicons name="paper-plane" size={20} color="white" />
+                                                <Text style={styles.shareBtnText}>Share Story</Text>
+                                            </View>
+                                        )}
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        </SafeAreaView>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
+            </View>
+        );
+    }
+
+    // ─── INDEX / SETUP SCREEN ──────────────────────────────────
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-            {media ? (
-                <View style={styles.previewContainer}>
-                    {media.type === 'video' ? (
-                        <Video
-                            source={{ uri: media.uri }}
-                            style={styles.previewImage}
-                            resizeMode={ResizeMode.COVER}
-                            shouldPlay
-                            isLooping
-                            isMuted={false}
-                        />
-                    ) : (
-                        <Image source={{ uri: media.uri }} style={styles.previewImage} resizeMode="cover" />
-                    )}
-                    
-                    <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.8)']} style={StyleSheet.absoluteFill} />
+            <LinearGradient
+                colors={['#1E1B4B', '#0F0A2E', '#000000']}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+            />
 
-                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={StyleSheet.absoluteFillObject}>
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            <SafeAreaView style={styles.previewOverlay}>
-                                <View style={styles.previewHeader}>
-                                    <TouchableOpacity onPress={() => setMedia(null)} style={styles.backBtn}>
-                                        <Ionicons name="close" size={28} color="white" />
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View style={styles.previewFooter}>
-                                    <View style={styles.captionBox}>
-                                        <TextInput
-                                            style={styles.captionInput}
-                                            placeholder="Add a caption to this moment..."
-                                            placeholderTextColor="rgba(255,255,255,0.6)"
-                                            value={caption}
-                                            onChangeText={setCaption}
-                                            multiline
-                                            returnKeyType="done"
-                                            onSubmitEditing={() => Keyboard.dismiss()}
-                                            blurOnSubmit={true}
-                                        />
-                                    </View>
-                                    
-                                    <TouchableOpacity 
-                                        style={[styles.uploadBtn, loading && { opacity: 0.7 }]} 
-                                        onPress={handleUpload}
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <ActivityIndicator color="white" />
-                                        ) : (
-                                            <>
-                                                <Text style={styles.uploadBtnText}>Share Moment</Text>
-                                                <Ionicons name="paper-plane" size={18} color="white" style={{ marginLeft: 8 }} />
-                                            </>
-                                        )}
-                                    </TouchableOpacity>
-                                </View>
-                            </SafeAreaView>
-                        </TouchableWithoutFeedback>
-                    </KeyboardAvoidingView>
+            <SafeAreaView style={styles.setupSafe}>
+                {/* Close */}
+                <View style={styles.setupHeader}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.closeCircle} activeOpacity={0.7}>
+                        <Ionicons name="close" size={24} color="white" />
+                    </TouchableOpacity>
                 </View>
-            ) : (
-                <View style={[styles.setupContainer, { backgroundColor: colors.black }]}>
-                    <SafeAreaView style={{ flex: 1, justifyContent: 'space-between' }}>
-                        <View style={styles.setupHeader}>
-                            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-                                <Ionicons name="close" size={28} color="white" />
-                            </TouchableOpacity>
-                            <Text style={styles.setupTitle}>Uni-POV Live</Text>
-                            <View style={{ width: 28 }} />
-                        </View>
 
-                        <View style={styles.setupContent}>
-                            <View style={styles.iconCircle}>
-                                <Ionicons name="flash-outline" size={48} color={colors.white} />
+                {/* Center Content */}
+                <Animated.View style={[styles.centerBlock, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+                    {/* Pulsing Icon */}
+                    <Animated.View style={[styles.heroIconWrap, { transform: [{ scale: pulseAnim }] }]}>
+                        <LinearGradient
+                            colors={['#A855F7', '#6D28D9', '#4C1D95']}
+                            style={styles.heroIconGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        >
+                            <Ionicons name="sparkles" size={44} color="white" />
+                        </LinearGradient>
+                    </Animated.View>
+
+                    <Text style={styles.heroTitle}>New Moment</Text>
+                    <Text style={styles.heroSub}>
+                        Capture or choose a moment{'\n'}to share to your friends
+                    </Text>
+                </Animated.View>
+
+                {/* Action Buttons */}
+                <View style={styles.actionsBlock}>
+                    {/* Camera — Primary CTA */}
+                    <Animated.View style={[styles.actionCardWrap, { transform: [{ scale: cameraScale }] }]}>
+                        <TouchableOpacity onPress={takeMedia} activeOpacity={0.85} style={styles.actionCard}>
+                            <LinearGradient
+                                colors={['#A855F7', '#7C3AED']}
+                                style={styles.actionCardGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                <View style={styles.actionIconCircle}>
+                                    <Ionicons name="camera" size={28} color="#A855F7" />
+                                </View>
+                                <View style={styles.actionTextBlock}>
+                                    <Text style={styles.actionTitle}>Open Camera</Text>
+                                    <Text style={styles.actionDesc}>Take a photo or record a video</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </Animated.View>
+
+                    {/* Library — Secondary CTA */}
+                    <Animated.View style={[styles.actionCardWrap, { transform: [{ scale: libraryScale }] }]}>
+                        <TouchableOpacity onPress={pickMedia} activeOpacity={0.85} style={styles.actionCard}>
+                            <View style={styles.actionCardOutline}>
+                                <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+                                    <Ionicons name="images" size={26} color="white" />
+                                </View>
+                                <View style={styles.actionTextBlock}>
+                                    <Text style={styles.actionTitle}>From Library</Text>
+                                    <Text style={[styles.actionDesc, { color: 'rgba(255,255,255,0.45)' }]}>Choose a photo or video</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
                             </View>
-                            <Text style={styles.setupHero}>Your Moment, Live</Text>
-                            <Text style={styles.setupSub}>Share what's happening right now with everyone on campus.</Text>
-                        </View>
+                        </TouchableOpacity>
+                    </Animated.View>
 
-                        <View style={styles.setupFooter}>
-                            <TouchableOpacity style={styles.primaryBtn} onPress={takeMedia} activeOpacity={0.8}>
-                                <Ionicons name="camera" size={24} color="black" />
-                                <View>
-                                    <Text style={styles.primaryBtnText}>Open Camera</Text>
-                                    <Text style={styles.btnSubText}>Capture a live moment</Text>
-                                </View>
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={pickMedia} activeOpacity={0.7}>
-                                <View style={styles.libraryIconWrap}>
-                                    <Ionicons name="images" size={20} color="white" />
-                                </View>
-                                <View>
-                                    <Text style={styles.secondaryBtnText}>Choose from Library</Text>
-                                    <Text style={[styles.btnSubText, { color: 'rgba(255,255,255,0.4)' }]}>Upload photo or video</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
-                            </TouchableOpacity>
-                        </View>
-                    </SafeAreaView>
+                    {/* Hint */}
+                    <View style={styles.hintRow}>
+                        <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.3)" />
+                        <Text style={styles.hintText}>Stories disappear after 24 hours</Text>
+                    </View>
                 </View>
-            )}
+            </SafeAreaView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.black },
-    setupContainer: { flex: 1, padding: spacing.xl },
-    setupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    setupTitle: { color: 'white', fontFamily: fonts.bold, fontSize: 17, letterSpacing: 0.5 },
-    setupContent: { alignItems: 'center', paddingHorizontal: 20 },
-    iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-    setupHero: { color: 'white', fontFamily: fonts.bold, fontSize: 24, textAlign: 'center', marginBottom: 12 },
-    setupSub: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.regular, fontSize: 15, textAlign: 'center', lineHeight: 22 },
-    setupFooter: { gap: 12, marginBottom: spacing.xl },
-    primaryBtn: { backgroundColor: 'white', height: 68, borderRadius: 34, flexDirection: 'row', paddingHorizontal: 24, alignItems: 'center', gap: 16 },
-    primaryBtnText: { fontFamily: fonts.bold, fontSize: 17, color: 'black' },
-    secondaryBtn: { height: 68, borderRadius: 34, flexDirection: 'row', paddingHorizontal: 24, alignItems: 'center', gap: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    secondaryBtnText: { fontFamily: fonts.semibold, fontSize: 16, color: 'white' },
-    btnSubText: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(0,0,0,0.5)', marginTop: -2 },
-    libraryIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-    
-    previewContainer: { flex: 1 },
-    previewImage: { width: width, height: height, ...StyleSheet.absoluteFillObject },
-    previewOverlay: { flex: 1, padding: spacing.lg },
-    previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-    hotspotBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-    liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-    hotspotText: { color: 'white', fontFamily: fonts.bold, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-    
-    previewFooter: { marginTop: 'auto', gap: 16, marginBottom: 10 },
-    captionBox: { borderRadius: radii.lg, padding: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.5)' },
-    captionInput: { color: 'white', fontFamily: fonts.regular, fontSize: 16, maxHeight: 100 },
-    uploadBtn: { backgroundColor: '#A154F2', height: 56, borderRadius: 28, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-    uploadBtnText: { color: 'white', fontFamily: fonts.bold, fontSize: 16 },
-    closeBtn: { padding: 4 }
+    container: { flex: 1, backgroundColor: '#000' },
+
+    // ─── Setup / Index ─────────────────────
+    setupSafe: { flex: 1, justifyContent: 'space-between' },
+    setupHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.lg,
+        paddingTop: Platform.OS === 'android' ? 12 : 0,
+    },
+    closeCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    centerBlock: {
+        alignItems: 'center',
+        paddingHorizontal: 32,
+    },
+    heroIconWrap: { marginBottom: 28 },
+    heroIconGradient: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#A855F7',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 12,
+    },
+    heroTitle: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 34,
+        letterSpacing: -1,
+        marginBottom: 12,
+    },
+    heroSub: {
+        color: 'rgba(255,255,255,0.55)',
+        fontFamily: fonts.medium,
+        fontSize: 17,
+        textAlign: 'center',
+        lineHeight: 26,
+    },
+
+    actionsBlock: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: Platform.OS === 'android' ? 32 : 16,
+        gap: 12,
+    },
+    actionCardWrap: {},
+    actionCard: { borderRadius: 22, overflow: 'hidden' },
+    actionCardGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 18,
+        gap: 16,
+    },
+    actionCardOutline: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 18,
+        gap: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+    },
+    actionIconCircle: {
+        width: 52,
+        height: 52,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionTextBlock: { flex: 1 },
+    actionTitle: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 17,
+        marginBottom: 2,
+    },
+    actionDesc: {
+        color: 'rgba(255,255,255,0.7)',
+        fontFamily: fonts.regular,
+        fontSize: 13,
+    },
+    hintRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingTop: 8,
+    },
+    hintText: {
+        color: 'rgba(255,255,255,0.3)',
+        fontFamily: fonts.medium,
+        fontSize: 13,
+    },
+
+    // ─── Preview ───────────────────────────
+    fullMedia: {
+        ...StyleSheet.absoluteFillObject,
+        width,
+        height,
+    },
+    mediaLoader: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        gap: 14,
+    },
+    mediaLoaderText: {
+        color: 'rgba(255,255,255,0.5)',
+        fontFamily: fonts.medium,
+        fontSize: 14,
+    },
+    topGrad: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
+    bottomGrad: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 260 },
+
+    overlayContainer: {
+        flex: 1,
+        justifyContent: 'space-between',
+        padding: spacing.lg,
+    },
+    previewHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    headerPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        gap: 6,
+    },
+    headerPillText: {
+        color: 'white',
+        fontFamily: fonts.semibold,
+        fontSize: 14,
+    },
+    liveIndicator: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+
+    previewFooter: {
+        gap: 14,
+        marginBottom: Platform.OS === 'android' ? 16 : 0,
+    },
+    captionRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    captionInput: {
+        flex: 1,
+        color: 'white',
+        fontFamily: fonts.regular,
+        fontSize: 16,
+        maxHeight: 80,
+        lineHeight: 22,
+    },
+    shareBtn: {
+        borderRadius: 28,
+        overflow: 'hidden',
+        shadowColor: '#A855F7',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.45,
+        shadowRadius: 12,
+        elevation: 10,
+    },
+    shareBtnGradient: {
+        height: 58,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    shareBtnText: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 17,
+    },
+    loadingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
 });

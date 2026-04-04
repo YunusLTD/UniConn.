@@ -27,6 +27,8 @@ export default function EditProfileScreen() {
     const [hometown, setHometown] = useState('');
     const [age, setAge] = useState('');
     const [relationshipStatus, setRelationshipStatus] = useState<string>('');
+    const [department, setDepartment] = useState('');
+    const [yearOfStudy, setYearOfStudy] = useState('');
     const [showRelModal, setShowRelModal] = useState(false);
 
     useEffect(() => {
@@ -44,6 +46,8 @@ export default function EditProfileScreen() {
                 setHometown(res.data.hometown || '');
                 setAge(res.data.age ? String(res.data.age) : '');
                 setRelationshipStatus(res.data.relationship_status || '');
+                setDepartment(res.data.department || '');
+                setYearOfStudy(res.data.year_of_study ? String(res.data.year_of_study) : '');
             }
         } catch (e) {
             console.log('Error loading profile', e);
@@ -107,7 +111,9 @@ export default function EditProfileScreen() {
                 avatar_url: avatarUrl,
                 hometown: hometown.trim() || undefined,
                 age: age.trim() ? parseInt(age.trim(), 10) : undefined,
-                relationship_status: relationshipStatus || undefined
+                relationship_status: relationshipStatus || undefined,
+                department: department.trim() || undefined,
+                year_of_study: yearOfStudy.trim() ? parseInt(yearOfStudy.trim(), 10) : undefined
             });
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
@@ -246,6 +252,31 @@ export default function EditProfileScreen() {
                                     {relationshipStatus || 'Select Status'}
                                 </Text>
                             </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>Academic Details</Text>
+
+                        <View style={styles.field}>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Department / Major</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
+                                value={department}
+                                onChangeText={setDepartment}
+                                placeholder="e.g. Computer Science"
+                                placeholderTextColor={colors.gray400}
+                            />
+                        </View>
+
+                        <View style={styles.field}>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Graduation Year</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
+                                value={yearOfStudy}
+                                onChangeText={setYearOfStudy}
+                                placeholder="Year (e.g. 2026) or Level (1-4)"
+                                keyboardType="numeric"
+                                placeholderTextColor={colors.gray400}
+                            />
                         </View>
                     </View>
                 </ScrollView>

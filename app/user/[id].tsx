@@ -459,12 +459,32 @@ export default function UserProfileScreen() {
                             )}
                         </View>
 
-                        {(profile?.universities?.name || profile?.department) && (
+                        {profile?.universities?.name && (
                             <View style={styles.metaRow}>
+                                <Ionicons name="business-outline" size={13} color={colors.gray500} />
+                                <Text style={[styles.metaText, { color: colors.gray500 }]}>
+                                    {profile.universities.name}
+                                </Text>
+                            </View>
+                        )}
+
+                        {(profile?.department || profile?.year_of_study) && (
+                            <View style={[styles.metaRow, { marginTop: 2 }]}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile?.universities?.name}
-                                    {profile?.department ? ` • ${profile.department}` : ''}
+                                    {profile.department}
+                                    {profile.department && profile.year_of_study ? ' • ' : ''}
+                                    {profile.year_of_study ? (() => {
+                                        const y = parseInt(profile.year_of_study);
+                                        let label = '';
+                                        if (y === 1) label = 'One';
+                                        else if (y === 2) label = 'Two';
+                                        else if (y === 3) label = 'Three';
+                                        else if (y === 4) label = 'Four';
+                                        else label = String(profile.year_of_study).slice(-2);
+                                        
+                                        return `Class of ${label.startsWith("'") ? label : (isNaN(y) || y > 10 ? "'" + label : label)}`;
+                                    })() : ''}
                                 </Text>
                             </View>
                         )}

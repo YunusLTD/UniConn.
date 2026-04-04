@@ -212,7 +212,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                             resizeMode={ResizeMode.COVER}
                             shouldPlay={!isPaused && visible && isMediaLoaded}
                             isLooping={false}
-                            onLoad={() => setIsMediaLoaded(true)}
+                            onReadyForDisplay={() => setIsMediaLoaded(true)}
                             onPlaybackStatusUpdate={(status: any) => {
                                 if (status.isLoaded && status.durationMillis) {
                                     const p = status.positionMillis / status.durationMillis;
@@ -266,9 +266,15 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                                 <Image source={{ uri: userCluster.user?.avatar_url || currentStory?.profiles?.avatar_url }} style={styles.userAvatar} />
                                 <View>
                                     <Text style={styles.userName}>{userCluster.user?.name || 'User'}</Text>
-                                    <Text style={styles.locationName}>
-                                        {currentStory?.created_at ? `${Math.max(1, Math.floor((new Date(currentStory.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60)))}h left` : '24h left'}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text style={styles.locationName}>
+                                            {currentStory?.created_at ? `${Math.max(1, Math.floor((new Date(currentStory.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60)))}h left` : '24h left'}
+                                        </Text>
+                                        <View style={[styles.mediaBadge, { backgroundColor: currentStory?.media_type === 'video' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.15)' }]}>
+                                            <Ionicons name={currentStory?.media_type === 'video' ? 'videocam' : 'image'} size={8} color="white" />
+                                            <Text style={styles.mediaBadgeText}>{currentStory?.media_type === 'video' ? 'VIDEO' : 'PHOTO'}</Text>
+                                        </View>
+                                    </View>
                                 </View>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -316,8 +322,10 @@ const styles = StyleSheet.create({
     userInfo: { flexDirection: 'row', alignItems: 'center' },
     userAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: spacing.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
     userName: { color: colors.white, fontFamily: fonts.bold, fontSize: 14 },
-    locationName: { color: 'rgba(255,255,255,0.7)', fontFamily: fonts.medium, fontSize: 11 },
-    closeBtn: { padding: 4 },
+    locationName: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+    mediaBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)' },
+    mediaBadgeText: { fontFamily: fonts.bold, fontSize: 8, color: 'white', letterSpacing: 0.5 },
+    closeBtn: { padding: 8 },
     centeredOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20, pointerEvents: 'none' },
     captionRow: {
         position: 'absolute',
