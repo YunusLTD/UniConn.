@@ -62,9 +62,10 @@ export default function ActivityScreen() {
             setLoading(true);
             const res = await getNotifications();
             if (res?.data) {
-                // For debugging: show everything first to verify visibility
-                setNotifications(res.data);
-                return res.data;
+                // Filter out message notifications to avoid clutter (since we have a messages tab)
+                const filtered = res.data.filter((n: any) => n.type !== 'message');
+                setNotifications(filtered);
+                return filtered;
             }
             return [];
         } catch (e) {
