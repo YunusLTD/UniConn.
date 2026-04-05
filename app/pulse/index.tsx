@@ -74,14 +74,14 @@ export default function PulseScreen() {
             }} />
 
             {loading && page === 1 ? (
-                <ShadowLoader type="feed" dark />
+                <ShadowLoader type="feed" />
             ) : (
                 <FlatList
                     data={pulses}
                     keyExtractor={item => item.id}
                     renderItem={({ item }) => <PulseCard pulse={item} onDelete={handleDelete} />}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="white" />
+                        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="white" colors={["white"]} />
                     }
                     onEndReached={handleLoadMore}
                     onEndReachedThreshold={0.5}

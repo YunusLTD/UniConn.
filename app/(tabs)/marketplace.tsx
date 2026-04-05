@@ -220,7 +220,7 @@ export default function MarketplaceScreen() {
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.black} />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.black} colors={[colors.black]} />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>

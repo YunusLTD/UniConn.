@@ -243,7 +243,7 @@ export default function CommunitiesScreen() {
                     )
                 )}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.black} />
+                    <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.black} colors={[colors.black]} />
                 }
                 showsVerticalScrollIndicator={false}
                 ListHeaderComponent={

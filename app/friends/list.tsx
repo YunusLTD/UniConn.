@@ -87,7 +87,7 @@ export default function FriendsListScreen() {
                                 fetchFriends();
                             }}
                             tintColor={colors.primary}
-                            color={colors.primary}
+                            colors={[colors.primary]}
                         />
                     }
                     ListEmptyComponent={
