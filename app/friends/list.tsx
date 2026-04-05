@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, radii } from '../../src/constants/theme';
 import { getFriendsList } from '../../src/api/friends';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function FriendsListScreen() {
     const [friends, setFriends] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
+    const { colors, isDark } = useTheme();
 
     const fetchFriends = async () => {
         try {
@@ -36,19 +37,20 @@ export default function FriendsListScreen() {
 
         return (
             <TouchableOpacity 
-                style={styles.card} 
+                style={[styles.card, { borderBottomColor: colors.border }]} 
                 onPress={() => router.push(`/user/${friend.id}`)}
+                activeOpacity={0.7}
             >
-                <View style={styles.avatar}>
+                <View style={[styles.avatar, { backgroundColor: isDark ? '#1A1A1A' : colors.gray100 }]}>
                     {friend.avatar_url ? (
                         <Image source={{ uri: friend.avatar_url }} style={styles.avatarImg} />
                     ) : (
-                        <Text style={styles.avatarText}>{friend.name?.[0]?.toUpperCase() || '?'}</Text>
+                        <Text style={[styles.avatarText, { color: colors.gray400 }]}>{friend.name?.[0]?.toUpperCase() || '?'}</Text>
                     )}
                 </View>
                 <View style={styles.info}>
-                    <Text style={styles.name}>{friend.name}</Text>
-                    <Text style={styles.uni}>
+                    <Text style={[styles.name, { color: colors.black }]}>{friend.name}</Text>
+                    <Text style={[styles.uni, { color: colors.gray500 }]}>
                         {friend.universities?.name || friend.department || 'Student'}
                     </Text>
                 </View>
@@ -58,17 +60,18 @@ export default function FriendsListScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
                 title: 'All Friends', 
                 headerShown: true, 
                 headerBackTitle: '',
                 headerTintColor: colors.black,
+                headerStyle: { backgroundColor: colors.background },
             }} />
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="small" color={colors.black} />
+                    <ActivityIndicator size="small" color={colors.primary} />
                 </View>
             ) : (
                 <FlatList
@@ -77,15 +80,20 @@ export default function FriendsListScreen() {
                     renderItem={renderItem}
                     contentContainerStyle={styles.list}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => {
-                            setRefreshing(true);
-                            fetchFriends();
-                        }} />
+                        <RefreshControl 
+                            refreshing={refreshing} 
+                            onRefresh={() => {
+                                setRefreshing(true);
+                                fetchFriends();
+                            }}
+                            tintColor={colors.primary}
+                            color={colors.primary}
+                        />
                     }
                     ListEmptyComponent={
                         <View style={styles.empty}>
                             <Ionicons name="people-outline" size={48} color={colors.gray300} />
-                            <Text style={styles.emptyText}>No friends yet. Start connecting!</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>No friends yet. Start connecting!</Text>
                         </View>
                     }
                 />
@@ -97,40 +105,20 @@ export default function FriendsListScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: spacing.md,
-        paddingBottom: spacing.sm,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-    },
-    title: {
-        fontFamily: fonts.bold,
-        fontSize: 18,
-        color: colors.black,
     },
     list: {
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
     },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderBottomWidth: 0.5,
-        borderBottomColor: colors.gray100,
     },
     avatar: {
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: colors.gray100,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -143,7 +131,6 @@ const styles = StyleSheet.create({
     avatarText: {
         fontFamily: fonts.bold,
         fontSize: 18,
-        color: colors.gray500,
     },
     info: {
         flex: 1,
@@ -151,12 +138,10 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.bold,
         fontSize: 15,
-        color: colors.black,
     },
     uni: {
         fontFamily: fonts.regular,
         fontSize: 12,
-        color: colors.gray500,
         marginTop: 2,
     },
     center: {
@@ -172,6 +157,5 @@ const styles = StyleSheet.create({
     emptyText: {
         fontFamily: fonts.medium,
         fontSize: 14,
-        color: colors.gray400,
     }
 });
