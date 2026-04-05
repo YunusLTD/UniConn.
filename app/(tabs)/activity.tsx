@@ -156,15 +156,15 @@ export default function ActivityScreen() {
                             style={[
                                 styles.card, 
                                 { backgroundColor: colors.surface, borderBottomColor: colors.border },
-                                isUnread && { backgroundColor: isDark ? colors.gray800 : colors.gray50 }
+                                isUnread && { backgroundColor: colors.gray50 }
                             ]}
                             onPress={() => handleMarkRead(item)}
                             activeOpacity={0.7}
                         >
                             <View style={[
                                 styles.iconBlock, 
-                                { backgroundColor: isDark ? colors.gray800 : colors.gray100 },
-                                isUnread && { backgroundColor: isDark ? colors.gray700 : colors.gray200 }
+                                { backgroundColor: colors.gray100 },
+                                isUnread && { backgroundColor: colors.gray200 }
                             ]}>
                                 <Ionicons
                                     name={iconName as any}

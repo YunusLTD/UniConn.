@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Clipboard, PanResponder, Animated } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Clipboard, PanResponder, Animated, Dimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { supabase } from '../../src/api/supabase';
 import ShadowLoader from '../../src/components/ShadowLoader';
-import ActionModal from '../../src/components/ActionModal';
+// ActionModal replaced with inline contextual popup
 import { getCommunityMembers } from '../../src/api/communities';
 import SharedPostCard from '../../src/components/SharedPostCard';
 
@@ -78,6 +78,163 @@ const SwipeableMessage = ({ children, onSwipe }: any) => {
     );
 };
 
+const MessageItem = React.memo(({
+    item,
+    user,
+    colors,
+    isDark,
+    fonts,
+    onLongPress,
+    onReply,
+    otherParticipant,
+    conversation,
+    isDissolving,
+    dissolveAnim,
+    router,
+    setPreviewImage,
+    isHidden
+}: any) => {
+    const bubbleRef = useRef<View>(null);
+    const isMine = item.sender_id === user?.id;
+    const isReply = !!(item.reply_to && item.reply_to.id);
+
+    const handleLongPress = () => {
+        if (bubbleRef.current) {
+            bubbleRef.current.measureInWindow((x, y, width, height) => {
+                // Return screen-relative coordinates for the popup
+                onLongPress(item, { left: x, top: y, width, height });
+            });
+        }
+    };
+
+    const renderContent = (content: string, isMine: boolean) => {
+        if (!content) return null;
+        const parts = content.split(/(@\w+)/g);
+        return parts.map((part: string, i: number) => {
+            if (part.startsWith('@')) {
+                const username = part.substring(1);
+                return (
+                    <Text
+                        key={i}
+                        style={[styles.mention, isMine && styles.myMention]}
+                        onPress={() => router.push(`/user/${username}`)}
+                    >
+                        {part}
+                    </Text>
+                );
+            }
+            return <Text key={i}>{part}</Text>;
+        });
+    };
+
+    return (
+        <SwipeableMessage onSwipe={() => onReply(item)}>
+            <Animated.View style={[styles.bubbleWrap, isMine ? styles.myBubbleWrap : styles.theirBubbleWrap,
+            isHidden && { opacity: 0 },
+            isDissolving && {
+                opacity: dissolveAnim,
+                transform: [
+                    { scale: dissolveAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
+                    { translateY: dissolveAnim.interpolate({ inputRange: [0, 1], outputRange: [15, 0] }) },
+                ],
+            },
+            ]}>
+                <TouchableOpacity
+                    ref={bubbleRef}
+                    onLongPress={handleLongPress}
+                    delayLongPress={400}
+                    activeOpacity={0.9}
+                    style={[
+                        styles.bubble,
+                        isMine ? { backgroundColor: isDark ? '#A154F2' : '#00A3FF', borderBottomRightRadius: 4 } : { backgroundColor: colors.white, borderBottomLeftRadius: 4, borderWidth: 0.5, borderColor: colors.border },
+                    ]}
+                >
+                    {!isMine && conversation?.type === 'group' && (
+                        <TouchableOpacity onPress={() => item.sender_id && router.push(`/user/${item.sender_id}`)}>
+                            <Text style={[styles.senderName, { color: colors.gray500 }]}>{item.profiles?.name}</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {isReply && item.reply_to && (
+                        <View style={[styles.replyPreview, isMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
+                            <Text style={[styles.replyName, { color: isMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{item.reply_to.profiles?.name || 'User'}</Text>
+                            <Text style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{item.reply_to.content || (item.reply_to.media_url ? '📷 Media' : '')}</Text>
+                        </View>
+                    )}
+
+                    {item.media_url && (
+                         item.media_type === 'video' ? (
+                            <View style={styles.mediaPlaceholder}>
+                                <Ionicons name="play-circle" size={48} color={colors.white} />
+                            </View>
+                        ) : (
+                            <TouchableOpacity onPress={() => setPreviewImage(item.media_url_local || item.media_url)} activeOpacity={0.9}>
+                                <Image
+                                    source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }}
+                                    style={styles.attachedMedia}
+                                />
+                            </TouchableOpacity>
+                        )
+                    )}
+
+                    {(() => {
+                        const postLinkMatch = item.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
+                        if (postLinkMatch) {
+                            const postId = postLinkMatch[1];
+                            return <SharedPostCard postId={postId} isMine={isMine} />;
+                        }
+                        return null;
+                    })()}
+
+                    {(() => {
+                        if (!item.content) return null;
+                        const hasPostShare = item.content.includes('https://uni-platform.app/post/');
+                        const isAutoShare = hasPostShare && item.content.startsWith('Check out this post:');
+
+                        if (isAutoShare) return null;
+
+                        let displayContent = item.content;
+                        if (hasPostShare) {
+                            displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
+                        }
+
+                        if (!displayContent) return null;
+
+                        return (
+                            <Text style={[styles.messageText, { color: isMine ? '#FFFFFF' : colors.black }]}>
+                                {renderContent(displayContent, isMine)}
+                            </Text>
+                        );
+                    })()}
+
+                    <View style={styles.timestampRow}>
+                        <Text style={[styles.timestamp, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
+                            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        {item.isOptimistic ? (
+                            <Ionicons
+                                name="time-outline"
+                                size={10}
+                                color={isMine ? 'rgba(255,255,255,0.6)' : colors.gray400}
+                                style={{ marginLeft: 4 }}
+                            />
+                        ) : (
+                            isMine && otherParticipant?.last_read_at && new Date(item.created_at) <= new Date(otherParticipant.last_read_at) && (
+                                <Ionicons
+                                    name="checkmark-done"
+                                    size={12}
+                                    color="rgba(255,255,255,0.8)"
+                                    style={{ marginLeft: 4 }}
+                                />
+                            )
+                        )}
+                    </View>
+                </TouchableOpacity>
+            </Animated.View>
+        </SwipeableMessage>
+    );
+});
+
 export default function ChatScreen() {
     const { id, title } = useLocalSearchParams();
     const router = useRouter();
@@ -95,6 +252,9 @@ export default function ChatScreen() {
     const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
     const [members, setMembers] = useState<any[]>([]);
     const [showingActions, setShowingActions] = useState<any>(null);
+    const [bubbleLayout, setBubbleLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+    const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+    const deleteAnims = useRef<Map<string, Animated.Value>>(new Map()).current;
     const typingTimeoutRef = useRef<any>(null);
     const flatListRef = useRef<FlatList>(null);
     const textInputRef = useRef<TextInput>(null);
@@ -383,24 +543,40 @@ export default function ChatScreen() {
         }
     };
 
-    const handleDeleteMessage = async (messageId: string) => {
-        try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            // Optimistic update
-            setMessages(prev => prev.map(m => 
-                m.id === messageId 
-                    ? { ...m, deleted_at: new Date().toISOString(), content: 'This message was deleted', media_url: null } 
-                    : m
-            ));
-            setShowingActions(null);
-            
-            await deleteMessage(messageId);
-        } catch (e) {
-            console.log('Error deleting message', e);
-            alert('Failed to delete message');
-            // Revert on error? Or just reload
-            loadMessages(conversation?.id || id as string);
+    const getDeleteAnim = (msgId: string) => {
+        if (!deleteAnims.has(msgId)) {
+            deleteAnims.set(msgId, new Animated.Value(1));
         }
+        return deleteAnims.get(msgId)!;
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        setShowingActions(null);
+        setBubbleLayout(null);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Start dust-dissolve animation
+        const anim = getDeleteAnim(messageId);
+        setDeletingIds(prev => new Set(prev).add(messageId));
+
+        Animated.timing(anim, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+        }).start(async () => {
+            // Remove from local state after animation completes
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+            setDeletingIds(prev => { const n = new Set(prev); n.delete(messageId); return n; });
+            deleteAnims.delete(messageId);
+
+            try {
+                await deleteMessage(messageId);
+            } catch (e) {
+                console.log('Error deleting message', e);
+                alert('Failed to delete message');
+                loadMessages(conversation?.id || id as string);
+            }
+        });
     };
 
     const handleInputChange = (text: string) => {
@@ -543,135 +719,32 @@ export default function ChatScreen() {
                 data={messages}
                 keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => {
-                    if (item.deleted_at) return null;
-                    const isMine = item.sender_id === user?.id;
-                    const isReply = !!(item.reply_to && item.reply_to.id);
-                    
-                    const handleLongPress = () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                        setShowingActions(item);
-                    };
-
-                    const handleReply = (msg: any) => {
-                        setReplyTo(msg);
-                        setTimeout(() => textInputRef.current?.focus(), 100);
-                    };
-
-                    const renderContent = (content: string, isMine: boolean) => {
-                        if (!content) return null;
-                        const parts = content.split(/(@\w+)/g);
-                        return parts.map((part, i) => {
-                            if (part.startsWith('@')) {
-                                const username = part.substring(1);
-                                return (
-                                    <Text 
-                                        key={i} 
-                                        style={[styles.mention, isMine && styles.myMention]}
-                                        onPress={() => router.push(`/user/${username}`)}
-                                    >
-                                        {part}
-                                    </Text>
-                                );
-                            }
-                            return <Text key={i}>{part}</Text>;
-                        });
-                    };
-
+                    if (item.deleted_at && !deletingIds.has(item.id)) return null;
                     return (
-                        <SwipeableMessage onSwipe={() => handleReply(item)}>
-                            <View style={[styles.bubbleWrap, isMine ? styles.myBubbleWrap : styles.theirBubbleWrap]}>
-                                <TouchableOpacity 
-                                    onLongPress={handleLongPress}
-                                    delayLongPress={400}
-                                    activeOpacity={0.9}
-                                    style={[
-                                        styles.bubble, 
-                                        isMine ? { backgroundColor: isDark ? '#A154F2' : '#00A3FF', borderBottomRightRadius: 4 } : { backgroundColor: colors.white, borderBottomLeftRadius: 4, borderWidth: 0.5, borderColor: colors.border },
-                                    ]}
-                                >
-                                {!isMine && conversation?.type === 'group' && (
-                                    <TouchableOpacity onPress={() => item.sender_id && router.push(`/user/${item.sender_id}`)}>
-                                        <Text style={[styles.senderName, { color: colors.gray500 }]}>{item.profiles?.name}</Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {isReply && item.reply_to && (
-                                    <View style={[styles.replyPreview, isMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
-                                        <Text style={[styles.replyName, { color: isMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{item.reply_to.profiles?.name || 'User'}</Text>
-                                        <Text style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{item.reply_to.content || (item.reply_to.media_url ? '📷 Media' : '')}</Text>
-                                    </View>
-                                )}
-
-                                {item.media_url && (
-                                    item.media_type === 'video' ? (
-                                        <View style={styles.mediaPlaceholder}>
-                                            <Ionicons name="play-circle" size={48} color={colors.white} />
-                                        </View>
-                                    ) : (
-                                        <TouchableOpacity onPress={() => setPreviewImage(item.media_url_local || item.media_url)} activeOpacity={0.9}>
-                                            <Image 
-                                                source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }} 
-                                                style={styles.attachedMedia} 
-                                            />
-                                        </TouchableOpacity>
-                                    )
-                                )}
-
-                                {(() => {
-                                    const postLinkMatch = item.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
-                                    if (postLinkMatch) {
-                                        const postId = postLinkMatch[1];
-                                        return <SharedPostCard postId={postId} isMine={isMine} />;
-                                    }
-                                    return null;
-                                })()}
-
-                                {(() => {
-                                    if (!item.content) return null;
-                                    const hasPostShare = item.content.includes('https://uni-platform.app/post/');
-                                    const isAutoShare = hasPostShare && item.content.startsWith('Check out this post:');
-                                    
-                                    if (isAutoShare) return null; 
-                                    
-                                    let displayContent = item.content;
-                                    if (hasPostShare) {
-                                        displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
-                                    }
-                                    
-                                    if (!displayContent) return null;
-
-                                    return (
-                                        <Text style={[styles.messageText, { color: isMine ? '#FFFFFF' : colors.black }]}>
-                                            {renderContent(displayContent, isMine)}
-                                        </Text>
-                                    );
-                                })()}
-
-                                <View style={styles.timestampRow}>
-                                    <Text style={[styles.timestamp, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
-                                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
-                                    {item.isOptimistic ? (
-                                        <Ionicons
-                                            name="time-outline"
-                                            size={10}
-                                            color={isMine ? 'rgba(255,255,255,0.6)' : colors.gray400}
-                                            style={{ marginLeft: 4 }}
-                                        />
-                                    ) : (
-                                        isMine && otherParticipant?.last_read_at && new Date(item.created_at) <= new Date(otherParticipant.last_read_at) && (
-                                            <Ionicons
-                                                name="checkmark-done"
-                                                size={12}
-                                                color="rgba(255,255,255,0.8)"
-                                                style={{ marginLeft: 4 }}
-                                            />
-                                        )
-                                    )}
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                        </SwipeableMessage>
+                        <MessageItem
+                            item={item}
+                            user={user}
+                            colors={colors}
+                            isDark={isDark}
+                            fonts={fonts}
+                            conversation={conversation}
+                            otherParticipant={otherParticipant}
+                            otherParticipantId={otherParticipant?.user_id}
+                            onLongPress={(msg: any, layout: any) => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                setBubbleLayout(layout);
+                                setShowingActions(msg);
+                            }}
+                            onReply={(msg: any) => {
+                                setReplyTo(msg);
+                                setTimeout(() => textInputRef.current?.focus(), 100);
+                            }}
+                            isDissolving={deletingIds.has(item.id)}
+                            dissolveAnim={getDeleteAnim(item.id)}
+                            router={router}
+                            setPreviewImage={setPreviewImage}
+                            isHidden={showingActions?.id === item.id}
+                        />
                     );
                 }}
                 contentContainerStyle={styles.listContent}
@@ -802,22 +875,163 @@ export default function ChatScreen() {
                 </View>
             </Modal>
 
-            <ActionModal
-                visible={!!showingActions}
-                onClose={() => setShowingActions(null)}
-                options={[
-                    { label: 'Reply', icon: 'return-up-back-outline', onPress: () => { 
-                        setReplyTo(showingActions); 
-                        setShowingActions(null); 
-                        setTimeout(() => textInputRef.current?.focus(), 100);
-                    } },
-                    { label: 'Copy Text', icon: 'copy-outline', onPress: () => { if(showingActions.content) Clipboard.setString(showingActions.content); setShowingActions(null); } },
-                    ...(showingActions?.sender_id === user?.id ? [
-                        { label: 'Delete Message', icon: 'trash-outline', destructive: true, onPress: () => handleDeleteMessage(showingActions.id) }
-                    ] : []),
-                ]}
-                title="Message Options"
-            />
+            <Modal visible={!!showingActions} transparent animationType="fade" onRequestClose={() => { setShowingActions(null); setBubbleLayout(null); }}>
+                {/* Full screen container */}
+                <View style={{ flex: 1 }}>
+                    {/* Dark overlay - blurs all other messages */}
+                    <TouchableOpacity 
+                        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} 
+                        activeOpacity={1} 
+                        onPress={() => { setShowingActions(null); setBubbleLayout(null); }}
+                    />
+
+                    {showingActions && bubbleLayout && (() => {
+                        const actIsMine = showingActions.sender_id === user?.id;
+                        const screenH = Dimensions.get('window').height;
+                        const menuItemCount = actIsMine ? 3 : 2;
+                        const menuH = menuItemCount * 48 + 8;
+                        const spaceBelow = screenH - (bubbleLayout.top + bubbleLayout.height);
+                        const menuBelow = spaceBelow > menuH + 24;
+
+                        return (
+                            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                                {/* Selected message bubble clone at exact position */}
+                                <View style={{
+                                    position: 'absolute',
+                                    top: bubbleLayout.top,
+                                    left: bubbleLayout.left,
+                                    width: bubbleLayout.width,
+                                    height: bubbleLayout.height,
+                                }}>
+                                    <View style={[
+                                        styles.bubble,
+                                        { maxWidth: '100%' }, // Don't re-apply 85% restriction on the clone
+                                        actIsMine
+                                            ? { backgroundColor: isDark ? '#A154F2' : '#00A3FF', borderBottomRightRadius: 4, alignSelf: 'flex-end' }
+                                            : { backgroundColor: isDark ? '#2A2A2A' : '#FFFFFF', borderBottomLeftRadius: 4, borderWidth: 0.5, borderColor: colors.border, alignSelf: 'flex-start' },
+                                    ]}>
+                                        {/* Reply preview */}
+                                        {showingActions.reply_to && (
+                                            <View style={[styles.replyPreview, actIsMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
+                                                <Text style={[styles.replyName, { color: actIsMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{showingActions.reply_to.profiles?.name || 'User'}</Text>
+                                                <Text style={[styles.replyText, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{showingActions.reply_to.content || '📷 Media'}</Text>
+                                            </View>
+                                        )}
+
+                                        {/* Media */}
+                                        {showingActions.media_url && (
+                                            showingActions.media_type === 'video' ? (
+                                                <View style={styles.mediaPlaceholder}>
+                                                    <Ionicons name="play-circle" size={48} color={colors.white} />
+                                                </View>
+                                            ) : (
+                                                <Image source={{ uri: showingActions.media_url_local || showingActions.media_url }} style={styles.attachedMedia} />
+                                            )
+                                        )}
+
+                                        {(() => {
+                                            const postLinkMatch = showingActions.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
+                                            if (postLinkMatch) {
+                                                const postId = postLinkMatch[1];
+                                                return <SharedPostCard postId={postId} isMine={actIsMine} />;
+                                            }
+                                            return null;
+                                        })()}
+
+                                        {/* Text content */}
+                                        {(() => {
+                                            if (!showingActions.content) return null;
+                                            const hasPostShare = showingActions.content.includes('https://uni-platform.app/post/');
+                                            const isAutoShare = hasPostShare && showingActions.content.startsWith('Check out this post:');
+                                            
+                                            if (isAutoShare) return null;
+                                            
+                                            let displayContent = showingActions.content;
+                                            if (hasPostShare) {
+                                                displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
+                                            }
+                                            
+                                            if (!displayContent) return null;
+
+                                            // Mentions rendering
+                                            const parts = displayContent.split(/(@\w+)/g);
+                                            const rendered = parts.map((part: string, i: number) => {
+                                                if (part.startsWith('@')) {
+                                                    return <Text key={i} style={[styles.mention, actIsMine && styles.myMention]}>{part}</Text>;
+                                                }
+                                                return <Text key={i}>{part}</Text>;
+                                            });
+
+                                            return (
+                                                <Text style={[styles.messageText, { color: actIsMine ? '#FFFFFF' : colors.black }]}>
+                                                    {rendered}
+                                                </Text>
+                                            );
+                                        })()}
+
+                                        {/* Timestamp and status */}
+                                        <View style={styles.timestampRow}>
+                                            <Text style={[styles.timestamp, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
+                                                {new Date(showingActions.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Text>
+                                            {showingActions.isOptimistic ? (
+                                                <Ionicons name="time-outline" size={10} color={actIsMine ? 'rgba(255,255,255,0.6)' : colors.gray400} style={{ marginLeft: 4 }} />
+                                            ) : (
+                                                actIsMine && otherParticipant?.last_read_at && new Date(showingActions.created_at) <= new Date(otherParticipant.last_read_at) && (
+                                                    <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.8)" style={{ marginLeft: 4 }} />
+                                                )
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Context menu directly below (or above) the bubble */}
+                                <Animated.View style={[
+                                    styles.contextMenu,
+                                    { 
+                                        backgroundColor: isDark ? '#2A2A2A' : '#FFFFFF',
+                                        // Simple appear animation
+                                        opacity: 1, 
+                                        transform: [{ scale: 1 }] 
+                                    },
+                                    menuBelow
+                                        ? { top: bubbleLayout.top + bubbleLayout.height + 12 }
+                                        : { top: bubbleLayout.top - menuH - 12 },
+                                    actIsMine ? { right: 16 } : { left: 16 },
+                                ]}>
+                                    <TouchableOpacity 
+                                        style={styles.contextOption} 
+                                        onPress={() => { setReplyTo(showingActions); setShowingActions(null); setBubbleLayout(null); setTimeout(() => textInputRef.current?.focus(), 100); }}
+                                    >
+                                        <Ionicons name="return-up-back-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
+                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>Reply</Text>
+                                    </TouchableOpacity>
+                                    <View style={[styles.contextDivider, { backgroundColor: isDark ? '#404040' : '#F0F0F0' }]} />
+                                    <TouchableOpacity 
+                                        style={styles.contextOption} 
+                                        onPress={() => { if(showingActions?.content) Clipboard.setString(showingActions.content); setShowingActions(null); setBubbleLayout(null); }}
+                                    >
+                                        <Ionicons name="copy-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
+                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>Copy</Text>
+                                    </TouchableOpacity>
+                                    {actIsMine && (
+                                        <>
+                                            <View style={[styles.contextDivider, { backgroundColor: isDark ? '#404040' : '#F0F0F0' }]} />
+                                            <TouchableOpacity 
+                                                style={styles.contextOption} 
+                                                onPress={() => handleDeleteMessage(showingActions.id)}
+                                            >
+                                                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                                                <Text style={[styles.contextOptionText, { color: '#FF3B30' }]}>Delete</Text>
+                                            </TouchableOpacity>
+                                        </>
+                                    )}
+                                </Animated.View>
+                            </View>
+                        );
+                    })()}
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -976,5 +1190,36 @@ const styles = StyleSheet.create({
         color: colors.gray600,
         lineHeight: 18,
         textAlign: 'center',
+    },
+    // Contextual popup styles (WhatsApp/IG style)
+    contextOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    contextMenu: {
+        position: 'absolute',
+        minWidth: 160,
+        borderRadius: 14,
+        paddingVertical: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+        elevation: 12,
+    },
+    contextOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+    },
+    contextOptionText: {
+        fontFamily: fonts.medium,
+        fontSize: 15,
+    },
+    contextDivider: {
+        height: 0.5,
+        marginHorizontal: 12,
     },
 });
