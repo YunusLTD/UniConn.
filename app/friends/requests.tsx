@@ -10,6 +10,7 @@ export default function FriendRequestsScreen() {
     const router = useRouter();
     const [requests, setRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
     const { colors, isDark } = useTheme();
 
     const loadRequests = async () => {
@@ -28,11 +29,14 @@ export default function FriendRequestsScreen() {
     }, []);
 
     const handleResponse = async (requestId: string, action: 'accept' | 'reject') => {
+        setActionLoading(`${requestId}-${action}`);
         try {
             await respondToFriendRequest(requestId, action);
             setRequests(prev => prev.filter(r => r.id !== requestId));
         } catch (e) {
             console.error('Failed to respond to request');
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -66,16 +70,26 @@ export default function FriendRequestsScreen() {
 
                 <View style={styles.actions}>
                     <TouchableOpacity 
-                        style={[styles.actionBtn, styles.rejectBtn, { backgroundColor: isDark ? colors.gray800 : colors.gray100 }]} 
+                        style={[styles.actionBtn, styles.rejectBtn, { backgroundColor: isDark ? colors.surface : colors.gray100, borderWidth: isDark ? 1 : 0, borderColor: colors.border }]} 
                         onPress={() => handleResponse(item.id, 'reject')}
+                        disabled={!!actionLoading}
                     >
-                        <Text style={[styles.rejectBtnText, { color: colors.gray600 }]}>Decline</Text>
+                        {actionLoading === `${item.id}-reject` ? (
+                            <ActivityIndicator size="small" color={isDark ? colors.gray300 : colors.gray600} />
+                        ) : (
+                            <Text style={[styles.rejectBtnText, { color: isDark ? colors.gray300 : colors.gray600 }]}>Decline</Text>
+                        )}
                     </TouchableOpacity>
                     <TouchableOpacity 
-                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: colors.black }]} 
+                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: isDark ? colors.primary : colors.black }]} 
                         onPress={() => handleResponse(item.id, 'accept')}
+                        disabled={!!actionLoading}
                     >
-                        <Text style={[styles.acceptBtnText, { color: colors.white }]}>Accept</Text>
+                        {actionLoading === `${item.id}-accept` ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                        ) : (
+                            <Text style={[styles.acceptBtnText, { color: colors.white }]}>Accept</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
