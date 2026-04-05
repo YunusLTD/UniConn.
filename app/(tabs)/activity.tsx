@@ -79,20 +79,19 @@ export default function ActivityScreen() {
     useFocusEffect(
         useCallback(() => {
             let mounted = true;
-            const clearAndLoad = async () => {
-                const refreshedData = await loadData();
-                if (mounted && refreshedData.length > 0) {
-                    try {
-                        await markAllAsRead();
-                        setNotifications(refreshedData.map((n: any) => ({ ...n, read: true })));
-                        refreshUnreadCount();
-                    } catch (e) {
-                        console.log('[Activity] Error clearing', e);
-                    }
-                }
+            
+            // Load fresh notifications when entering the tab
+            loadData();
+            
+            return () => { 
+                mounted = false; 
+                // Mark everything as read silently in the background ONLY when leaving the screen
+                markAllAsRead().then(() => {
+                    refreshUnreadCount();
+                }).catch((e) => {
+                    console.log('[Activity] Error marking as read on leave', e);
+                });
             };
-            clearAndLoad();
-            return () => { mounted = false; };
         }, [])
     );
 
