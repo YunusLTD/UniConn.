@@ -134,44 +134,46 @@ export default function ChatScreen() {
                     const membersRes = await getCommunityMembers(communityId);
                     if (membersRes?.data) setMembers(membersRes.data);
                 }
+                
+                return realId;
             }
         } catch (e) {
             console.log('Error loading conversation', e);
             setLoading(false);
         }
+        return id as string;
     };
 
     useEffect(() => {
         const init = async () => {
-            await loadConversation();
+            const realId = await loadConversation();
             setLoading(false);
 
             try {
                 // ... notifications logic ...
-                await markReadByReference('message', id as string);
-                await markConversationRead(id as string);
+                await markReadByReference('message', realId);
+                await markConversationRead(realId);
                 refreshUnreadCount();
             } catch (e) {
                 console.log('Failed to clear notifications', e);
             }
-        };
-        init();
 
-        // ─── Realtime: Messages ───
-        const channel = supabase
-            .channel(`conversation:${id}`, {
-                config: {
-                    broadcast: { self: false } // We handle our own optimistic updates
-                }
-            })
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${id}`,
-                },
+            // ─── Realtime: Messages ───
+            // MUST bind to realId, otherwise navigating by userId breaks subscriptions!
+            const channel = supabase
+                .channel(`conversation:${realId}`, {
+                    config: {
+                        broadcast: { self: false } // We handle our own optimistic updates
+                    }
+                })
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                        filter: `conversation_id=eq.${realId}`,
+                    },
                 (payload) => {
                     const newMessage = payload.new;
                     if (newMessage.sender_id === user?.id) return;
@@ -202,7 +204,7 @@ export default function ChatScreen() {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'messages',
-                    filter: `conversation_id=eq.${id}`,
+                    filter: `conversation_id=eq.${realId}`,
                 },
                 (payload) => {
                     const updatedMessage = payload.new;
@@ -266,15 +268,26 @@ export default function ChatScreen() {
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log('Realtime: Chat Broadcast/DB connected');
+                    console.log('Realtime: Chat Broadcast/DB connected for', realId);
                 }
             });
 
-        channelRef.current = channel;
+            channelRef.current = channel;
+        };
+
+        let interval: any;
+        init().then(() => {
+            interval = setInterval(() => {
+                if (conversation?.id) {
+                    loadMessages(conversation.id);
+                    loadConversation();
+                }
+            }, 10000);
+        });
 
         const syncRead = async () => {
             try {
-                await markConversationRead(id as string);
+                await markConversationRead(conversation?.id || id as string);
                 channelRef.current?.send({
                     type: 'broadcast',
                     event: 'read',
@@ -283,16 +296,9 @@ export default function ChatScreen() {
             } catch (e) { }
         };
 
-        const interval = setInterval(() => {
-            if (conversation?.id) {
-                loadMessages(conversation.id);
-                loadConversation();
-            }
-        }, 10000);
-
         return () => {
-            clearInterval(interval);
-            supabase.removeChannel(channel);
+            if (interval) clearInterval(interval);
+            if (channelRef.current) supabase.removeChannel(channelRef.current);
         };
     }, [id]);
 
@@ -364,7 +370,7 @@ export default function ChatScreen() {
             const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
             const validReplyId = (replyTo?.id && isUUID(replyTo.id)) ? replyTo.id : undefined;
 
-            const res = await sendMessage(id as string, content, uploadedUrl, mediaType, validReplyId, messageUUID);
+            const res = await sendMessage(conversation?.id || (id as string), content, uploadedUrl, mediaType, validReplyId, messageUUID);
             if (res?.data) {
                 setMessages(prev => prev.map(m => m.id === messageUUID ? { ...m, ...res.data, isOptimistic: false } : m));
             }
