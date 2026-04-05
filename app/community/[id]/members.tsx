@@ -141,7 +141,16 @@ export default function CommunityMembersScreen() {
                                     </View>
                                     <Text style={[styles.department, { color: colors.gray500 }]}>
                                         {profile.department || 'Student'}
-                                        {profile.year_of_study ? ` • ${profile.year_of_study}` : ''}
+                                        {profile.year_of_study ? (
+                                            ` • ${(() => {
+                                                const y = parseInt(profile.year_of_study);
+                                                if (profile.year_of_study === 'vats') return 'Vats';
+                                                if (profile.year_of_study === 'graduated') return 'Graduated';
+                                                if (y === 0) return 'Not graduated yet';
+                                                let label = String(profile.year_of_study).slice(-2);
+                                                return `Class of ${label.startsWith("'") ? label : "'" + label}`;
+                                            })()}`
+                                        ) : ''}
                                     </Text>
                                 </View>
                             </TouchableOpacity>

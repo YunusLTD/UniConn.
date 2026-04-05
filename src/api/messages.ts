@@ -45,3 +45,9 @@ export const deleteMessage = async (messageId: string) => {
         method: 'DELETE',
     });
 };
+
+export const deleteConversation = async (id: string) => {
+    return await apiFetch(`/messages/${id}`, {
+        method: 'DELETE',
+    });
+};

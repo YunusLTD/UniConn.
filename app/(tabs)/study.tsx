@@ -25,6 +25,7 @@ export default function StudyScreen() {
         { id: 'Computer Science', label: t('cs' as any) || 'CS', icon: 'hardware-chip-outline' as const },
         { id: 'Business', label: t('business' as any) || 'Business', icon: 'briefcase-outline' as const },
         { id: 'Arts', label: t('arts' as any) || 'Arts', icon: 'color-palette-outline' as const },
+        { id: 'Other', label: t('other' as any) || 'Other', icon: 'ellipsis-horizontal-outline' as const },
     ];
     const [questions, setQuestions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

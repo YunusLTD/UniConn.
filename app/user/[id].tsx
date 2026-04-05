@@ -58,6 +58,7 @@ export default function UserProfileScreen() {
     const [showRankModal, setShowRankModal] = useState(false);
     const router = useRouter();
     const { showToast } = useToast();
+    const [startingChat, setStartingChat] = useState(false);
     const isSelf = currentUser?.id === profile?.id;
 
     const isUUID = (str: string) => {
@@ -165,7 +166,7 @@ export default function UserProfileScreen() {
         setSendingRequest(true);
         setShowActionModal(false);
         try {
-            await removeFriend(id as string);
+            await removeFriend(profile?.id || (id as string));
             setFriendStatus('none');
             if (!isPending) setFriendCount(prev => Math.max(0, (prev || 0) - 1));
             showToast({
@@ -207,7 +208,7 @@ export default function UserProfileScreen() {
 
         setSendingRequest(true);
         try {
-            const res = await sendFriendRequest(id as string);
+            const res = await sendFriendRequest(profile?.id || (id as string));
             if (res?.status === 'success') {
                 setFriendStatus('pending');
                 showToast({ title: 'Request Sent', message: 'Connection request sent successfully!', type: 'success' });
@@ -220,7 +221,7 @@ export default function UserProfileScreen() {
     };
 
     const handleMessage = async () => {
-        if (!currentUser) return;
+        if (!currentUser || startingChat) return;
 
         const isPlatform = profile?.is_admin || profile?.name === 'UniConn Platform' || profile?.id === '00000000-0000-0000-0000-000000000000';
 
@@ -236,16 +237,17 @@ export default function UserProfileScreen() {
             return;
         }
 
-        try {
-            const { createConversation } = await import('../../src/api/messages');
-            const res = await createConversation({ type: 'direct', participant_ids: [profile?.id || (id as string)] });
-            if (res?.data?.id) {
-                router.push(`/chat/${res.data.id}`);
-            }
-        } catch (e: any) {
-            console.log('Failed to start chat', e);
-            Alert.alert('Message Error', e.message || 'Could not open chat.');
-        }
+        setStartingChat(true);
+
+        // The Chat screen natively handles creating/retrieving direct conversation IDs
+        // given a target User ID, so we can route immediately with zero latency!
+        router.push({
+            pathname: '/chat/[id]',
+            params: { id: profile?.id || (id as string), title: profile?.name || '' }
+        });
+
+        // Prevent double taps from nesting navigation, re-enable after 1000ms
+        setTimeout(() => setStartingChat(false), 1000);
     };
 
     const handleProfileOptions = () => {
@@ -476,14 +478,11 @@ export default function UserProfileScreen() {
                                     {profile.department && profile.year_of_study ? ' • ' : ''}
                                     {profile.year_of_study ? (() => {
                                         const y = parseInt(profile.year_of_study);
-                                        let label = '';
-                                        if (y === 1) label = 'One';
-                                        else if (y === 2) label = 'Two';
-                                        else if (y === 3) label = 'Three';
-                                        else if (y === 4) label = 'Four';
-                                        else label = String(profile.year_of_study).slice(-2);
-                                        
-                                        return `Class of ${label.startsWith("'") ? label : (isNaN(y) || y > 10 ? "'" + label : label)}`;
+                                        if (profile.year_of_study === 'vats') return 'Vats';
+                                        if (profile.year_of_study === 'graduated') return 'Graduated';
+                                        if (y === 0) return 'Not graduated yet';
+                                        let label = String(profile.year_of_study).slice(-2);
+                                        return `Class of ${label.startsWith("'") ? label : "'" + label}`;
                                     })() : ''}
                                 </Text>
                             </View>
@@ -570,8 +569,11 @@ export default function UserProfileScreen() {
                                                 </Text>
                                             )}
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]} onPress={handleMessage}>
-                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('message_label')}</Text>
+                                        <TouchableOpacity 
+                                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]} 
+                                            onPress={handleMessage}
+                                        >
+                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('message_label') || 'Message'}</Text>
                                         </TouchableOpacity>
                                     </>
                                 )}

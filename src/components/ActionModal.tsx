@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, Share, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,14 +74,20 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                     { 
                         backgroundColor: themeColors.surface,
                         transform: [{ translateY: modalTranslateY }],
-                        paddingBottom: Math.max(insets.bottom, spacing.xl)
+                        paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl),
+                        maxHeight: SCREEN_HEIGHT * 0.75
                     }
                 ]}>
-                    <View style={[styles.indicator, { backgroundColor: themeColors.gray200 }]} />
+                    <View style={[styles.indicator, { backgroundColor: themeColors.gray200, marginTop: spacing.xs }]} />
                     
                     {title && <Text style={[styles.title, { color: themeColors.gray400 }]}>{title}</Text>}
 
-                    <View style={styles.optionsContainer}>
+                    <ScrollView 
+                        showsVerticalScrollIndicator={false}
+                        style={styles.scrollArea}
+                        contentContainerStyle={styles.optionsContainer}
+                        bounces={false}
+                    >
                         {options.map((option, index) => (
                             <TouchableOpacity
                                 key={index}
@@ -105,9 +111,9 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                                 </Text>
                             </TouchableOpacity>
                         ))}
-                    </View>
+                    </ScrollView>
 
-                    <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: themeColors.gray100 }]} onPress={() => {
+                    <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: themeColors.gray100, marginTop: spacing.sm }]} onPress={() => {
                         hapticSelection();
                         onClose();
                     }} activeOpacity={0.8}>
@@ -134,6 +140,9 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 32,
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.md,
+    },
+    scrollArea: {
+        flexGrow: 0,
     },
     indicator: {
         width: 40,

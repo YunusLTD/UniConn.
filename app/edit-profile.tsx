@@ -30,6 +30,8 @@ export default function EditProfileScreen() {
     const [department, setDepartment] = useState('');
     const [yearOfStudy, setYearOfStudy] = useState('');
     const [showRelModal, setShowRelModal] = useState(false);
+    const [showDeptModal, setShowDeptModal] = useState(false);
+    const [showYearModal, setShowYearModal] = useState(false);
 
     useEffect(() => {
         loadProfileData();
@@ -113,7 +115,7 @@ export default function EditProfileScreen() {
                 age: age.trim() ? parseInt(age.trim(), 10) : undefined,
                 relationship_status: relationshipStatus || undefined,
                 department: department.trim() || undefined,
-                year_of_study: yearOfStudy.trim() ? parseInt(yearOfStudy.trim(), 10) : undefined
+                year_of_study: yearOfStudy.trim() || undefined
             });
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
@@ -258,29 +260,72 @@ export default function EditProfileScreen() {
 
                         <View style={styles.field}>
                             <Text style={[styles.label, { color: colors.gray500 }]}>Department / Major</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
-                                value={department}
-                                onChangeText={setDepartment}
-                                placeholder="e.g. Computer Science"
-                                placeholderTextColor={colors.gray400}
-                            />
+                            <TouchableOpacity 
+                                style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
+                                onPress={() => setShowDeptModal(true)}
+                            >
+                                <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: department ? colors.black : colors.gray400 }}>
+                                    {department || 'Select Department'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Graduation Year</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
-                                value={yearOfStudy}
-                                onChangeText={setYearOfStudy}
-                                placeholder="Year (e.g. 2026) or Level (1-4)"
-                                keyboardType="numeric"
-                                placeholderTextColor={colors.gray400}
-                            />
+                            <Text style={[styles.label, { color: colors.gray500 }]}>Graduation Year / Level</Text>
+                            <TouchableOpacity 
+                                style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
+                                onPress={() => setShowYearModal(true)}
+                            >
+                                <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: yearOfStudy ? colors.black : colors.gray400 }}>
+                                    {yearOfStudy ? (() => {
+                                        const y = parseInt(yearOfStudy);
+                                        if (yearOfStudy === 'vats') return 'Vats';
+                                        if (yearOfStudy === 'graduated') return 'Graduated';
+                                        if (y === 0) return 'Not graduated yet';
+                                        if (y > 2000) return `Class of '${String(y).slice(-2)}`;
+                                        return yearOfStudy;
+                                    })() : 'Select Year/Level'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <ActionModal
+                visible={showDeptModal}
+                onClose={() => setShowDeptModal(false)}
+                title="Select Department"
+                options={[
+                    { label: 'Computer Science', icon: 'code-slash-outline', onPress: () => { setDepartment('Computer Science'); setShowDeptModal(false); } },
+                    { label: 'Business Administration', icon: 'business-outline', onPress: () => { setDepartment('Business Administration'); setShowDeptModal(false); } },
+                    { label: 'Engineering', icon: 'construct-outline', onPress: () => { setDepartment('Engineering'); setShowDeptModal(false); } },
+                    { label: 'Medicine & Health', icon: 'medical-outline', onPress: () => { setDepartment('Medicine & Health'); setShowDeptModal(false); } },
+                    { label: 'Law', icon: 'scale-outline', onPress: () => { setDepartment('Law'); setShowDeptModal(false); } },
+                    { label: 'Arts & Humanities', icon: 'color-palette-outline', onPress: () => { setDepartment('Arts & Humanities'); setShowDeptModal(false); } },
+                    { label: 'Social Sciences', icon: 'people-outline', onPress: () => { setDepartment('Social Sciences'); setShowDeptModal(false); } },
+                    { label: 'Natural Sciences', icon: 'leaf-outline', onPress: () => { setDepartment('Natural Sciences'); setShowDeptModal(false); } },
+                    { label: 'Economics', icon: 'stats-chart-outline', onPress: () => { setDepartment('Economics'); setShowDeptModal(false); } },
+                    { label: 'Architecture', icon: 'home-outline', onPress: () => { setDepartment('Architecture'); setShowDeptModal(false); } },
+                    { label: 'Other', icon: 'ellipsis-horizontal-outline', onPress: () => { setDepartment('Other'); setShowDeptModal(false); } },
+                ]}
+            />
+
+            <ActionModal
+                visible={showYearModal}
+                onClose={() => setShowYearModal(false)}
+                title="Graduation Year / Level"
+                options={[
+                    { label: "Class of '24", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2024'); setShowYearModal(false); } },
+                    { label: "Class of '25", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2025'); setShowYearModal(false); } },
+                    { label: "Class of '26", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2026'); setShowYearModal(false); } },
+                    { label: "Class of '27", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2027'); setShowYearModal(false); } },
+                    { label: "Class of '28", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2028'); setShowYearModal(false); } },
+                    { label: 'Vats', icon: 'medal-outline', onPress: () => { setYearOfStudy('vats'); setShowYearModal(false); } },
+                    { label: 'Graduated', icon: 'trophy-outline', onPress: () => { setYearOfStudy('graduated'); setShowYearModal(false); } },
+                    { label: 'Not graduated yet', icon: 'time-outline', onPress: () => { setYearOfStudy('0'); setShowYearModal(false); } },
+                ]}
+            />
             
             <ActionModal
                 visible={showRelModal}

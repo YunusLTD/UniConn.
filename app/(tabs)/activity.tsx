@@ -113,6 +113,12 @@ export default function ActivityScreen() {
                 router.push(`/post/${reference_id}` as any);
             } else if (type.includes('event')) {
                 router.push(`/events/${reference_id}` as any);
+            } else if (type.includes('poll')) {
+                router.push(`/polls/${reference_id}` as any);
+            } else if (type.includes('marketplace')) {
+                router.push(`/marketplace/${reference_id}` as any);
+            } else if (type.includes('job')) {
+                router.push(`/jobs/detail/${reference_id}` as any);
             } else if (type.includes('community_request')) {
                 router.push(`/community/${reference_id}/members` as any);
             } else if (type.startsWith('community_')) {

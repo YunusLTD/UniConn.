@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, TextInput } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -8,13 +8,17 @@ import { useAuth } from '../../src/context/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { deleteConversation } from '../../src/api/messages';
+import ActionModal from '../../src/components/ActionModal';
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [longPressedConv, setLongPressedConv] = useState<any>(null);
     const router = useRouter();
     const { user, onlineUsers } = useAuth();
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
     const { t } = useLanguage();
 
     const loadData = async () => {
@@ -34,11 +38,51 @@ export default function MessagesScreen() {
         return () => clearInterval(interval);
     }, []);
 
+    const filteredConversations = conversations.filter(conv => {
+        if (!searchQuery.trim()) return true;
+        const otherParticipant = conv.participants?.find((p: any) => p.user_id !== user?.id);
+        const name = conv.type === 'direct' ? (otherParticipant?.profiles?.name || '') : (conv.name || '');
+        const username = otherParticipant?.profiles?.username || '';
+        return (
+            name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            username.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    });
+
+    const handleDeleteConversation = async (id: string) => {
+        try {
+            await deleteConversation(id);
+            setConversations(prev => prev.filter(c => c.id !== id));
+            setLongPressedConv(null);
+        } catch (e) {
+            console.log('Error deleting conversation', e);
+        }
+    };
+
     const content = loading ? (
         <ShadowLoader type="messages" />
     ) : (
         <FlatList
-            data={conversations}
+            data={filteredConversations}
+            ListHeaderComponent={
+                <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+                    <View style={[styles.searchBar, { backgroundColor: isDark ? colors.surface : colors.gray50 }]}>
+                        <Ionicons name="search" size={20} color={colors.gray400} />
+                        <TextInput
+                            style={[styles.searchInput, { color: colors.black }]}
+                            placeholder="Search messages..."
+                            placeholderTextColor={colors.gray400}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <Ionicons name="close-circle" size={18} color={colors.gray400} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+            }
             keyExtractor={item => item.id.toString()}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
@@ -64,14 +108,15 @@ export default function MessagesScreen() {
                     <TouchableOpacity
                         style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
                         onPress={() => router.push(`/chat/${item.id}` as any)}
+                        onLongPress={() => item.type === 'direct' && setLongPressedConv(item)}
                         activeOpacity={0.7}
                     >
                         <View>
-                            <View style={[styles.avatar, { backgroundColor: colors.gray900 }]}>
+                            <View style={[styles.avatar, { backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.border }]}>
                                 {avatarUrl ? (
                                     <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
                                 ) : (
-                                    <Text style={[styles.avatarText, { color: '#FFFFFF' }]}>{initials}</Text>
+                                    <Text style={[styles.avatarText, { color: colors.black }]}>{initials}</Text>
                                 )}
                             </View>
                             {isOnline && <View style={[styles.onlineBadge, { borderColor: colors.surface }]} />}
@@ -79,7 +124,7 @@ export default function MessagesScreen() {
                         <View style={styles.info}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                 <Text style={[styles.name, { color: colors.black }]}>{displayName}</Text>
-                                {(otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform') && (
+                                {item.type === 'direct' && (otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform') && (
                                     <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
                                 )}
                             </View>
@@ -121,12 +166,27 @@ export default function MessagesScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
-                title: 'Messages', 
+                headerTitle: 'Messages',
                 headerBackTitle: '',
                 headerStyle: { backgroundColor: colors.background },
-                headerTintColor: colors.black
+                headerTintColor: colors.black,
+                headerShadowVisible: false
             }} />
             {content}
+            
+            <ActionModal
+                visible={!!longPressedConv}
+                onClose={() => setLongPressedConv(null)}
+                title="Conversation Options"
+                options={[
+                    { 
+                        label: 'Clear History', 
+                        icon: 'trash-outline', 
+                        destructive: true, 
+                        onPress: () => handleDeleteConversation(longPressedConv.id) 
+                    }
+                ]}
+            />
         </View>
     );
 }
@@ -166,6 +226,24 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         fontSize: 13,
         marginTop: 2,
+    },
+    searchContainer: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        height: 44,
+        borderRadius: 22,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontFamily: fonts.regular,
+        fontSize: 15,
+        padding: 0,
     },
     unreadBadge: {
         backgroundColor: '#FF3B30',

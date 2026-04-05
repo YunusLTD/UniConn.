@@ -13,6 +13,7 @@ interface StoryCircleProps {
     title: string;
     isUnread?: boolean;
     onPress: () => void;
+    onAddPress?: () => void;
     isMe?: boolean;
 }
 
@@ -22,6 +23,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
     title, 
     isUnread = true, 
     onPress, 
+    onAddPress,
     isMe = false 
 }) => {
     const { colors } = useTheme();
@@ -64,9 +66,16 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
                 )}
 
                 {isMe && (
-                    <View style={[styles.plusIcon, { borderColor: colors.surface }]}>
+                    <TouchableOpacity 
+                        style={[styles.plusIcon, { borderColor: colors.surface }]} 
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            if (onAddPress) onAddPress();
+                            else onPress();
+                        }}
+                    >
                         <Ionicons name="add" size={14} color="#FFFFFF" />
-                    </View>
+                    </TouchableOpacity>
                 )}
 
             </View>

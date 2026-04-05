@@ -79,7 +79,7 @@ const SwipeableMessage = ({ children, onSwipe }: any) => {
 };
 
 export default function ChatScreen() {
-    const { id } = useLocalSearchParams();
+    const { id, title } = useLocalSearchParams();
     const router = useRouter();
     const { user, onlineUsers } = useAuth();
     const { refreshUnreadCount } = useNotifications();
@@ -454,7 +454,20 @@ export default function ChatScreen() {
     const isPlatform = otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform';
 
     if (loading) {
-        return <ShadowLoader type="chat" />;
+        return (
+            <View style={{ flex: 1, backgroundColor: colors.background }}>
+                <Stack.Screen options={{
+                    headerStyle: { backgroundColor: colors.background },
+                    headerTitle: title ? title as string : '',
+                    headerShown: true,
+                    headerShadowVisible: false,
+                    headerBackTitle: '',
+                    headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
+                    headerTintColor: colors.black,
+                }} />
+                <ShadowLoader type="chat" />
+            </View>
+        );
     }
 
     const getLastSeenText = (lastSeen: string | null) => {
@@ -495,8 +508,8 @@ export default function ChatScreen() {
                                 return displayName.substring(0, 2).toUpperCase();
                             })();
                             return (
-                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.black, justifyContent: 'center', alignItems: 'center' }}>
-                                    <Text style={{ color: colors.white, fontSize: 13, fontFamily: fonts.bold }}>{initials}</Text>
+                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Text style={{ color: colors.black, fontSize: 13, fontFamily: fonts.bold }}>{initials}</Text>
                                 </View>
                             );
                         })()}

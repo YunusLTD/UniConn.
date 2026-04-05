@@ -111,11 +111,18 @@ export default function HomeScreen() {
         }
     };
 
-    const renderStoriesHeader = () => (
+    const renderStoriesHeader = () => {
+        const myStoryIndex = stories.findIndex(s => s.user_id === currentUser?.id || s.user?.id === currentUser?.id);
+        const myStory = myStoryIndex !== -1 ? stories[myStoryIndex] : null;
+
+        // Ensure current user is not duplicated in the main list
+        const otherStories = stories.filter(s => s.user_id !== currentUser?.id && s.user?.id !== currentUser?.id);
+
+        return (
         <View style={[styles.storiesContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             <FlatList
                 horizontal
-                data={[{ id: 'me' }, ...stories]}
+                data={[{ id: 'me' }, ...otherStories]}
                 keyExtractor={item => item.id}
                 showsHorizontalScrollIndicator={false}
                 renderItem={({ item, index }) => {
@@ -126,18 +133,31 @@ export default function HomeScreen() {
                                 isMe
                                 title={currentUser?.name || 'Me'}
                                 image_url={currentUser?.profile?.avatar_url}
-                                onPress={() => router.push('/story-upload')}
+                                onPress={() => {
+                                    if (myStory) {
+                                        // View my story
+                                        setInitialStoryUserIndex(myStoryIndex);
+                                        setViewerVisible(true);
+                                    } else {
+                                        // Or create one
+                                        router.push('/story-upload');
+                                    }
+                                }}
+                                onAddPress={() => {
+                                    router.push('/story-upload');
+                                }}
                             />
                         );
                     }
+                    
+                    const originalIndex = stories.findIndex(s => s.id === item.id);
                     return (
                         <StoryCircle
                             id={item.id}
                             title={item.user?.name || 'Friend'}
-                            image_url={item.user?.avatar_url || item.stories?.[0]?.media_url}
-                            media_type={item.stories?.[0]?.media_type}
+                            image_url={item.user?.avatar_url}
                             onPress={() => {
-                                setInitialStoryUserIndex(index - 1);
+                                setInitialStoryUserIndex(originalIndex);
                                 setViewerVisible(true);
                             }}
                         />
@@ -146,7 +166,8 @@ export default function HomeScreen() {
                 contentContainerStyle={styles.storiesList}
             />
         </View>
-    );
+        );
+    };
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>

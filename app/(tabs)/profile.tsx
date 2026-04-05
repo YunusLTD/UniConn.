@@ -239,14 +239,11 @@ export default function ProfileScreen() {
                                     {profile.department && profile.year_of_study ? ' • ' : ''}
                                     {profile.year_of_study ? (() => {
                                         const y = parseInt(profile.year_of_study);
-                                        let label = '';
-                                        if (y === 1) label = 'One';
-                                        else if (y === 2) label = 'Two';
-                                        else if (y === 3) label = 'Three';
-                                        else if (y === 4) label = 'Four';
-                                        else label = String(profile.year_of_study).slice(-2);
-                                        
-                                        return `Class of ${label.startsWith("'") ? label : (isNaN(y) || y > 10 ? "'" + label : label)}`;
+                                        if (profile.year_of_study === 'vats') return 'Vats';
+                                        if (profile.year_of_study === 'graduated') return 'Graduated';
+                                        if (y === 0) return 'Not graduated yet';
+                                        let label = String(profile.year_of_study).slice(-2);
+                                        return `Class of ${label.startsWith("'") ? label : "'" + label}`;
                                     })() : ''}
                                 </Text>
                             </View>

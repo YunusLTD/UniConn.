@@ -11,7 +11,7 @@ export const getUser = async (id: string) => {
 export const updateProfile = async (data: { 
     name?: string, bio?: string, avatar_url?: string, push_token?: string, username?: string,
     hometown?: string, age?: number, relationship_status?: string, 
-    department?: string, year_of_study?: number,
+    department?: string, year_of_study?: string,
     hide_friends_list?: boolean, friends_only_messages?: boolean 
 }) => {
     return await apiFetch('/users/profile', {
