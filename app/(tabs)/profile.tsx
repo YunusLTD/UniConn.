@@ -28,17 +28,18 @@ import { useLanguage } from '../../src/context/LanguageContext';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings' | 'settings';
 
-const TABS: { key: TabType, icon: string }[] = [
-    { key: 'posts', icon: 'grid-outline' },
-    { key: 'events', icon: 'calendar-outline' },
-    { key: 'listings', icon: 'cart-outline' },
-    { key: 'settings', icon: 'settings-outline' },
-];
+const buildTabs = (t: (k: any) => string) => ([
+    { key: 'posts' as TabType, icon: 'grid-outline', label: t('post_tab') },
+    { key: 'events' as TabType, icon: 'calendar-outline', label: t('event_tab') },
+    { key: 'listings' as TabType, icon: 'cart-outline', label: t('market_tab') },
+    { key: 'settings' as TabType, icon: 'settings-outline', label: t('settings') },
+]);
 
 export default function ProfileScreen() {
     const { logout, user, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
     const { theme, setTheme, colors, isDark } = useTheme();
     const { t, language, setLanguage } = useLanguage();
+    const TABS = buildTabs(t);
 
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -70,7 +71,7 @@ export default function ProfileScreen() {
         } finally {
             setLoading(false);
         }
-        
+
         // Fetch stories
         try {
             const storyRes = await getUserStories(user!.id);
@@ -156,7 +157,7 @@ export default function ProfileScreen() {
             <View
                 style={[styles.navHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}
             >
-                <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || 'Profile')}</Text>
+                <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || t('profile'))}</Text>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
@@ -314,7 +315,7 @@ export default function ProfileScreen() {
                             showsHorizontalScrollIndicator={false}
                             contentContainerStyle={styles.tabContent}
                         >
-                            {TABS.map(({ key, icon }) => (
+                            {TABS.map(({ key, icon, label }) => (
                                 <TouchableOpacity
                                     key={key}
                                     style={[
@@ -331,7 +332,7 @@ export default function ProfileScreen() {
                                         color={activeTab === key ? colors.white : colors.gray600}
                                     />
                                     <Text style={[styles.tabLabel, { color: activeTab === key ? colors.white : colors.gray500 }]}>
-                                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                                        {label}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -346,19 +347,13 @@ export default function ProfileScreen() {
                             <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/friends/requests')}>
                                 <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="people-outline" size={20} color={colors.black} /></View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.menuText, { color: colors.black }]}>Friend Requests</Text>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>{t('friend_requests')}</Text>
                                 </View>
                                 {pendingRequests > 0 && (
                                     <View style={[styles.requestBadge, { backgroundColor: colors.black }]}>
                                         <Text style={[styles.requestBadgeText, { color: colors.white }]}>{pendingRequests}</Text>
                                     </View>
                                 )}
-                                <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => router.push('/notifications')}>
-                                <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="notifications-outline" size={20} color={colors.black} /></View>
-                                <Text style={[styles.menuText, { color: colors.black }]}>Notifications</Text>
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
 
@@ -374,8 +369,8 @@ export default function ProfileScreen() {
                                     />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.menuText, { color: colors.black }]}>Theme</Text>
-                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>Currently: {theme.charAt(0).toUpperCase() + theme.slice(1)}</Text>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>{t('theme')}</Text>
+                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>{`${t('theme')}: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
@@ -399,8 +394,8 @@ export default function ProfileScreen() {
                             <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => setShowLegalModal({ visible: true, type: 'privacy' })}>
                                 <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="lock-closed-outline" size={20} color={colors.black} /></View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.menuText, { color: colors.black }]}>Privacy Policy</Text>
-                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>How we protect your campus data</Text>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>{t('privacy_policy')}</Text>
+                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>{t('privacy_desc')}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
@@ -408,8 +403,8 @@ export default function ProfileScreen() {
                             <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => setShowLegalModal({ visible: true, type: 'terms' })}>
                                 <View style={[styles.menuIconBox, { backgroundColor: colors.surface }]}><Ionicons name="document-text-outline" size={20} color={colors.black} /></View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.menuText, { color: colors.black }]}>Terms of Use</Text>
-                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>The rules of our student community</Text>
+                                    <Text style={[styles.menuText, { color: colors.black }]}>{t('terms_of_use')}</Text>
+                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>{t('terms_desc')}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
@@ -426,12 +421,12 @@ export default function ProfileScreen() {
                                 {loggingOut ? (
                                     <ActivityIndicator size="small" color="#FF3B30" />
                                 ) : (
-                                    <Text style={styles.logoutBtnText}>Log out</Text>
+                                    <Text style={styles.logoutBtnText}>{t('logout_label')}</Text>
                                 )}
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-                                <Text style={[styles.deleteBtnText, { color: colors.gray400 }]}>Delete account</Text>
+                                <Text style={[styles.deleteBtnText, { color: colors.gray400 }]}>{t('delete_account_label')}</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -472,7 +467,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{showLegalModal.type === 'privacy' ? 'Privacy Policy' : 'Terms of Service'}</Text>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{showLegalModal.type === 'privacy' ? t('privacy_policy') : t('terms_of_use')}</Text>
                             <TouchableOpacity onPress={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
@@ -480,9 +475,8 @@ export default function ProfileScreen() {
                         <ScrollView showsVerticalScrollIndicator={false}>
                             <Text style={[styles.legalText, { color: colors.gray600 }]}>
                                 {showLegalModal.type === 'privacy'
-                                    ? "Your privacy is our priority. We only collect data necessary to enhance your campus experience. This includes your university affiliation, basic profile info, and shared content."
-                                    : "By using UniConn, you agree to foster a respectful and safe campus community. Harassment, hate speech, and academic dishonesty are strictly prohibited."
-                                }
+                                    ? t('privacy_desc')
+                                    : t('terms_desc')}
                             </Text>
                         </ScrollView>
                     </View>
@@ -723,4 +717,3 @@ const styles = StyleSheet.create({
     addAccountIcon: { width: 36, height: 36, borderRadius: 18, borderStyle: 'dashed', borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     addAccountText: { fontFamily: fonts.bold, fontSize: 15 },
 });
-

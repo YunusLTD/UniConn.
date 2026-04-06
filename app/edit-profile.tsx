@@ -10,11 +10,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { apiFetch } from '../src/api/client';
 import ActionModal from '../src/components/ActionModal';
+import { useLanguage } from '../src/context/LanguageContext';
 
 export default function EditProfileScreen() {
     const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -110,14 +112,14 @@ export default function EditProfileScreen() {
                 setAvatarUrl(newUrl);
             }
         } catch (e: any) {
-            Alert.alert('Upload Failed', e.message);
+            Alert.alert(t('upload_failed'), e.message);
         } finally {
             setUploading(false);
         }
     };
 
     const handleUpdate = async () => {
-        if (!name.trim()) return Alert.alert('Error', 'Name is required');
+        if (!name.trim()) return Alert.alert(t('error'), t('name_required'));
 
         setUpdating(true);
         try {
@@ -145,11 +147,11 @@ export default function EditProfileScreen() {
                 username: username.trim().toLowerCase(),
             });
 
-            Alert.alert('Success', 'Profile updated successfully!', [
+            Alert.alert(t('success'), t('profile_updated'), [
                 { text: 'OK', onPress: () => router.back() }
             ]);
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to update profile');
+            Alert.alert(t('error'), e.message || t('error'));
         } finally {
             setUpdating(false);
         }
@@ -171,12 +173,12 @@ export default function EditProfileScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="close" size={24} color={colors.black} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.black }]}>Edit Profile</Text>
+                <Text style={[styles.headerTitle, { color: colors.black }]}>{t('edit_profile')}</Text>
                 <TouchableOpacity onPress={handleUpdate} disabled={updating} style={styles.saveHeaderBtn}>
                     {updating ? (
                         <ActivityIndicator size="small" color={colors.black} />
                     ) : (
-                        <Text style={[styles.saveHeaderText, { color: colors.black }]}>Save</Text>
+                        <Text style={[styles.saveHeaderText, { color: colors.black }]}>{t('save')}</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -204,30 +206,30 @@ export default function EditProfileScreen() {
                                 </View>
                             )}
                         </View>
-                        <Text style={[styles.avatarEditText, { color: colors.black }]}>Change Profile Picture</Text>
+                        <Text style={[styles.avatarEditText, { color: colors.black }]}>{t('change_profile_picture')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.form}>
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Display Name</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('display_name')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={name}
                                 onChangeText={setName}
-                                placeholder="Your name"
+                                placeholder={t('display_name')}
                                 placeholderTextColor={colors.gray400}
                             />
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Username</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('username_label')}</Text>
                             <View style={styles.usernameInputContainer}>
                                 <Text style={[styles.usernamePrefix, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.gray400 }]}>@</Text>
                                 <TextInput
                                     style={[styles.input, { flex: 1, borderLeftWidth: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                     value={username}
                                     onChangeText={setUsername}
-                                    placeholder="username"
+                                    placeholder={t('username_label')}
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
                                 />
@@ -247,66 +249,66 @@ export default function EditProfileScreen() {
                             />
                         </View>
 
-                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>Personal Details (Optional)</Text>
+                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>{t('personal_details')}</Text>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Hometown</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('hometown')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={hometown}
                                 onChangeText={setHometown}
-                                placeholder="Where are you from?"
+                                placeholder={t('hometown')}
                                 placeholderTextColor={colors.gray400}
                             />
                         </View>
                         
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Age</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('age')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={age}
                                 onChangeText={setAge}
-                                placeholder="Age"
+                                placeholder={t('age')}
                                 keyboardType="numeric"
                                 placeholderTextColor={colors.gray400}
                             />
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Relationship Status</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('relationship_status')}</Text>
                             <TouchableOpacity 
                                 style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => setShowRelModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: relationshipStatus ? colors.black : colors.gray400, textTransform: 'capitalize' }}>
-                                    {relationshipStatus || 'Select Status'}
+                                    {relationshipStatus || t('select_status')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Privacy for Personal */}
                         <View style={styles.privacyGroup}>
-                            <PrivacyToggle label="Show Hometown" value={showHometown} onChange={setShowHometown} />
-                            <PrivacyToggle label="Show Age" value={showAge} onChange={setShowAge} />
-                            <PrivacyToggle label="Show Relationship" value={showRelationship} onChange={setShowRelationship} />
+                            <PrivacyToggle label={t('show_hometown')} value={showHometown} onChange={setShowHometown} />
+                            <PrivacyToggle label={t('show_age')} value={showAge} onChange={setShowAge} />
+                            <PrivacyToggle label={t('show_relationship')} value={showRelationship} onChange={setShowRelationship} />
                         </View>
 
-                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>Academic Details</Text>
+                        <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>{t('academic_details')}</Text>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Department / Major</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('department_label')}</Text>
                             <TouchableOpacity 
                                 style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => setShowDeptModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: department ? colors.black : colors.gray400 }}>
-                                    {department || 'Select Department'}
+                                    {department || t('select_department')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Graduation Year / Level</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{t('graduation_year_label')}</Text>
                             <TouchableOpacity 
                                 style={[styles.input, { justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }]}
                                 onPress={() => setShowYearModal(true)}
@@ -319,16 +321,16 @@ export default function EditProfileScreen() {
                                         if (y === 0) return 'Not graduated yet';
                                         if (y > 2000) return `Class of '${String(y).slice(-2)}`;
                                         return yearOfStudy;
-                                    })() : 'Select Year/Level'}
+                                    })() : t('select_year')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Privacy for Academic */}
                         <View style={styles.privacyGroup}>
-                            <PrivacyToggle label="Show Department" value={showDepartment} onChange={setShowDepartment} />
-                            <PrivacyToggle label="Show Class/Year" value={showYear} onChange={setShowYear} />
-                            <PrivacyToggle label="Show Pioneer Rank" value={showRank} onChange={setShowRank} />
+                            <PrivacyToggle label={t('show_department')} value={showDepartment} onChange={setShowDepartment} />
+                            <PrivacyToggle label={t('show_year')} value={showYear} onChange={setShowYear} />
+                            <PrivacyToggle label={t('show_rank')} value={showRank} onChange={setShowRank} />
                         </View>
                     </View>
                 </ScrollView>
@@ -337,26 +339,26 @@ export default function EditProfileScreen() {
             <ActionModal
                 visible={showDeptModal}
                 onClose={() => setShowDeptModal(false)}
-                title="Select Department"
+                title={t('select_department')}
                 options={[
-                    { label: 'Computer Science', icon: 'code-slash-outline', onPress: () => { setDepartment('Computer Science'); setShowDeptModal(false); } },
-                    { label: 'Business Administration', icon: 'business-outline', onPress: () => { setDepartment('Business Administration'); setShowDeptModal(false); } },
+                    { label: t('cs'), icon: 'code-slash-outline', onPress: () => { setDepartment(t('cs')); setShowDeptModal(false); } },
+                    { label: t('business'), icon: 'business-outline', onPress: () => { setDepartment(t('business')); setShowDeptModal(false); } },
                     { label: 'Engineering', icon: 'construct-outline', onPress: () => { setDepartment('Engineering'); setShowDeptModal(false); } },
                     { label: 'Medicine & Health', icon: 'medical-outline', onPress: () => { setDepartment('Medicine & Health'); setShowDeptModal(false); } },
                     { label: 'Law', icon: 'scale-outline', onPress: () => { setDepartment('Law'); setShowDeptModal(false); } },
-                    { label: 'Arts & Humanities', icon: 'color-palette-outline', onPress: () => { setDepartment('Arts & Humanities'); setShowDeptModal(false); } },
+                    { label: t('arts'), icon: 'color-palette-outline', onPress: () => { setDepartment(t('arts')); setShowDeptModal(false); } },
                     { label: 'Social Sciences', icon: 'people-outline', onPress: () => { setDepartment('Social Sciences'); setShowDeptModal(false); } },
                     { label: 'Natural Sciences', icon: 'leaf-outline', onPress: () => { setDepartment('Natural Sciences'); setShowDeptModal(false); } },
                     { label: 'Economics', icon: 'stats-chart-outline', onPress: () => { setDepartment('Economics'); setShowDeptModal(false); } },
                     { label: 'Architecture', icon: 'home-outline', onPress: () => { setDepartment('Architecture'); setShowDeptModal(false); } },
-                    { label: 'Other', icon: 'ellipsis-horizontal-outline', onPress: () => { setDepartment('Other'); setShowDeptModal(false); } },
+                    { label: t('other'), icon: 'ellipsis-horizontal-outline', onPress: () => { setDepartment(t('other')); setShowDeptModal(false); } },
                 ]}
             />
 
             <ActionModal
                 visible={showYearModal}
                 onClose={() => setShowYearModal(false)}
-                title="Graduation Year / Level"
+                title={t('graduation_year_label')}
                 options={[
                     { label: "Class of '24", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2024'); setShowYearModal(false); } },
                     { label: "Class of '25", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2025'); setShowYearModal(false); } },

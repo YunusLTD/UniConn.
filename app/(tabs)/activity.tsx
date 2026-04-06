@@ -10,18 +10,20 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { markAllAsRead, getNotifications, markAsRead } from '../../src/api/notifications';
 import { useCallback } from 'react';
+import { useLanguage } from '../../src/context/LanguageContext';
 
-function timeAgo(dateStr: string) {
+function timeAgoLocalized(dateStr: string, t: any) {
     const d = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
+    if (mins < 1) return t('just_now');
+    if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
+    if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
     const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
+    if (days === 1) return t('yesterday');
+    if (days < 7) return t('day_ago').replace('{{count}}', String(days));
     return d.toLocaleDateString();
 }
 
@@ -52,6 +54,7 @@ const NOTIF_ICONS: Record<string, string> = {
 export default function ActivityScreen() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -135,6 +138,7 @@ export default function ActivityScreen() {
     if (loading && notifications.length === 0) {
         return (
             <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
+                <Stack.Screen options={{ title: t('activity_header') }} />
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -142,7 +146,7 @@ export default function ActivityScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Stack.Screen options={{ title: 'Activity' }} />
+            <Stack.Screen options={{ title: t('activity_header') }} />
             <FlatList
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
@@ -184,7 +188,7 @@ export default function ActivityScreen() {
                                     {item.message}
                                 </Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>
-                                    {timeAgo(item.created_at)}
+                                    {timeAgoLocalized(item.created_at, t)}
                                 </Text>
                             </View>
                         </TouchableOpacity>
@@ -193,8 +197,8 @@ export default function ActivityScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="notifications-outline" size={64} color={colors.gray200} />
-                        <Text style={[styles.emptyTitle, { color: colors.text }]}>All caught up</Text>
-                        <Text style={[styles.emptySub, { color: colors.gray500 }]}>You'll see activity notifications here</Text>
+                        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('all_caught_up_activity')}</Text>
+                        <Text style={[styles.emptySub, { color: colors.gray500 }]}>{t('activity_empty_sub')}</Text>
                     </View>
                 }
             />

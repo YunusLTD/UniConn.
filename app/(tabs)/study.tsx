@@ -17,15 +17,15 @@ export default function StudyScreen() {
 
     const SUBJECTS = [
         { id: 'All', label: t('all_subjects'), icon: 'apps-outline' as const },
-        { id: 'Math', label: t('math' as any) || 'Math', icon: 'calculator-outline' as const },
-        { id: 'Science', label: t('science' as any) || 'Science', icon: 'flask-outline' as const },
-        { id: 'English', label: t('english' as any) || 'English', icon: 'book-outline' as const },
-        { id: 'History', label: t('history' as any) || 'History', icon: 'time-outline' as const },
-        { id: 'Physics', label: t('physics' as any) || 'Physics', icon: 'magnet-outline' as const },
-        { id: 'Computer Science', label: t('cs' as any) || 'CS', icon: 'hardware-chip-outline' as const },
-        { id: 'Business', label: t('business' as any) || 'Business', icon: 'briefcase-outline' as const },
-        { id: 'Arts', label: t('arts' as any) || 'Arts', icon: 'color-palette-outline' as const },
-        { id: 'Other', label: t('other' as any) || 'Other', icon: 'ellipsis-horizontal-outline' as const },
+        { id: 'Math', label: t('math' as any), icon: 'calculator-outline' as const },
+        { id: 'Science', label: t('science' as any), icon: 'flask-outline' as const },
+        { id: 'English', label: t('english' as any), icon: 'book-outline' as const },
+        { id: 'History', label: t('history' as any), icon: 'time-outline' as const },
+        { id: 'Physics', label: t('physics' as any), icon: 'magnet-outline' as const },
+        { id: 'Computer Science', label: t('cs' as any), icon: 'hardware-chip-outline' as const },
+        { id: 'Business', label: t('business' as any), icon: 'briefcase-outline' as const },
+        { id: 'Arts', label: t('arts' as any), icon: 'color-palette-outline' as const },
+        { id: 'Other', label: t('other' as any), icon: 'ellipsis-horizontal-outline' as const },
     ];
     const [questions, setQuestions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);

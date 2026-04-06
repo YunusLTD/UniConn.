@@ -142,11 +142,39 @@ export default function HomeScreen() {
             }));
         });
 
+        const updateSub = DeviceEventEmitter.addListener('postUpdated', (data) => {
+            setPosts(prev => prev.map(p => {
+                if (p.id !== data.postId) return p;
+
+                const localPatch = {
+                    ...p,
+                    content: data.content ?? p.content,
+                    updated_at: data.updated_at ?? new Date().toISOString(),
+                    is_edited: true,
+                };
+
+                // Some edit endpoints return partial payloads or no body at all.
+                // Always apply the local patch first so the user sees the edit immediately.
+                if (data.updatedPost && typeof data.updatedPost === 'object') {
+                    return {
+                        ...localPatch,
+                        ...data.updatedPost,
+                        content: data.updatedPost.content ?? localPatch.content,
+                        updated_at: data.updatedPost.updated_at ?? localPatch.updated_at,
+                        is_edited: data.updatedPost.is_edited ?? true,
+                    };
+                }
+
+                return localPatch;
+            }));
+        });
+
         return () => {
             sub.remove();
             storySub.remove();
             profileSub.remove();
             voteSub.remove();
+            updateSub.remove();
         }
     }, []);
 

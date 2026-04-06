@@ -200,9 +200,14 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const [isVoting, setIsVoting] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
-    const isEdited = post.updated_at && 
-        post.updated_at !== post.created_at && 
-        (new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 10000);
+    const isEdited = !!(
+        post.is_edited ||
+        (
+            post.updated_at &&
+            post.created_at &&
+            new Date(post.updated_at).getTime() > new Date(post.created_at).getTime()
+        )
+    );
 
     const handleMenu = () => {
         hapticLight();
@@ -399,8 +404,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                 {isEdited && (
                                     <>
                                         <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                        <MaterialCommunityIcons name="pencil-outline" size={11} color={themeColors.gray400} style={{ marginLeft: 2 }} />
-                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11, marginLeft: 1 }]}>edited</Text>
+                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11 }]}>edited</Text>
                                     </>
                                 )}
                             </View>
@@ -559,7 +563,9 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
 
 export default React.memo(PostCard, (prevProps, nextProps) => {
     return prevProps.post.id === nextProps.post.id &&
+           prevProps.post.content === nextProps.post.content &&
            prevProps.post.updated_at === nextProps.post.updated_at &&
+           prevProps.post.is_edited === nextProps.post.is_edited &&
            prevProps.post.my_vote === nextProps.post.my_vote &&
            prevProps.post.vote_count === nextProps.post.vote_count &&
            prevProps.post.comments?.[0]?.count === nextProps.post.comments?.[0]?.count &&

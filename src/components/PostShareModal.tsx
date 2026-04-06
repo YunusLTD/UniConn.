@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { getFriendsList } from '../api/friends';
 import { sendMessage, createConversation } from '../api/messages';
+import { useLanguage } from '../context/LanguageContext';
 import { hapticLight, hapticSuccess, hapticError } from '../utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +19,7 @@ interface PostShareModalProps {
 
 export default function PostShareModal({ visible, onClose, post }: PostShareModalProps) {
     const { colors: themeColors } = useTheme();
+    const { t } = useLanguage();
     const insets = useSafeAreaInsets();
     const [search, setSearch] = useState('');
     const [friends, setFriends] = useState<any[]>([]);
@@ -117,13 +119,13 @@ export default function PostShareModal({ visible, onClose, post }: PostShareModa
                 ]}>
                     <View style={[styles.indicator, { backgroundColor: themeColors.gray200 }]} />
                     
-                    <Text style={[styles.title, { color: themeColors.black }]}>Send to Friends</Text>
+                    <Text style={[styles.title, { color: themeColors.black }]}>{t('send_to_friends')}</Text>
 
                     <View style={[styles.searchBox, { backgroundColor: themeColors.gray100 }]}>
                         <Ionicons name="search" size={18} color={themeColors.gray500} />
                         <TextInput
                             style={[styles.searchInput, { color: themeColors.black }]}
-                            placeholder="Search friends..."
+                            placeholder={t('search_friends')}
                             placeholderTextColor={themeColors.gray500}
                             value={search}
                             onChangeText={setSearch}
@@ -173,7 +175,7 @@ export default function PostShareModal({ visible, onClose, post }: PostShareModa
                                                     { color: themeColors.white },
                                                     sentIds.has(friendId) && { color: themeColors.gray500 }
                                                 ]}>
-                                                    {sentIds.has(friendId) ? 'Sent' : 'Send'}
+                                                    {sentIds.has(friendId) ? t('sent') : t('send')}
                                                 </Text>
                                             )}
                                         </TouchableOpacity>
@@ -183,7 +185,7 @@ export default function PostShareModal({ visible, onClose, post }: PostShareModa
                             ListEmptyComponent={
                                 !loading ? (
                                     <View style={styles.emptyContainer}>
-                                        <Text style={{ color: themeColors.gray400, fontFamily: fonts.medium }}>No friends found</Text>
+                                        <Text style={{ color: themeColors.gray400, fontFamily: fonts.medium }}>{t('no_friends_found')}</Text>
                                     </View>
                                 ) : null
                             }

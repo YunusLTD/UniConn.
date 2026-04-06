@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
+import { useLanguage } from '../../../src/context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 const COVER_HEIGHT = 380;
@@ -29,6 +30,7 @@ export default function CommunityDetailScreen() {
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -72,12 +74,12 @@ export default function CommunityDetailScreen() {
         if (community.is_member || community.membership_status === 'pending') {
             const isPending = community.membership_status === 'pending';
             Alert.alert(
-                isPending ? 'Retract Request' : 'Leave Community', 
-                `Are you sure you want to ${isPending ? 'retract your join request for' : 'leave'} ${community.name}?`, 
+                isPending ? t('retract_request_title') : t('leave_community_title'), 
+                isPending ? t('retract_request_body') : t('leave_community_body'), 
                 [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('cancel_request'), style: 'cancel' },
                     {
-                        text: isPending ? 'Retract' : 'Leave', 
+                        text: isPending ? t('retract_request_title') : t('leave_community_title'), 
                         style: 'destructive', 
                         onPress: async () => {
                             setSubmitting(true);
@@ -101,12 +103,12 @@ export default function CommunityDetailScreen() {
         try {
             const res = await joinCommunity(id as string);
             if (res.status === 'pending') {
-                Alert.alert('Request Sent', 'This community is private. An admin will review your request.');
+                Alert.alert(t('request_sent_title'), t('request_sent_body'));
             }
             await loadData();
         } catch (e) {
             console.log('Error updating membership:', e);
-            Alert.alert('Error', 'Failed to join community');
+            Alert.alert(t('error'), t('join_required_body'));
         } finally {
             setSubmitting(false);
         }
@@ -114,7 +116,7 @@ export default function CommunityDetailScreen() {
 
     const handleDeleteCommunity = () => {
         Alert.alert('Delete Community', 'This is permanent. All posts and data will be lost.', [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('cancel_request'), style: 'cancel' },
             {
                 text: 'Delete Everywhere', style: 'destructive', onPress: async () => {
                     try {
@@ -136,16 +138,16 @@ export default function CommunityDetailScreen() {
 
     const handleOpenChat = () => {
         if (!community.is_member) {
-            Alert.alert('Join Required', `You need to be a member of ${community.name} to enter the chat.`, [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Join Now', onPress: handleJoinLeave }
+            Alert.alert(t('join_required_title'), t('join_required_body'), [
+                { text: t('cancel_request'), style: 'cancel' },
+                { text: t('join_to_chat'), onPress: handleJoinLeave }
             ]);
             return;
         }
         if (community.conversation_id) {
             router.push(`/chat/${community.conversation_id}`);
         } else {
-            Alert.alert('Chat Initializing', 'The chat room is being synchronized. Please try again in 5 seconds.');
+            Alert.alert(t('chat_initializing_title'), t('chat_initializing_body'));
         }
     };
 
@@ -160,9 +162,9 @@ export default function CommunityDetailScreen() {
     }, [posts, activeTab]);
 
     const getEmptyMessage = () => {
-        if (activeTab === 'events') return "No upcoming events posted.";
-        if (activeTab === 'market') return "The marketplace is empty.";
-        return "Be the first to share something here!";
+        if (activeTab === 'events') return t('empty_events');
+        if (activeTab === 'market') return t('empty_market');
+        return t('empty_feed');
     };
 
     const renderItem = useCallback(({ item }: { item: any }) => {
@@ -197,19 +199,19 @@ export default function CommunityDetailScreen() {
                         <View style={styles.coverContent}>
                             {isAdmin && (
                                 <View style={styles.adminBadge}>
-                                    <Text style={styles.adminBadgeText}>CREATOR ADMIN</Text>
+                                    <Text style={styles.adminBadgeText}>{t('admin_creator')}</Text>
                                 </View>
                             )}
                             <View style={styles.badgesRow}>
                                 <View style={[styles.typeTag, isStudyGroup && styles.studyTag]}>
                                     <Text style={styles.typeTagText}>
-                                        {isStudyGroup ? '📚 STUDY HUB' : community.type?.replace('_', ' ').toUpperCase()}
+                                        {isStudyGroup ? t('study_hub') : community.type?.replace('_', ' ').toUpperCase()}
                                     </Text>
                                 </View>
                                 {community.is_private && (
                                     <View style={styles.privateTag}>
                                         <Ionicons name="lock-closed" size={12} color="white" />
-                                        <Text style={styles.privateTagText}>PRIVATE</Text>
+                                        <Text style={styles.privateTagText}>{t('private_label')}</Text>
                                     </View>
                                 )}
                             </View>
@@ -221,12 +223,12 @@ export default function CommunityDetailScreen() {
                                     onPress={() => router.push(`/community/${id}/members` as any)}
                                 >
                                     <Ionicons name="people" size={16} color="rgba(255,255,255,0.7)" />
-                                    <Text style={styles.coverSubtitle}>{community.member_count || 0} Students</Text>
+                                    <Text style={styles.coverSubtitle}>{community.member_count || 0} {t('students_label')}</Text>
                                 </TouchableOpacity>
                                 {isAdmin && (
                                     <TouchableOpacity style={styles.adminEditBtn} onPress={() => router.push({ pathname: '/community/create', params: { edit: true, id: id as string } } as any)}>
                                         <Ionicons name="settings-outline" size={16} color="white" />
-                                        <Text style={styles.adminEditBtnText}>Manage</Text>
+                                        <Text style={styles.adminEditBtnText}>{t('manage')}</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -255,7 +257,7 @@ export default function CommunityDetailScreen() {
                         >
                             <Ionicons name="chatbubbles" size={20} color="white" />
                             <Text style={[styles.chatBtnText, { color: 'white' }]}>
-                                {community.is_member ? 'Enter Chat Room' : (community.is_private ? 'Members Only' : 'Join to Chat')}
+                                {community.is_member ? t('enter_chat_room') : (community.is_private ? t('members_only') : t('join_to_chat'))}
                             </Text>
                         </TouchableOpacity>
 
@@ -265,7 +267,7 @@ export default function CommunityDetailScreen() {
                                 onPress={() => router.push({ pathname: '/create-post', params: { communityId: id } } as any)}
                             >
                                 <Ionicons name="add" size={20} color={colors.text} />
-                                <Text style={[styles.postBtnText, { color: colors.text }]}>Post Something</Text>
+                                <Text style={[styles.postBtnText, { color: colors.text }]}>{t('post_something')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -283,7 +285,7 @@ export default function CommunityDetailScreen() {
                                     <ActivityIndicator size="small" color={community.is_member || community.membership_status === 'pending' ? colors.gray600 : 'white'} />
                                 ) : (
                                     <Text style={[styles.joinBtnText, (community.is_member || community.membership_status === 'pending') && { color: colors.gray600 }]}>
-                                        {community.is_member ? 'Member' : (community.membership_status === 'pending' ? 'Requested' : (community.is_private ? 'Request' : 'Join Hub'))}
+                                        {community.is_member ? t('member_status_member') : (community.membership_status === 'pending' ? t('member_status_pending') : (community.is_private ? t('member_status_request') : t('member_status_join')))}
                                     </Text>
                                 )}
                             </TouchableOpacity>
@@ -313,7 +315,7 @@ export default function CommunityDetailScreen() {
                                     styles.pillTabText, 
                                     activeTab === tab ? styles.pillTabTextActive : { color: colors.gray500 }
                                 ]}>
-                                    {tab === 'all' ? 'Feed' : (tab === 'market' ? 'Market' : 'Events')}
+                                    {tab === 'all' ? t('feed_tab') : (tab === 'market' ? t('market_tab_label') : t('events_tab'))}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -327,14 +329,14 @@ export default function CommunityDetailScreen() {
                             onPress={() => setEventViewMode('list')}
                         >
                             <Ionicons name="list" size={14} color={eventViewMode === 'list' ? colors.background : colors.gray500} />
-                            <Text style={[styles.toggleText, eventViewMode === 'list' ? { color: colors.background } : { color: colors.gray500 }]}>List</Text>
+                            <Text style={[styles.toggleText, eventViewMode === 'list' ? { color: colors.background } : { color: colors.gray500 }]}>{t('list_view')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.toggleBtn, eventViewMode === 'calendar' ? { backgroundColor: colors.text } : { backgroundColor: colors.gray100 }]}
                             onPress={() => setEventViewMode('calendar')}
                         >
                             <Ionicons name="calendar" size={14} color={eventViewMode === 'calendar' ? colors.background : colors.gray500} />
-                            <Text style={[styles.toggleText, eventViewMode === 'calendar' ? { color: colors.background } : { color: colors.gray500 }]}>Calendar</Text>
+                            <Text style={[styles.toggleText, eventViewMode === 'calendar' ? { color: colors.background } : { color: colors.gray500 }]}>{t('calendar_view')}</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -343,7 +345,7 @@ export default function CommunityDetailScreen() {
     }, [community, isAdmin, activeTab, eventViewMode, colors, isDark]);
 
     if (loading) return <ShadowLoader type="community" />;
-    if (!community) return <View style={styles.centered}><Text style={{ color: colors.gray400 }}>Community not found</Text></View>;
+    if (!community) return <View style={styles.centered}><Text style={{ color: colors.gray400 }}>{t('community_not_found')}</Text></View>;
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -380,9 +382,9 @@ export default function CommunityDetailScreen() {
                     <View style={styles.lockedIconCircle}>
                         <Ionicons name="lock-closed" size={42} color={colors.gray400} />
                     </View>
-                    <Text style={styles.lockedTitle}>Private Community</Text>
+                    <Text style={styles.lockedTitle}>{t('private_label')} Community</Text>
                     <Text style={styles.lockedText}>
-                        Join this community to see its feed and connect with students. Content is hidden to protect privacy.
+                        {t('locked_body')}
                     </Text>
                     {community.membership_status !== 'pending' && (
                         <TouchableOpacity 
@@ -393,7 +395,7 @@ export default function CommunityDetailScreen() {
                             {submitting ? (
                                 <ActivityIndicator size="small" color="white" />
                             ) : (
-                                <Text style={styles.requestButtonText}>Request to Join</Text>
+                                <Text style={styles.requestButtonText}>{t('request_to_join')}</Text>
                             )}
                         </TouchableOpacity>
                     )}
@@ -406,7 +408,7 @@ export default function CommunityDetailScreen() {
                             {submitting ? (
                                 <ActivityIndicator size="small" color={colors.gray600} />
                             ) : (
-                                <Text style={[styles.requestButtonText, { color: colors.gray600 }]}>Cancel Request</Text>
+                                <Text style={[styles.requestButtonText, { color: colors.gray600 }]}>{t('cancel_request')}</Text>
                             )}
                         </TouchableOpacity>
                     )}

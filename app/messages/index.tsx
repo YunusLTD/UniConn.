@@ -70,7 +70,7 @@ export default function MessagesScreen() {
                         <Ionicons name="search" size={20} color={colors.gray400} />
                         <TextInput
                             style={[styles.searchInput, { color: colors.black }]}
-                            placeholder="Search messages..."
+                            placeholder={t('search_messages_placeholder')}
                             placeholderTextColor={colors.gray400}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
@@ -88,7 +88,7 @@ export default function MessagesScreen() {
             renderItem={({ item }) => {
                 const otherParticipant = item.participants?.find((p: any) => p.user_id !== user?.id);
                 const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
-                const rawDisplayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : item.name || 'Group';
+                const rawDisplayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || t('user_fallback')) : item.name || t('group_fallback');
                 const displayName = rawDisplayName
                     .replace(/[💬]/g, '')
                     .replace(/Community/gi, '')
@@ -130,17 +130,17 @@ export default function MessagesScreen() {
                             </View>
                             <Text style={[styles.lastMsg, { color: colors.gray500 }]} numberOfLines={1}>
                                 {(() => {
-                                    if (!item.last_message) return 'No messages yet';
+                                    if (!item.last_message) return t('no_messages_yet');
                                     
                                     const isSharedPost = item.last_message.content?.includes('https://uni-platform.app/post/');
                                     if (isSharedPost) {
                                         const isMine = item.last_message.sender_id === user?.id;
                                         const sender = item.participants?.find((p: any) => p.user_id === item.last_message.sender_id);
-                                        const firstName = sender?.profiles?.name?.split(' ')[0] || 'Someone';
-                                        return isMine ? 'You shared this post' : `${firstName} shared this post`;
+                                        const firstName = sender?.profiles?.name?.split(' ')[0] || t('user_fallback');
+                                        return isMine ? t('you_shared_post') : t('someone_shared_post').replace('{{name}}', firstName);
                                     }
                                     
-                                    return item.last_message.content || (item.last_message.media_type === 'video' ? '🎥 Video' : '📷 Photo');
+                                    return item.last_message.content || (item.last_message.media_type === 'video' ? `🎥 ${t('video_label')}` : `📷 ${t('photo_label')}`);
                                 })()}
                             </Text>
                         </View>
@@ -166,7 +166,7 @@ export default function MessagesScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
-                headerTitle: 'Messages',
+                headerTitle: t('messages_header'),
                 headerBackTitle: '',
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.black,
@@ -177,10 +177,10 @@ export default function MessagesScreen() {
             <ActionModal
                 visible={!!longPressedConv}
                 onClose={() => setLongPressedConv(null)}
-                title="Conversation Options"
+                title={t('conversation_options')}
                 options={[
                     { 
-                        label: 'Clear History', 
+                        label: t('clear_history'), 
                         icon: 'trash-outline', 
                         destructive: true, 
                         onPress: () => handleDeleteConversation(longPressedConv.id) 
@@ -274,4 +274,3 @@ const styles = StyleSheet.create({
         borderWidth: 2,
     },
 });
-

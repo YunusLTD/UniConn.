@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Clipboard, Alert } from 'react-native';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { deleteStudyQuestion } from '../api/study';
 import { submitReport } from '../api/reports';
 import ActionModal, { ActionOption } from './ActionModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface StudyCardProps {
     question: any;
@@ -15,11 +16,45 @@ interface StudyCardProps {
 
 const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = ({ question, onDelete }) => {
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const router = useRouter();
     const { user } = useAuth();
     const [actionVisible, setActionVisible] = useState(false);
     const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const isMe = user?.id === question.user_id;
+    const subjectLabel = useMemo(() => {
+        const key = String(question.subject || '').toLowerCase();
+        const map: Record<string, string> = {
+            'math': t('math' as any),
+            'science': t('science' as any),
+            'english': t('english' as any),
+            'history': t('history' as any),
+            'physics': t('physics' as any),
+            'computer science': t('cs' as any),
+            'business': t('business' as any),
+            'arts': t('arts' as any),
+            'other': t('other' as any),
+        };
+        return map[key] || question.subject || t('other');
+    }, [question.subject, t]);
+
+    const formatRelativeLocalized = (dateString: string | Date) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHrs = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHrs / 24);
+
+        if (diffSecs < 30) return t('just_now');
+        if (diffMins < 60) return t('minute_ago').replace('{{count}}', String(diffMins));
+        if (diffHrs < 24) return t('hour_ago').replace('{{count}}', String(diffHrs));
+        if (diffDays === 1) return t('yesterday');
+        if (diffDays < 7) return t('day_ago').replace('{{count}}', String(diffDays));
+        return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+    };
     const initial = question.profiles?.name?.[0]?.toUpperCase() || '?';
 
     const handleDelete = () => {
@@ -127,11 +162,11 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
                         <Text style={[styles.name, { color: colors.black }]}>{question.profiles?.name || 'Anonymous'}</Text>
                         {isMe && <Text style={[styles.name, { color: colors.gray400, fontSize: 13 }]}>{'(You)'}</Text>}
                     </View>
-                    <Text style={[styles.time, { color: colors.gray500 }]}>{new Date(question.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {question.subject}</Text>
+                    <Text style={[styles.time, { color: colors.gray500 }]}>{formatRelativeLocalized(question.created_at)}</Text>
                 </View>
                 <View style={styles.badgeRow}>
                     <View style={[styles.subjectBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                        <Text style={[styles.subjectText, { color: colors.gray600 }]}>{question.subject}</Text>
+                        <Text style={[styles.subjectText, { color: colors.gray600 }]}>{subjectLabel}</Text>
                     </View>
                     <TouchableOpacity onPress={handleMenu} hitSlop={8} style={{ marginLeft: 8 }}>
                         <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
@@ -153,10 +188,12 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
             <View style={[styles.footer, { borderTopColor: colors.border }]}>
                 <View style={styles.action}>
                     <Ionicons name="chatbubble-outline" size={18} color={colors.gray500} />
-                    <Text style={[styles.actionText, { color: colors.gray500 }]}>{question.answers_count || 0} {question.answers_count === 1 ? 'Reply' : 'Replies'}</Text>
+                    <Text style={[styles.actionText, { color: colors.gray500 }]}>
+                        {question.answers_count || 0} {question.answers_count === 1 ? t('reply') : t('replies')}
+                    </Text>
                 </View>
                 <View style={styles.action}>
-                    <Text style={[styles.actionText, { color: colors.black, fontFamily: fonts.bold }]}>Help out</Text>
+                    <Text style={[styles.actionText, { color: colors.black, fontFamily: fonts.bold }]}>{t('help_out')}</Text>
                     <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                 </View>
 

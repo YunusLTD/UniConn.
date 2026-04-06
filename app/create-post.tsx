@@ -169,7 +169,15 @@ export default function CreatePostModal() {
             if (creationType === 'post') {
                 if (!content.trim() && attachments.length === 0) throw new Error('Content or media is required');
                 if (params.edit === 'true' && params.postId) {
-                    await updatePost(params.postId as string, { content: content.trim() });
+                    const updateRes = await updatePost(params.postId as string, { content: content.trim() });
+                    const localUpdatedAt = new Date().toISOString();
+                    DeviceEventEmitter.emit('postUpdated', {
+                        postId: params.postId,
+                        content: content.trim(),
+                        updated_at: localUpdatedAt,
+                        is_edited: true,
+                        updatedPost: updateRes?.data || updateRes || null,
+                    });
                 } else {
                     await createPost(selectedCommunity.id, { content: content.trim(), media_urls, media_types });
                 }
@@ -206,7 +214,9 @@ export default function CreatePostModal() {
                     options: validOptions.map(o => o.trim()),
                 });
             }
-            DeviceEventEmitter.emit('postCreated');
+            if (!(creationType === 'post' && params.edit === 'true' && params.postId)) {
+                DeviceEventEmitter.emit('postCreated');
+            }
             router.back();
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to create');

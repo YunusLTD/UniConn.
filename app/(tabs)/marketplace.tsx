@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, 
 import { useRouter, Stack } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
-import { formatRelativeTime } from '../../src/utils/date';
 import { getFeed } from '../../src/api/feed';
 import { listCommunities, getMyCommunities } from '../../src/api/communities';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -34,11 +33,11 @@ export default function MarketplaceScreen() {
 
     const CATEGORIES = [
         { id: 'all', label: t('all_subjects'), icon: 'apps-outline' as const },
-        { id: 'books', label: 'Books', icon: 'book-outline' as const },
-        { id: 'clothes', label: 'Clothes', icon: 'shirt-outline' as const },
-        { id: 'accessories', label: 'Accessories', icon: 'watch-outline' as const },
+        { id: 'books', label: t('books'), icon: 'book-outline' as const },
+        { id: 'clothes', label: t('clothes'), icon: 'shirt-outline' as const },
+        { id: 'accessories', label: t('accessories'), icon: 'watch-outline' as const },
         { id: 'free', label: t('free_badge'), icon: 'gift-outline' as const },
-        { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' as const },
+        { id: 'other', label: t('other'), icon: 'ellipsis-horizontal-outline' as const },
     ];
 
     const loadData = async (isRefresh = false) => {
@@ -143,6 +142,25 @@ export default function MarketplaceScreen() {
         </View>
     );
 
+    const formatRelativeLocalized = (dateString: string | Date) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHrs = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHrs / 24);
+
+        if (diffSecs < 30) return t('just_now');
+        if (diffMins < 60) return t('minute_ago').replace('{{count}}', String(diffMins));
+        if (diffHrs < 24) return t('hour_ago').replace('{{count}}', String(diffHrs));
+        if (diffDays === 1) return t('yesterday');
+        if (diffDays < 7) return t('day_ago').replace('{{count}}', String(diffDays));
+        // Fallback to locale date
+        return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+    };
+
     const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity 
             style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.gray100 }]}
@@ -194,7 +212,7 @@ export default function MarketplaceScreen() {
                     <Text style={[styles.itemLocation, { color: colors.gray400 }]} numberOfLines={1}>
                         <Ionicons name="time-outline" size={10} color={colors.gray400} />
                         {'  '}
-                        {formatRelativeTime(item.created_at)}
+                        {formatRelativeLocalized(item.created_at)}
                     </Text>
                 </View>
             </View>
