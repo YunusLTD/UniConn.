@@ -10,17 +10,24 @@ import { updateProfile } from '../api/users';
 import { getUnreadCount } from '../api/notifications';
 import { supabase } from '../api/supabase';
 import { useTheme } from './ThemeContext';
-import { getConversation } from '../api/messages';
+import { useLanguage } from './LanguageContext';
+import { getConversation, getConversations } from '../api/messages';
 import { fonts, spacing } from '../constants/theme';
+import { hapticLight } from '../utils/haptics';
 
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+        const data = notification.request.content?.data || {};
+        const isMessage = data?.type === 'message';
+
+        return {
+            shouldShowAlert: !isMessage,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: !isMessage,
+            shouldShowList: true,
+        };
+    },
 });
 
 type NotificationContextType = {
@@ -49,11 +56,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const pathname = usePathname();
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const notificationListener = useRef<Notifications.Subscription | null>(null);
     const responseListener = useRef<Notifications.Subscription | null>(null);
     const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastBannerRef = useRef<{ signature: string; shownAt: number } | null>(null);
+    const lastConversationMessageAtRef = useRef<Record<string, string>>({});
+    const seededConversationWatcherRef = useRef(false);
     const bannerTranslate = useRef(new Animated.Value(-160)).current;
     const bannerOpacity = useRef(new Animated.Value(0)).current;
+    const activeBanner = messageBanner;
 
     const fetchUnreadCount = async () => {
         if (!token) return;
@@ -124,7 +136,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             if (!res?.data) return;
             const convo = res.data;
             const other = convo.participants?.find((p: any) => p.user_id !== user?.id);
-            const title = convo.type === 'direct' ? (other?.profiles?.name || 'Message') : (convo.name || 'Group chat');
+            const title = convo.type === 'direct'
+                ? (other?.profiles?.name || t('new_message'))
+                : (convo.name || convo.community?.name || t('group_chat'));
             const avatarUrl = convo.type === 'direct'
                 ? other?.profiles?.avatar_url
                 : (convo.community?.image_url || convo.communities?.[0]?.image_url || convo.communities?.[0]?.logo_url);
@@ -135,21 +149,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         } catch (e) {
             console.log('Failed to hydrate conversation meta', e);
         }
-    }, [user?.id]);
+    }, [t, user?.id]);
 
     const showMessageBanner = useCallback((data: Partial<MessageBannerData> & { conversationId?: string }) => {
         if (!data.conversationId) return;
         if (isOnMessagingScreen()) return;
 
+        const normalizedTitle = (data.title || '')
+            .replace(/^Message from\s+/i, '')
+            .trim() || t('new_message');
+        const normalizedBody = (data.body || '').trim() || t('you_received_a_new_message');
+        const signature = `${data.conversationId}:${normalizedTitle}:${normalizedBody}`;
+
+        if (lastBannerRef.current?.signature === signature && Date.now() - lastBannerRef.current.shownAt < 1500) {
+            return;
+        }
+
+        lastBannerRef.current = { signature, shownAt: Date.now() };
+
         const bannerPayload: MessageBannerData = {
             conversationId: data.conversationId,
-            title: data.title || 'New message',
-            body: data.body || 'You received a new message',
+            title: normalizedTitle,
+            body: normalizedBody,
             avatarUrl: data.avatarUrl,
         };
 
         setMessageBanner(bannerPayload);
         hydrateConversationMeta(data.conversationId);
+        hapticLight();
 
         Animated.parallel([
             Animated.timing(bannerTranslate, {
@@ -166,8 +193,84 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         ]).start();
 
         if (bannerTimer.current) clearTimeout(bannerTimer.current);
-        bannerTimer.current = setTimeout(hideMessageBanner, 5000);
-    }, [bannerOpacity, bannerTranslate, hideMessageBanner, hydrateConversationMeta, isOnMessagingScreen]);
+        bannerTimer.current = setTimeout(hideMessageBanner, 4500);
+    }, [bannerOpacity, bannerTranslate, hideMessageBanner, hydrateConversationMeta, isOnMessagingScreen, t]);
+
+    const checkConversationsForIncomingMessages = useCallback(async () => {
+        const currentUserId = user?.id;
+        if (!token || !currentUserId) return;
+        if (isOnMessagingScreen()) return;
+
+        try {
+            const res = await getConversations();
+            const conversations = Array.isArray(res?.data) ? res.data : [];
+
+            if (!seededConversationWatcherRef.current) {
+                const seed: Record<string, string> = {};
+                conversations.forEach((conv: any) => {
+                    const ts = conv?.last_message?.created_at;
+                    if (ts) seed[conv.id] = ts;
+                });
+                lastConversationMessageAtRef.current = seed;
+                seededConversationWatcherRef.current = true;
+                return;
+            }
+
+            let newestIncoming: { conv: any; message: any; createdAtMs: number } | null = null;
+
+            for (const conv of conversations) {
+                const msg = conv?.last_message;
+                const createdAt = msg?.created_at;
+                if (!conv?.id || !createdAt) continue;
+
+                const prev = lastConversationMessageAtRef.current[conv.id];
+                lastConversationMessageAtRef.current[conv.id] = createdAt;
+                if (!prev) continue;
+
+                const createdAtMs = new Date(createdAt).getTime();
+                const prevMs = new Date(prev).getTime();
+                if (!Number.isFinite(createdAtMs) || !Number.isFinite(prevMs) || createdAtMs <= prevMs) continue;
+                if (msg?.sender_id === currentUserId) continue;
+
+                if (!newestIncoming || createdAtMs > newestIncoming.createdAtMs) {
+                    newestIncoming = { conv, message: msg, createdAtMs };
+                }
+            }
+
+            if (!newestIncoming) return;
+
+            const conv = newestIncoming.conv;
+            const msg = newestIncoming.message;
+            const other = conv?.participants?.find((p: any) => p?.user_id !== currentUserId);
+            const isDirect = conv?.type === 'direct';
+
+            const title = isDirect
+                ? (other?.profiles?.name || t('new_message'))
+                : (conv?.name || conv?.community?.name || t('group_chat'));
+
+            const avatarUrl = isDirect
+                ? other?.profiles?.avatar_url
+                : (conv?.community?.image_url || conv?.community?.logo_url);
+
+            const body = (msg?.content || '').trim()
+                || (msg?.media_type === 'video' ? t('video_label') : msg?.media_url ? t('photo_label') : t('you_received_a_new_message'));
+
+            showMessageBanner({
+                conversationId: conv.id,
+                title,
+                body,
+                avatarUrl,
+            });
+        } catch (e) {
+            console.log('Conversation watcher failed', e);
+        }
+    }, [isOnMessagingScreen, showMessageBanner, t, token, user?.id]);
+
+    useEffect(() => {
+        if (messageBanner && isOnMessagingScreen()) {
+            hideMessageBanner();
+        }
+    }, [hideMessageBanner, isOnMessagingScreen, messageBanner, pathname]);
 
     useEffect(() => {
         if (token && user) {
@@ -177,12 +280,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
                 fetchUnreadCount();
 
-                const data = notification.request.content?.data || {};
-                if (data?.type === 'message') {
+                const data = (notification.request.content?.data || {}) as Record<string, any>;
+                const conversationId = typeof data?.reference_id === 'string' ? data.reference_id : undefined;
+                if (data?.type === 'message' && conversationId) {
                     showMessageBanner({
-                        conversationId: data.reference_id,
-                        title: notification.request.content.title,
-                        body: notification.request.content.body,
+                        conversationId,
+                        title: notification.request.content.title ?? undefined,
+                        body: notification.request.content.body ?? undefined,
                     });
                 }
             });
@@ -240,6 +344,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
     }, [token]);
 
+    useEffect(() => {
+        if (!token || !user?.id) return;
+
+        seededConversationWatcherRef.current = false;
+        lastConversationMessageAtRef.current = {};
+        checkConversationsForIncomingMessages();
+
+        const interval = setInterval(checkConversationsForIncomingMessages, 5000);
+        return () => clearInterval(interval);
+    }, [checkConversationsForIncomingMessages, token, user?.id]);
+
     return (
         <NotificationContext.Provider value={{
             unreadCount: counts.total,
@@ -250,8 +365,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             refreshUnreadCount: fetchUnreadCount
         }}>
             {children}
-            {messageBanner && (
+            {activeBanner && (
                 <Animated.View
+                    pointerEvents="box-none"
                     style={[
                         styles.bannerWrap,
                         {
@@ -265,7 +381,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                         activeOpacity={0.85}
                         onPress={() => {
                             hideMessageBanner();
-                            router.push(`/chat/${messageBanner.conversationId}` as any);
+                            router.push(`/chat/${activeBanner.conversationId}` as any);
                         }}
                         style={[
                             styles.banner,
@@ -276,26 +392,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                             }
                         ]}
                     >
-                        {messageBanner.avatarUrl ? (
-                            <Image source={{ uri: messageBanner.avatarUrl }} style={styles.avatar} />
+                        {activeBanner.avatarUrl ? (
+                            <Image source={{ uri: activeBanner.avatarUrl }} style={styles.avatar} />
                         ) : (
-                            <View style={[styles.avatar, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}>
+                            <View
+                                style={[
+                                    styles.avatar,
+                                    { backgroundColor: isDark ? colors.elevated : colors.gray100, borderColor: colors.border }
+                                ]}
+                            >
                                 <Text style={{ color: colors.black, fontFamily: fonts.bold }}>
-                                    {messageBanner.title.substring(0, 1).toUpperCase()}
+                                    {activeBanner.title.substring(0, 1).toUpperCase()}
                                 </Text>
                             </View>
                         )}
                         <View style={{ flex: 1 }}>
+                            <View style={styles.metaRow}>
+                                <View
+                                    style={[
+                                        styles.messagePill,
+                                        { backgroundColor: isDark ? 'rgba(96,165,250,0.2)' : 'rgba(59,130,246,0.12)' }
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.messagePillText,
+                                            { color: colors.blue }
+                                        ]}
+                                    >
+                                        {t('message')}
+                                    </Text>
+                                </View>
+                                <Text style={[styles.bannerMeta, { color: colors.gray500 }]} numberOfLines={1}>
+                                    {t('just_now')}
+                                </Text>
+                            </View>
                             <Text style={[styles.bannerTitle, { color: colors.black }]} numberOfLines={1}>
-                                {messageBanner.title || 'New message'}
+                                {activeBanner.title || t('new_message')}
                             </Text>
                             <Text style={[styles.bannerBody, { color: colors.gray500 }]} numberOfLines={2}>
-                                {messageBanner.body || 'You received a new message'}
+                                {activeBanner.body || t('you_received_a_new_message')}
                             </Text>
                         </View>
-                        <TouchableOpacity onPress={hideMessageBanner} hitSlop={10}>
-                            <Text style={{ color: colors.gray400, fontSize: 18 }}>×</Text>
-                        </TouchableOpacity>
                     </TouchableOpacity>
                 </Animated.View>
             )}
@@ -316,29 +454,50 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 9999,
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing.md,
     },
     banner: {
+        overflow: 'hidden',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         paddingVertical: 12,
         paddingHorizontal: 14,
-        borderRadius: 14,
-        borderWidth: 0.5,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.12,
-        shadowRadius: 20,
-        elevation: 10,
+        borderRadius: 18,
+        borderWidth: 1,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+        elevation: 7,
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        borderWidth: 0.5,
-        borderColor: 'rgba(255,255,255,0.2)',
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 5,
+    },
+    messagePill: {
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    messagePillText: {
+        fontFamily: fonts.bold,
+        fontSize: 10,
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+    },
+    bannerMeta: {
+        fontFamily: fonts.medium,
+        fontSize: 11,
     },
     bannerTitle: {
         fontFamily: fonts.semibold,
