@@ -209,7 +209,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                         <Video
                             source={{ uri: currentStory.media_url }}
                             style={styles.image}
-                            resizeMode={ResizeMode.COVER}
+                            resizeMode={ResizeMode.CONTAIN}
                             shouldPlay={!isPaused && visible && isMediaLoaded}
                             isLooping={false}
                             onReadyForDisplay={() => setIsMediaLoaded(true)}
@@ -225,7 +225,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                         <Image 
                             source={{ uri: currentStory?.media_url }} 
                             style={styles.image} 
-                            resizeMode="cover" 
+                            resizeMode="contain" 
                             onLoad={() => setIsMediaLoaded(true)}
                         />
                     )}

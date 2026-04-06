@@ -12,7 +12,9 @@ export const updateProfile = async (data: {
     name?: string, bio?: string, avatar_url?: string, push_token?: string, username?: string,
     hometown?: string, age?: number, relationship_status?: string, 
     department?: string, year_of_study?: string,
-    hide_friends_list?: boolean, friends_only_messages?: boolean 
+    hide_friends_list?: boolean, friends_only_messages?: boolean,
+    show_hometown?: boolean, show_age?: boolean, show_relationship?: boolean,
+    show_department?: boolean, show_year?: boolean, show_rank?: boolean
 }) => {
     return await apiFetch('/users/profile', {
         method: 'PATCH',

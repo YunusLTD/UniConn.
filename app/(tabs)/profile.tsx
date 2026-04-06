@@ -215,7 +215,7 @@ export default function ProfileScreen() {
                     <View style={styles.bioSection}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text style={[styles.displayName, { color: colors.black }]}>{profile?.name || 'User Name'}</Text>
-                            {profile?.campus_rank && (
+                            {profile?.show_rank !== false && profile?.campus_rank && (
                                 <TouchableOpacity style={[styles.campusRankBadge, { backgroundColor: isDark ? '#3D1B21' : '#FFEBF0' }]} onPress={() => setShowRankModal(true)}>
                                     <Text style={styles.campusRankText}>#{profile.campus_rank}</Text>
                                 </TouchableOpacity>
@@ -231,13 +231,13 @@ export default function ProfileScreen() {
                             </View>
                         )}
 
-                        {(profile?.department || profile?.year_of_study) && (
+                        {profile?.show_department !== false && profile?.department && (
                             <View style={[styles.metaRow, { marginTop: 2 }]}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
                                     {profile.department}
-                                    {profile.department && profile.year_of_study ? ' • ' : ''}
-                                    {profile.year_of_study ? (() => {
+                                    {profile?.show_year !== false && profile.year_of_study ? ' • ' : ''}
+                                    {profile?.show_year !== false && profile.year_of_study ? (() => {
                                         const y = parseInt(profile.year_of_study);
                                         if (profile.year_of_study === 'vats') return 'Vats';
                                         if (profile.year_of_study === 'graduated') return 'Graduated';
@@ -253,21 +253,21 @@ export default function ProfileScreen() {
                             {profile?.bio || 'Add a bio to tell students about yourself'}
                         </Text>
 
-                                {(profile?.hometown || profile?.age || profile?.relationship_status) && (
+                                {((profile?.show_hometown !== false && profile?.hometown) || (profile?.show_age !== false && profile?.age) || (profile?.show_relationship !== false && profile?.relationship_status)) && (
                                     <View style={styles.detailsRow}>
-                                        {profile?.hometown && (
+                                        {profile?.show_hometown !== false && profile?.hometown && (
                                             <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                                 <Ionicons name="location-outline" size={12} color={colors.gray500} />
                                                 <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.hometown}</Text>
                                             </View>
                                         )}
-                                        {profile?.age && (
+                                        {profile?.show_age !== false && profile?.age && (
                                             <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                                 <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
                                                 <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.age} yrs</Text>
                                             </View>
                                         )}
-                                        {profile?.relationship_status && (
+                                        {profile?.show_relationship !== false && profile?.relationship_status && (
                                             <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                                 <Ionicons name="heart-outline" size={12} color={colors.gray500} />
                                                 <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.relationship_status}</Text>

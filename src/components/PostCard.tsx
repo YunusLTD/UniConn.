@@ -115,13 +115,22 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
         });
         return (
             <View style={styles.viewerPage}>
-                <VideoView player={player} style={styles.viewerImage} />
+                <VideoView 
+                    player={player} 
+                    style={styles.viewerImage} 
+                    contentFit="contain"
+                    nativeControls={false}
+                />
             </View>
         );
     }
     return (
         <View style={styles.viewerPage}>
-            <Image source={{ uri: url, cache: 'force-cache' }} style={styles.viewerImage} resizeMode="contain" />
+            <Image 
+                source={{ uri: url, cache: 'force-cache' }} 
+                style={styles.viewerImage} 
+                resizeMode="contain" 
+            />
         </View>
     );
 };
@@ -186,7 +195,9 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const [isVoting, setIsVoting] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
-    const isEdited = post.updated_at && (new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 10000);
+    const isEdited = post.updated_at && 
+        post.updated_at !== post.created_at && 
+        (new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 10000);
 
     const handleMenu = () => {
         hapticLight();
@@ -367,7 +378,8 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                 {isEdited && (
                                     <>
                                         <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                        <Text style={[styles.time, { color: themeColors.gray400 }]}>edited</Text>
+                                        <MaterialCommunityIcons name="pencil-outline" size={11} color={themeColors.gray400} style={{ marginLeft: 2 }} />
+                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11, marginLeft: 1 }]}>edited</Text>
                                     </>
                                 )}
                             </View>
@@ -724,6 +736,7 @@ const styles = StyleSheet.create({
     viewerImage: {
         width: '100%',
         height: '100%',
+        backgroundColor: '#000',
     },
     youBadge: {
         backgroundColor: 'rgba(59, 130, 246, 0.1)',

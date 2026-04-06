@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity, Image, Alert,
     ActivityIndicator, SafeAreaView, Dimensions, TextInput,
     KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback,
-    Animated,
+    Animated, ScrollView, DeviceEventEmitter
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { spacing, fonts, radii } from '../src/constants/theme';
@@ -71,9 +71,8 @@ export default function StoryUploadScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images', 'videos'],
-            allowsEditing: true,
-            aspect: [9, 16],
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 0.9,
         });
         if (!result.canceled) {
             setMedia({ uri: result.assets[0].uri, type: result.assets[0].type as 'image' | 'video' });
@@ -86,9 +85,8 @@ export default function StoryUploadScreen() {
         if (status !== 'granted') return Alert.alert('Permission Needed', 'Camera access is required to capture moments.');
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images', 'videos'],
-            allowsEditing: true,
-            aspect: [9, 16],
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 0.9,
         });
         if (!result.canceled) {
             setMedia({ uri: result.assets[0].uri, type: result.assets[0].type as 'image' | 'video' });
@@ -113,9 +111,10 @@ export default function StoryUploadScreen() {
             });
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('Posted!', 'Your story is now live 🎉', [
-                { text: 'Done', onPress: () => router.back() },
-            ]);
+            
+            // Emit event and close immediately
+            DeviceEventEmitter.emit('storyPosted');
+            router.back();
         } catch (e: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Upload Failed', e.message || 'Something went wrong. Try again.');
@@ -138,24 +137,36 @@ export default function StoryUploadScreen() {
                 <StatusBar style="light" />
 
                 {/* Media */}
-                {media.type === 'video' ? (
-                    <Video
-                        source={{ uri: media.uri }}
-                        style={styles.fullMedia}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay={isMediaReady}
-                        isLooping
-                        isMuted={false}
-                        onReadyForDisplay={() => setIsMediaReady(true)}
-                    />
-                ) : (
-                    <Image
-                        source={{ uri: media.uri }}
-                        style={styles.fullMedia}
-                        resizeMode="cover"
-                        onLoad={() => setIsMediaReady(true)}
-                    />
-                )}
+                {/* Media with Native Zoom */}
+                <ScrollView
+                    style={styles.fullMedia}
+                    contentContainerStyle={{ width, height }}
+                    maximumZoomScale={3}
+                    minimumZoomScale={1}
+                    showsHorizontalScrollIndicator={false}
+                    showsVerticalScrollIndicator={false}
+                    centerContent={true}
+                    scrollEventThrottle={16}
+                >
+                    {media.type === 'video' ? (
+                        <Video
+                            source={{ uri: media.uri }}
+                            style={styles.fullMedia}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay={isMediaReady}
+                            isLooping
+                            isMuted={false}
+                            onReadyForDisplay={() => setIsMediaReady(true)}
+                        />
+                    ) : (
+                        <Image
+                            source={{ uri: media.uri }}
+                            style={styles.fullMedia}
+                            resizeMode="cover"
+                            onLoad={() => setIsMediaReady(true)}
+                        />
+                    )}
+                </ScrollView>
 
                 {/* Loading overlay for heavy media */}
                 {!isMediaReady && (
@@ -195,12 +206,15 @@ export default function StoryUploadScreen() {
                                         {media.type === 'video' ? 'Video' : 'Photo'}
                                     </Text>
                                 </View>
+
                             </View>
 
                             {/* Footer */}
                             <View style={styles.previewFooter}>
                                 <View style={styles.captionRow}>
-                                    <Ionicons name="text-outline" size={18} color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
+                                    <View style={styles.inputPrefix}>
+                                        <Ionicons name="text-outline" size={20} color="rgba(255,255,255,0.6)" />
+                                    </View>
                                     <TextInput
                                         style={styles.captionInput}
                                         placeholder="Add a caption…"
@@ -211,6 +225,7 @@ export default function StoryUploadScreen() {
                                         returnKeyType="done"
                                         onSubmitEditing={() => Keyboard.dismiss()}
                                         blurOnSubmit
+                                        textAlignVertical="center"
                                     />
                                 </View>
 
@@ -468,7 +483,7 @@ const styles = StyleSheet.create({
     overlayContainer: {
         flex: 1,
         justifyContent: 'space-between',
-        padding: spacing.lg,
+        padding: spacing.xl,
     },
     previewHeader: {
         flexDirection: 'row',
@@ -510,13 +525,48 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
     },
+    inputPrefix: {
+        height: 24,
+        width: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 2,
+    },
     captionInput: {
         flex: 1,
         color: 'white',
         fontFamily: fonts.regular,
         fontSize: 16,
         maxHeight: 80,
-        lineHeight: 22,
+        paddingTop: Platform.OS === 'ios' ? 0 : 4,
+        textAlignVertical: 'center',
+    },
+    successToast: {
+        position: 'absolute',
+        bottom: 120,
+        left: spacing.xl,
+        right: spacing.xl,
+        height: 54,
+        borderRadius: 27,
+        overflow: 'hidden',
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    toastGradient: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        paddingHorizontal: 20,
+    },
+    toastText: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 15,
     },
     shareBtn: {
         borderRadius: 28,

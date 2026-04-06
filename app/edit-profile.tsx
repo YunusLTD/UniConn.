@@ -32,6 +32,14 @@ export default function EditProfileScreen() {
     const [showRelModal, setShowRelModal] = useState(false);
     const [showDeptModal, setShowDeptModal] = useState(false);
     const [showYearModal, setShowYearModal] = useState(false);
+    
+    // Privacy settings
+    const [showHometown, setShowHometown] = useState(true);
+    const [showAge, setShowAge] = useState(true);
+    const [showRelationship, setShowRelationship] = useState(true);
+    const [showDepartment, setShowDepartment] = useState(true);
+    const [showYear, setShowYear] = useState(true);
+    const [showRank, setShowRank] = useState(false);
 
     useEffect(() => {
         loadProfileData();
@@ -50,6 +58,13 @@ export default function EditProfileScreen() {
                 setRelationshipStatus(res.data.relationship_status || '');
                 setDepartment(res.data.department || '');
                 setYearOfStudy(res.data.year_of_study ? String(res.data.year_of_study) : '');
+                
+                setShowHometown(res.data.show_hometown ?? true);
+                setShowAge(res.data.show_age ?? true);
+                setShowRelationship(res.data.show_relationship ?? true);
+                setShowDepartment(res.data.show_department ?? true);
+                setShowYear(res.data.show_year ?? true);
+                setShowRank(res.data.show_rank ?? false);
             }
         } catch (e) {
             console.log('Error loading profile', e);
@@ -115,7 +130,13 @@ export default function EditProfileScreen() {
                 age: age.trim() ? parseInt(age.trim(), 10) : undefined,
                 relationship_status: relationshipStatus || undefined,
                 department: department.trim() || undefined,
-                year_of_study: yearOfStudy.trim() || undefined
+                year_of_study: yearOfStudy.trim() || undefined,
+                show_hometown: showHometown,
+                show_age: showAge,
+                show_relationship: showRelationship,
+                show_department: showDepartment,
+                show_year: showYear,
+                show_rank: showRank
             });
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
@@ -256,6 +277,13 @@ export default function EditProfileScreen() {
                             </TouchableOpacity>
                         </View>
 
+                        {/* Privacy for Personal */}
+                        <View style={styles.privacyGroup}>
+                            <PrivacyToggle label="Show Hometown" value={showHometown} onChange={setShowHometown} />
+                            <PrivacyToggle label="Show Age" value={showAge} onChange={setShowAge} />
+                            <PrivacyToggle label="Show Relationship" value={showRelationship} onChange={setShowRelationship} />
+                        </View>
+
                         <Text style={[styles.label, { marginTop: spacing.md, color: colors.gray600 }]}>Academic Details</Text>
 
                         <View style={styles.field}>
@@ -287,6 +315,13 @@ export default function EditProfileScreen() {
                                     })() : 'Select Year/Level'}
                                 </Text>
                             </TouchableOpacity>
+                        </View>
+
+                        {/* Privacy for Academic */}
+                        <View style={styles.privacyGroup}>
+                            <PrivacyToggle label="Show Department" value={showDepartment} onChange={setShowDepartment} />
+                            <PrivacyToggle label="Show Class/Year" value={showYear} onChange={setShowYear} />
+                            <PrivacyToggle label="Show Pioneer Rank" value={showRank} onChange={setShowRank} />
                         </View>
                     </View>
                 </ScrollView>
@@ -345,6 +380,22 @@ export default function EditProfileScreen() {
     );
 }
 
+const PrivacyToggle = ({ label, value, onChange }: { label: string, value: boolean, onChange: (v: boolean) => void }) => {
+    const { colors } = useTheme();
+    return (
+        <TouchableOpacity 
+            style={[styles.toggleRow, { backgroundColor: colors.surface }]} 
+            onPress={() => onChange(!value)}
+            activeOpacity={0.7}
+        >
+            <Text style={[styles.toggleLabel, { color: colors.black }]}>{label}</Text>
+            <View style={[styles.switchTrack, { backgroundColor: value ? colors.black : colors.gray200 }]}>
+                <View style={[styles.switchThumb, { transform: [{ translateX: value ? 20 : 0 }], backgroundColor: colors.white }]} />
+            </View>
+        </TouchableOpacity>
+    );
+};
+
 const styles = StyleSheet.create({
     container: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -366,7 +417,7 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bold,
         fontSize: 16,
     },
-    scrollContent: { padding: spacing.lg },
+    scrollContent: { padding: spacing.lg, paddingBottom: 60 },
     avatarEditContainer: {
         alignItems: 'center',
         marginVertical: spacing.xl,
@@ -427,4 +478,37 @@ const styles = StyleSheet.create({
         minHeight: 100,
         textAlignVertical: 'top',
     },
+    privacyGroup: {
+        marginTop: -8,
+        gap: 8,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+    },
+    toggleLabel: {
+        fontFamily: fonts.medium,
+        fontSize: 14,
+    },
+    switchTrack: {
+        width: 44,
+        height: 24,
+        borderRadius: 12,
+        padding: 2,
+        justifyContent: 'center',
+    },
+    switchThumb: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 1,
+        elevation: 1,
+    }
 });

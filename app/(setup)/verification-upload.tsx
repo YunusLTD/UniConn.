@@ -98,7 +98,7 @@ export default function VerificationUploadScreen() {
                 </TouchableOpacity>
                 <View style={styles.headerTextContainer}>
                     <Text style={styles.title}>Student Verification</Text>
-                    <Text style={styles.subtitle}>Upload your ID to prove you attend the university</Text>
+                    <Text style={styles.subtitle}>Upload your ID to verify your student status. Please **blur or cover** sensitive info (ID numbers, birth date). Only Photo, Name, and University must be visible.</Text>
                 </View>
             </View>
 

@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, FlatList, StyleSheet, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, FlatList, StyleSheet, Text, TouchableOpacity, DeviceEventEmitter, Animated } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts } from '../../src/constants/theme';
@@ -16,6 +16,7 @@ import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { getStoryFeed } from '../../src/api/stories';
 import { useAuth } from '../../src/context/AuthContext';
 import StoryViewer from '../../src/components/StoryViewer';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -30,6 +31,10 @@ export default function HomeScreen() {
     const [hasMore, setHasMore] = useState(true);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [initialStoryUserIndex, setInitialStoryUserIndex] = useState(0);
+
+    // Success Toast State
+    const [showToast, setShowToast] = useState(false);
+    const toastAnim = useRef(new Animated.Value(100)).current;
 
     const loadFeed = async (pageNum = 1, isRefresh = false, batchSize = 15) => {
         try {
@@ -94,7 +99,34 @@ export default function HomeScreen() {
             setRefreshing(true);
             loadFeed(1, true);
         });
-        return () => sub.remove();
+
+        const storySub = DeviceEventEmitter.addListener('storyPosted', () => {
+            loadStories();
+            // Show Success Toast
+            setShowToast(true);
+            Animated.spring(toastAnim, { 
+                toValue: 0, 
+                tension: 80, 
+                friction: 12, 
+                useNativeDriver: true 
+            }).start();
+            
+            // Hide after 3s
+            setTimeout(() => {
+                Animated.timing(toastAnim, { 
+                    toValue: 100, 
+                    duration: 500, 
+                    useNativeDriver: true 
+                }).start(() => {
+                    setShowToast(false);
+                });
+            }, 3000);
+        });
+
+        return () => {
+            sub.remove();
+            storySub.remove();
+        }
     }, []);
 
     const handleRefresh = () => {
@@ -238,6 +270,16 @@ export default function HomeScreen() {
                 initialUserIndex={initialStoryUserIndex}
                 onClose={() => setViewerVisible(false)}
             />
+
+            {/* Success Toast Pill */}
+            {showToast && (
+                <Animated.View style={[styles.successToast, { transform: [{ translateY: toastAnim }] }]}>
+                    <View style={[styles.toastContent, { backgroundColor: colors.success }]}>
+                        <Ionicons name="checkmark-circle" size={20} color="white" />
+                        <Text style={styles.toastText}>Moment shared successfully</Text>
+                    </View>
+                </Animated.View>
+            )}
         </View>
     );
 }
@@ -293,5 +335,31 @@ const styles = StyleSheet.create({
     },
     storiesList: {
         paddingHorizontal: spacing.md,
+    },
+    successToast: {
+        position: 'absolute',
+        bottom: 40,
+        left: 20,
+        right: 20,
+        alignItems: 'center',
+        zIndex: 999,
+    },
+    toastContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 30,
+        gap: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    toastText: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 14,
     },
 });
