@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Dimensions, Image, TouchableOpacity, SafeAreaView, Animated, Pressable, ActivityIndicator } from 'react-native';
 import { colors, fonts, spacing } from '../constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { markStoryViewed, likeStory } from '../api/stories';
 import { Video, ResizeMode } from 'expo-av';
@@ -265,7 +265,10 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                             <View style={styles.userInfo}>
                                 <Image source={{ uri: userCluster.user?.avatar_url || currentStory?.profiles?.avatar_url }} style={styles.userAvatar} />
                                 <View>
-                                    <Text style={styles.userName}>{userCluster.user?.name || 'User'}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={styles.userName}>{userCluster.user?.name || 'User'}</Text>
+                                        {userCluster.is_admin && <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" style={{ marginLeft: 4 }} />}
+                                    </View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                         <Text style={styles.locationName}>
                                             {currentStory?.created_at ? `${Math.max(1, Math.floor((new Date(currentStory.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60)))}h left` : '24h left'}

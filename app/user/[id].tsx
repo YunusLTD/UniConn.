@@ -146,6 +146,43 @@ export default function UserProfileScreen() {
         if (profile?.id) loadTabContent(activeTab, profile.id);
     }, [activeTab]);
 
+    useEffect(() => {
+        const { DeviceEventEmitter } = require('react-native');
+        const sub = DeviceEventEmitter.addListener('profileUpdated', (updates: any) => {
+            if (currentUser?.id && (profile?.id === currentUser.id || id === currentUser.id)) {
+                setProfile((prev: any) => ({
+                    ...prev,
+                    name: updates.name,
+                    avatar_url: updates.avatar_url,
+                    bio: updates.bio,
+                    username: updates.username
+                }));
+                setContent((prev: any[]) => prev.map(item => ({
+                    ...item,
+                    profiles: {
+                        ...item.profiles,
+                        name: updates.name,
+                        avatar_url: updates.avatar_url
+                    }
+                })));
+            }
+        });
+
+        const voteSub = DeviceEventEmitter.addListener('postVoted', (data: any) => {
+            setContent((prev: any[]) => prev.map(item => {
+                if (item.id === data.postId) {
+                    return { ...item, my_vote: data.myVote, vote_count: data.voteCount };
+                }
+                return item;
+            }));
+        });
+
+        return () => {
+            sub.remove();
+            voteSub.remove();
+        };
+    }, [currentUser, profile?.id, id]);
+
 
 
     const confirmRemoval = async (isPending: boolean) => {

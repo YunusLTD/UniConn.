@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Share, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fonts, radii } from '../constants/theme';
@@ -162,6 +162,11 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const { user } = useAuth();
     const [myVote, setMyVote] = useState<number | null>(post.my_vote);
     const [voteCount, setVoteCount] = useState<number>(post.vote_count || 0);
+
+    useEffect(() => {
+        setMyVote(post.my_vote);
+        setVoteCount(post.vote_count || 0);
+    }, [post.my_vote, post.vote_count]);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const [actionVisible, setActionVisible] = useState(false);
@@ -294,6 +299,17 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
         { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
     ];
 
+    useEffect(() => {
+        const { DeviceEventEmitter } = require('react-native');
+        const sub = DeviceEventEmitter.addListener('postVoted', (data: any) => {
+            if (data.postId === post.id) {
+                setMyVote(data.myVote);
+                setVoteCount(data.voteCount);
+            }
+        });
+        return () => sub.remove();
+    }, [post.id]);
+
     const handleVote = async (value: number) => {
         if (isVoting) return;
         setIsVoting(true);
@@ -302,9 +318,14 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
         const oldVote = myVote || 0;
         const newVote = oldVote === value ? 0 : value; // Toggle off if clicking current vote
         const countDiff = newVote - oldVote;
+        
+        const newVoteCount = voteCount + countDiff;
 
         setMyVote(newVote);
-        setVoteCount(prev => prev + countDiff);
+        setVoteCount(newVoteCount);
+
+        const { DeviceEventEmitter } = require('react-native');
+        DeviceEventEmitter.emit('postVoted', { postId: post.id, myVote: newVote, voteCount: newVoteCount });
 
         // Feedback
         hapticMedium();
@@ -542,6 +563,8 @@ export default React.memo(PostCard, (prevProps, nextProps) => {
            prevProps.post.my_vote === nextProps.post.my_vote &&
            prevProps.post.vote_count === nextProps.post.vote_count &&
            prevProps.post.comments?.[0]?.count === nextProps.post.comments?.[0]?.count &&
+           prevProps.post.profiles?.name === nextProps.post.profiles?.name &&
+           prevProps.post.profiles?.avatar_url === nextProps.post.profiles?.avatar_url &&
            prevProps.hideNavigation === nextProps.hideNavigation;
 });
 

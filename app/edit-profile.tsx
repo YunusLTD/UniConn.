@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Image, KeyboardAvoidingView, Platform, DeviceEventEmitter } from 'react-native';
 import { spacing, fonts, radii } from '../src/constants/theme';
 import { useTheme } from '../src/context/ThemeContext';
 import { useAuth } from '../src/context/AuthContext';
@@ -138,6 +138,13 @@ export default function EditProfileScreen() {
                 show_year: showYear,
                 show_rank: showRank
             });
+            DeviceEventEmitter.emit('profileUpdated', {
+                name: name.trim(),
+                avatar_url: avatarUrl,
+                bio: bio.trim(),
+                username: username.trim().toLowerCase(),
+            });
+
             Alert.alert('Success', 'Profile updated successfully!', [
                 { text: 'OK', onPress: () => router.back() }
             ]);

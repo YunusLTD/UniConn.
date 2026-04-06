@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { fonts, spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 
 interface StoryCircleProps {
@@ -12,6 +12,7 @@ interface StoryCircleProps {
     media_type?: string;
     title: string;
     isUnread?: boolean;
+    isAdmin?: boolean;
     onPress: () => void;
     onAddPress?: () => void;
     isMe?: boolean;
@@ -22,6 +23,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
     media_type,
     title, 
     isUnread = true, 
+    isAdmin = false,
     onPress, 
     onAddPress,
     isMe = false 
@@ -79,9 +81,12 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
                 )}
 
             </View>
-            <Text style={[styles.title, { color: colors.gray500 }, isMe && { fontFamily: fonts.semibold, color: colors.black }]} numberOfLines={1}>
-                {isMe ? 'Me' : title}
-            </Text>
+            <View style={styles.titleContainer}>
+                <Text style={[styles.title, { color: colors.gray500 }, isMe && { fontFamily: fonts.semibold, color: colors.black }]} numberOfLines={1}>
+                    {isMe ? 'Me' : title}
+                </Text>
+                {isAdmin && <MaterialCommunityIcons name="check-decagram" size={12} color="#00A3FF" style={styles.badge} />}
+            </View>
         </TouchableOpacity>
     );
 };
@@ -134,12 +139,21 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bold,
         fontSize: 24,
     },
-    title: {
+    titleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginTop: 6,
+        width: '100%',
+    },
+    title: {
         fontFamily: fonts.medium,
         fontSize: 11,
         textAlign: 'center',
-        width: '100%',
+        flexShrink: 1, // Allow text to shrink if badge is present
+    },
+    badge: {
+        marginLeft: 3,
     },
     plusIcon: {
         position: 'absolute',

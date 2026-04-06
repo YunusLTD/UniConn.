@@ -123,9 +123,30 @@ export default function HomeScreen() {
             }, 3000);
         });
 
+        const profileSub = DeviceEventEmitter.addListener('profileUpdated', (updates) => {
+            if (!currentUser) return;
+            setPosts(prev => prev.map(p => {
+                if (p.user_id === currentUser.id) {
+                    return { ...p, profiles: { ...p.profiles, name: updates.name, avatar_url: updates.avatar_url } };
+                }
+                return p;
+            }));
+        });
+
+        const voteSub = DeviceEventEmitter.addListener('postVoted', (data) => {
+            setPosts(prev => prev.map(p => {
+                if (p.id === data.postId) {
+                    return { ...p, my_vote: data.myVote, vote_count: data.voteCount };
+                }
+                return p;
+            }));
+        });
+
         return () => {
             sub.remove();
             storySub.remove();
+            profileSub.remove();
+            voteSub.remove();
         }
     }, []);
 
@@ -202,6 +223,8 @@ export default function HomeScreen() {
                                 id={item.id}
                                 title={item.user?.name || 'Friend'}
                                 image_url={item.user?.avatar_url}
+                                isUnread={item.all_viewed === false}
+                                isAdmin={item.is_admin}
                                 onPress={() => {
                                     setInitialStoryUserIndex(originalIndex);
                                     setViewerVisible(true);
