@@ -59,6 +59,7 @@ export default function ProfileScreen() {
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const router = useRouter();
+    const profileBackground = isDark ? colors.surface : colors.background;
 
     const getThemeLabel = (mode: 'light' | 'dark' | 'system') => {
         if (mode === 'light') return t('theme_light');
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
         // Fetch stories
         try {
             const storyRes = await getUserStories(user!.id);
-            if (storyRes?.data?.event) {
+            if (storyRes?.data?.event?.stories?.length) {
                 setStoryEvent(storyRes.data.event);
             } else {
                 setStoryEvent(null);
@@ -152,16 +153,16 @@ export default function ProfileScreen() {
     const initial = profile?.name?.[0]?.toUpperCase() || 'U';
 
     if (loading) return (
-        <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: 40 }}>
+        <View style={{ flex: 1, backgroundColor: profileBackground, paddingTop: 40 }}>
             <ShadowLoader type="profile" />
         </View>
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: profileBackground }]} edges={['top']}>
             {/* Native Header equivalent */}
             <View
-                style={[styles.navHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}
+                style={[styles.navHeader, { backgroundColor: profileBackground, borderBottomColor: colors.border }]}
             >
                 <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || t('profile'))}</Text>
             </View>
@@ -173,17 +174,17 @@ export default function ProfileScreen() {
                         <TouchableOpacity 
                             style={styles.avatarRing} 
                             onPress={() => {
-                                if (storyEvent) setViewerVisible(true);
+                                if (storyEvent?.stories?.length) setViewerVisible(true);
                                 else router.push('/edit-profile');
                             }}
                             activeOpacity={0.9}
                         >
-                            {storyEvent ? (
+                            {storyEvent?.stories?.length ? (
                                 <LinearGradient
                                     colors={['#A154F2', '#3B82F6', isDark ? colors.gray50 : colors.gray100]}
                                     style={styles.gradientBorder}
                                 >
-                                    <View style={[styles.avatar, { backgroundColor: colors.background, borderColor: colors.background }]}>
+                                    <View style={[styles.avatar, { backgroundColor: profileBackground, borderColor: profileBackground }]}>
                                         {profile?.avatar_url ? (
                                             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                                         ) : (
@@ -192,7 +193,7 @@ export default function ProfileScreen() {
                                     </View>
                                 </LinearGradient>
                             ) : (
-                                <View style={[styles.avatar, { backgroundColor: colors.surface, borderColor: colors.background }]}>
+                                <View style={[styles.avatar, { backgroundColor: colors.surface, borderColor: profileBackground }]}>
                                     {profile?.avatar_url ? (
                                         <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                                     ) : (
@@ -299,15 +300,15 @@ export default function ProfileScreen() {
                     <FriendRequestBanner />
 
                     {/* Action Buttons */}
-                    <View style={styles.actionRow}>
+                    <View style={[styles.actionRow, language === 'ka' && styles.actionRowStacked]}>
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
+                            style={[styles.actionBtn, language === 'ka' && styles.actionBtnStacked, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
                             onPress={() => router.push('/edit-profile')}
                         >
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('edit_profile')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
+                            style={[styles.actionBtn, language === 'ka' && styles.actionBtnStacked, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
                             onPress={() => setShowQRModal(true)}
                         >
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile')}</Text>
@@ -326,7 +327,11 @@ export default function ProfileScreen() {
                                     key={key}
                                     style={[
                                         styles.tabPill, 
-                                        { backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50) },
+                                        {
+                                            backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50),
+                                            borderWidth: 1,
+                                            borderColor: activeTab === key ? colors.black : colors.border,
+                                        },
                                         activeTab === key && styles.activeTabPill
                                     ]}
                                     onPress={() => setActiveTab(key)}
@@ -527,7 +532,7 @@ export default function ProfileScreen() {
 
             <StoryViewer 
                 visible={viewerVisible} 
-                stories={storyEvent ? [{ id: profile?.id, user: profile, stories: [storyEvent] }] : []}
+                stories={storyEvent?.stories?.length ? [{ id: profile?.id, user: profile, stories: storyEvent.stories }] : []}
                 initialUserIndex={0}
                 onClose={() => setViewerVisible(false)} 
             />
@@ -666,7 +671,9 @@ const styles = StyleSheet.create({
 
     // Pill actions
     actionRow: { flexDirection: 'row', gap: 8, marginTop: 20 },
+    actionRowStacked: { flexDirection: 'column' },
     actionBtn: { flex: 1, height: 42, borderRadius: radii.full, justifyContent: 'center', alignItems: 'center' },
+    actionBtnStacked: { width: '100%' },
     btnLight: { },
     actionBtnText: { fontFamily: fonts.bold, fontSize: 14 },
 

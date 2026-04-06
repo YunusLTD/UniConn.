@@ -158,9 +158,11 @@ export function ChatBubbleSkeleton({ isMine }: { isMine: boolean }) {
 
 export function ProfileHeaderSkeleton() {
     const { colors, isDark } = useTheme();
+    const softPillBg = isDark ? colors.surface : colors.gray50;
+    const profileBg = isDark ? colors.surface : colors.background;
 
     return (
-        <View style={{ backgroundColor: colors.background }}>
+        <View style={{ backgroundColor: profileBg }}>
 
             {/* ── HEADER ── */}
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: 20 }}>
@@ -195,29 +197,41 @@ export function ProfileHeaderSkeleton() {
                 <View style={{ marginTop: 18 }}>
                     <Skeleton width={140} height={18} borderRadius={9} />
                     <Skeleton width="92%" height={12} borderRadius={6} style={{ marginTop: 12 }} />
-                    <Skeleton width="65%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
+                    <Skeleton width="80%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
                 </View>
 
                 {/* Action Buttons */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 24 }}>
-                    <Skeleton style={{ flex: 1 }} height={44} borderRadius={12} />
-                    <Skeleton style={{ flex: 1 }} height={44} borderRadius={12} />
+                    <Skeleton
+                        style={{ flex: 1, borderWidth: 1, borderColor: colors.border }}
+                        backgroundColor={softPillBg}
+                        height={44}
+                        borderRadius={42}
+                    />
+                   
                 </View>
-                <View style={{ marginTop: 8 }}>
-                    <Skeleton width="100%" height={44} borderRadius={12} />
-                </View>
+               
 
                 {/* Tab Pills */}
                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 32, marginBottom: 8 }}>
                     {[80, 85, 75, 90].map((w, i) => (
-                        <Skeleton key={i} width={w} height={34} borderRadius={17} />
+                        <Skeleton
+                            key={i}
+                            width={w}
+                            height={34}
+                            borderRadius={17}
+                            backgroundColor={softPillBg}
+                            style={{ borderWidth: 1, borderColor: colors.border }}
+                        />
                     ))}
                 </View>
             </View>
 
             {/* ── CONTENT FEED CARDS ── */}
             <View style={{ paddingHorizontal: 0, marginTop: 8, gap: 12 }}>
-                <ShadowLoader type="feed" />
+                {[1, 2, 3, 4].map((i) => (
+                    <PostSkeleton key={i} />
+                ))}
             </View>
 
         </View>
@@ -300,7 +314,8 @@ export function StoriesFeedSkeleton() {
 }
 
 export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messages' | 'chat' | 'profile' | 'marketplace' | 'students' | 'communities' | 'study' | 'community' | 'explore_communities' | 'stories' }) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
+    const containerBg = type === 'profile' && isDark ? colors.surface : colors.background;
 
     const renderContent = () => {
         if (type === 'messages') return [1, 2, 3, 4, 5, 6, 7, 8].map(i => <MessageItemSkeleton key={i} />);
@@ -332,7 +347,7 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
     };
 
     return (
-        <View style={[s.container, { backgroundColor: colors.background }]}>
+        <View style={[s.container, { backgroundColor: containerBg }]}>
             {renderContent()}
         </View>
     );
@@ -457,4 +472,3 @@ const s = StyleSheet.create({
         borderWidth: 2,
     },
 });
-
