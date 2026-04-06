@@ -76,31 +76,25 @@ export default function UserProfileScreen() {
             }
 
             if (res?.data) {
-                setProfile(res.data);
-                if (res.data.friends_count !== undefined) setFriendCount(res.data.friends_count);
-                if (res.data.posts_count !== undefined) setPostsCount(res.data.posts_count);
-                if (res.data.friend_status) setFriendStatus(res.data.friend_status);
-                // loadFriendData is now handled by the profile response
+                const p = res.data;
+                setProfile(p);
+                setFriendCount(p.friends_count ?? 0);
+                setPostsCount(p.posts_count ?? 0);
+                setFriendStatus(p.friend_status ?? 'none');
+                setStoryEvent(p.has_stories ? { user_id: p.id } : null);
+
+                // Load tab content immediately once profile is resolved
+                loadTabContent(activeTab, p.id);
             }
         } catch (e) {
             console.log('Error loading profile', e);
         } finally {
             setLoading(false);
         }
-
-        // Fetch stories
-        try {
-            const storyRes = await getUserStories(id as string);
-            if (storyRes?.data?.event) {
-                setStoryEvent(storyRes.data.event);
-            } else {
-                setStoryEvent(null);
-            }
-        } catch (e) { /* ignore */ }
     };
 
     const loadTabContent = async (tab: TabType, targetId: string) => {
-        if (!targetId) return;
+        if (!targetId || contentLoading) return;
         setContentLoading(true);
         try {
             let res;
@@ -150,17 +144,9 @@ export default function UserProfileScreen() {
     useEffect(() => { loadProfileData(); }, [id]);
     useEffect(() => {
         if (profile?.id) loadTabContent(activeTab, profile.id);
-    }, [activeTab, profile?.id]);
+    }, [activeTab]);
 
-    useEffect(() => {
-        const loadCount = async () => {
-            try {
-                const countRes = await getFriendsCount(id as string);
-                if (countRes?.data) setFriendCount(countRes.data.count || 0);
-            } catch (e) { /* ignore */ }
-        };
-        loadCount();
-    }, [id]);
+
 
     const confirmRemoval = async (isPending: boolean) => {
         setSendingRequest(true);
@@ -627,7 +613,7 @@ export default function UserProfileScreen() {
                 {!(profile?.is_blocked_by_me || profile?.has_blocked_me) && (
                     <View style={styles.contentArea}>
                         {contentLoading ? (
-                            <SkeletonLoader />
+                            <ShadowLoader type="feed" />
                         ) : content.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <Ionicons

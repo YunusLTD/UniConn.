@@ -19,6 +19,7 @@ export default function MarketplaceDetailScreen() {
     const [loading, setLoading] = useState(true);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [isMediaLoading, setIsMediaLoading] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
@@ -171,10 +172,29 @@ export default function MarketplaceDetailScreen() {
 
             <Modal visible={!!previewImage} transparent animationType="fade">
                 <View style={styles.previewBg}>
-                    <TouchableOpacity onPress={() => setPreviewImage(null)} style={styles.closePreview}>
-                        <Ionicons name="close" size={32} color={colors.white} />
+                    <TouchableOpacity 
+                        onPress={() => {
+                            setPreviewImage(null);
+                            setIsMediaLoading(false);
+                        }} 
+                        style={styles.closePreview}
+                    >
+                        <Ionicons name="close" size={32} color="#FFFFFF" />
                     </TouchableOpacity>
-                    <Image source={{ uri: previewImage || '' }} style={styles.fullImage} resizeMode="contain" />
+                    
+                    {isMediaLoading && (
+                        <View style={StyleSheet.absoluteFill}>
+                            <ActivityIndicator size="large" color="#FFFFFF" style={{ flex: 1 }} />
+                        </View>
+                    )}
+
+                    <Image 
+                        source={{ uri: previewImage || '' }} 
+                        style={styles.fullImage} 
+                        resizeMode="contain" 
+                        onLoadStart={() => setIsMediaLoading(true)}
+                        onLoadEnd={() => setIsMediaLoading(false)}
+                    />
                 </View>
             </Modal>
         </View>

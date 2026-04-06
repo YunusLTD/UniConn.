@@ -26,6 +26,7 @@ export default function MarketplaceScreen() {
     const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
     const [filterVisible, setFilterVisible] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [isMediaLoading, setIsMediaLoading] = useState(false);
     
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -288,14 +289,26 @@ export default function MarketplaceScreen() {
                 <View style={styles.previewBg}>
                     <TouchableOpacity 
                         style={styles.closePreview} 
-                        onPress={() => setPreviewImage(null)}
+                        onPress={() => {
+                            setPreviewImage(null);
+                            setIsMediaLoading(false);
+                        }}
                     >
-                        <Ionicons name="close" size={32} color={colors.white} />
+                        <Ionicons name="close" size={32} color="#FFFFFF" />
                     </TouchableOpacity>
+
+                    {isMediaLoading && (
+                        <View style={StyleSheet.absoluteFill}>
+                            <ActivityIndicator size="large" color="#FFFFFF" style={{ flex: 1 }} />
+                        </View>
+                    )}
+
                     <Image 
                         source={{ uri: previewImage || '' }} 
                         style={styles.fullImage} 
                         resizeMode="contain" 
+                        onLoadStart={() => setIsMediaLoading(true)}
+                        onLoadEnd={() => setIsMediaLoading(false)}
                     />
                 </View>
             </Modal>

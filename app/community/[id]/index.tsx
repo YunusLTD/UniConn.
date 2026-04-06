@@ -342,7 +342,7 @@ export default function CommunityDetailScreen() {
         );
     }, [community, isAdmin, activeTab, eventViewMode, colors, isDark]);
 
-    if (loading) return <ShadowLoader type="students" />;
+    if (loading) return <ShadowLoader type="community" />;
     if (!community) return <View style={styles.centered}><Text style={{ color: colors.gray400 }}>Community not found</Text></View>;
 
     return (

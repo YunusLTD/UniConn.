@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
+import { View, FlatList, StyleSheet, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts } from '../../src/constants/theme';
@@ -11,10 +11,9 @@ import PollCard from '../../src/components/PollCard';
 import JobCard from '../../src/components/JobCard';
 import MarketCard from '../../src/components/MarketCard';
 import StoryCircle from '../../src/components/StoryCircle';
-import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
+import ShadowLoader from '../../src/components/ShadowLoader';
 import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { getStoryFeed } from '../../src/api/stories';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../src/context/AuthContext';
 import StoryViewer from '../../src/components/StoryViewer';
 
@@ -24,24 +23,32 @@ export default function HomeScreen() {
     const { colors } = useTheme();
     const [posts, setPosts] = useState<any[]>([]);
     const [stories, setStories] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [loadingStories, setLoadingStories] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [initialStoryUserIndex, setInitialStoryUserIndex] = useState(0);
 
-    const loadFeed = async (pageNum = 1, isRefresh = false) => {
+    const loadFeed = async (pageNum = 1, isRefresh = false, batchSize = 15) => {
         try {
-            const response = await getFeed(pageNum, 10);
+            if (isRefresh && pageNum === 1) setLoading(true);
+
+            const response = await getFeed(pageNum, batchSize);
             if (response?.data) {
-                if (isRefresh) {
+                if (isRefresh && pageNum === 1) {
                     setPosts(response.data);
                 } else {
-                    setPosts(prev => [...prev, ...response.data]);
+                    setPosts(prev => {
+                        const existingIds = new Set(prev.map(p => p.id));
+                        const newPosts = response.data.filter((p: any) => !existingIds.has(p.id));
+                        return [...prev, ...newPosts];
+                    });
                 }
-                setHasMore(response.data.length === 10);
+                setHasMore(response.data.length >= batchSize);
             }
+            return response;
         } catch (e) {
             console.log('Failed to fetch feed', e);
         } finally {
@@ -52,19 +59,33 @@ export default function HomeScreen() {
 
     const loadStories = async () => {
         try {
+            setLoadingStories(true);
             const res = await getStoryFeed();
             if (res?.data?.feed) {
                 setStories(res.data.feed);
             }
         } catch (e) {
             console.log('Failed to load stories', e);
+        } finally {
+            setLoadingStories(false);
         }
     };
 
     useFocusEffect(
         useCallback(() => {
-            loadFeed(1, true);
-            loadStories();
+            const triggerProgressiveFill = async () => {
+                // Kick off 3 items + stories immediately (parallel)
+                loadFeed(1, true, 3);
+                loadStories();
+
+                // Then fetch 5 more to fill the screen (AFTER exactly 100ms)
+                setTimeout(async () => {
+                    await loadFeed(1, false, 5);
+                    setPage(1);
+                }, 100);
+            };
+
+            triggerProgressiveFill();
         }, [])
     );
 
@@ -84,10 +105,10 @@ export default function HomeScreen() {
     };
 
     const handleLoadMore = () => {
-        if (!loading && hasMore) {
+        if (!loading && hasMore && posts.length > 0) {
             const nextPage = page + 1;
             setPage(nextPage);
-            loadFeed(nextPage);
+            loadFeed(nextPage, false, 5);
         }
     };
 
@@ -95,13 +116,8 @@ export default function HomeScreen() {
         setPosts(prev => prev.filter(item => item.id !== id));
     };
 
-    if (loading && page === 1) {
-        return <ShadowLoader />;
-    }
-
     const renderItem = ({ item }: { item: any }) => {
         const type = String(item.feed_type || '').toLowerCase();
-
         switch (type) {
             case 'event': return <EventCard event={item} onDelete={handleItemDelete} />;
             case 'poll': return <PollCard poll={item} onDelete={handleItemDelete} />;
@@ -112,60 +128,58 @@ export default function HomeScreen() {
     };
 
     const renderStoriesHeader = () => {
+        if (loadingStories && stories.length === 0) {
+            return <ShadowLoader type="stories" />;
+        }
+
         const myStoryIndex = stories.findIndex(s => s.user_id === currentUser?.id || s.user?.id === currentUser?.id);
         const myStory = myStoryIndex !== -1 ? stories[myStoryIndex] : null;
-
-        // Ensure current user is not duplicated in the main list
         const otherStories = stories.filter(s => s.user_id !== currentUser?.id && s.user?.id !== currentUser?.id);
 
         return (
-        <View style={[styles.storiesContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <FlatList
-                horizontal
-                data={[{ id: 'me' }, ...otherStories]}
-                keyExtractor={item => item.id}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item, index }) => {
-                    if (item.id === 'me') {
+            <View style={[styles.storiesContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <FlatList
+                    horizontal
+                    data={[{ id: 'me' }, ...otherStories]}
+                    keyExtractor={item => item.id}
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item, index }) => {
+                        if (item.id === 'me') {
+                            return (
+                                <StoryCircle
+                                    id="me"
+                                    isMe
+                                    title={currentUser?.name || 'Me'}
+                                    image_url={currentUser?.profile?.avatar_url}
+                                    onPress={() => {
+                                        if (myStory) {
+                                            setInitialStoryUserIndex(myStoryIndex);
+                                            setViewerVisible(true);
+                                        } else {
+                                            router.push('/story-upload');
+                                        }
+                                    }}
+                                    onAddPress={() => router.push('/story-upload')}
+                                />
+                            );
+                        }
+
+                        const originalIndex = stories.findIndex(s => s.id === item.id);
                         return (
                             <StoryCircle
-                                id="me"
-                                isMe
-                                title={currentUser?.name || 'Me'}
-                                image_url={currentUser?.profile?.avatar_url}
+                                id={item.id}
+                                title={item.user?.name || 'Friend'}
+                                image_url={item.user?.avatar_url}
                                 onPress={() => {
-                                    if (myStory) {
-                                        // View my story
-                                        setInitialStoryUserIndex(myStoryIndex);
-                                        setViewerVisible(true);
-                                    } else {
-                                        // Or create one
-                                        router.push('/story-upload');
-                                    }
-                                }}
-                                onAddPress={() => {
-                                    router.push('/story-upload');
+                                    setInitialStoryUserIndex(originalIndex);
+                                    setViewerVisible(true);
                                 }}
                             />
                         );
-                    }
-                    
-                    const originalIndex = stories.findIndex(s => s.id === item.id);
-                    return (
-                        <StoryCircle
-                            id={item.id}
-                            title={item.user?.name || 'Friend'}
-                            image_url={item.user?.avatar_url}
-                            onPress={() => {
-                                setInitialStoryUserIndex(originalIndex);
-                                setViewerVisible(true);
-                            }}
-                        />
-                    );
-                }}
-                contentContainerStyle={styles.storiesList}
-            />
-        </View>
+                    }}
+                    contentContainerStyle={styles.storiesList}
+                />
+            </View>
         );
     };
 
@@ -184,38 +198,45 @@ export default function HomeScreen() {
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
                 onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.5}
+                onEndReachedThreshold={2.5}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
+                windowSize={11}
+                ListFooterComponent={
+                    (loading || hasMore) ? (
+                        <ShadowLoader type="feed" />
+                    ) : null
+                }
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 20 }}
                 ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.gray300} style={{ marginBottom: spacing.md }} />
-                        <Text style={[styles.emptyTitle, { color: colors.black }]}>Be the first to speak!</Text>
-                        <Text style={[styles.emptyBody, { color: colors.gray600 }]}>
-                            Start the conversation on your campus. Share a thought, ask a question, or post a meme.
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.exploreBtn, { backgroundColor: colors.black }]}
-                            onPress={() => router.push('/create-post')}
-                        >
-                            <Text style={[styles.exploreBtnText, { color: colors.white }]}>Start your first post</Text>
-                        </TouchableOpacity>
-                    </View>
-                }
-                ListFooterComponent={
-                    hasMore && posts.length > 0 ? (
-                        <View style={styles.footer}>
-                            <Skeleton width={100} height={10} borderRadius={5} />
+                    loading && posts.length === 0 ? (
+                        <View style={{ paddingTop: 0 }}>
+                            <ShadowLoader type="feed" />
                         </View>
-                    ) : null
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.gray300} style={{ marginBottom: spacing.md }} />
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>Be the first to speak!</Text>
+                            <Text style={[styles.emptyBody, { color: colors.gray600 }]}>
+                                Start the conversation on your campus. Share a thought, ask a question, or post a meme.
+                            </Text>
+                            <TouchableOpacity
+                                style={[styles.exploreBtn, { backgroundColor: colors.black }]}
+                                onPress={() => router.push('/create-post')}
+                            >
+                                <Text style={[styles.exploreBtnText, { color: colors.white }]}>Start your first post</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )
                 }
             />
 
-            <StoryViewer 
-                visible={viewerVisible} 
+            <StoryViewer
+                visible={viewerVisible}
                 stories={stories}
                 initialUserIndex={initialStoryUserIndex}
-                onClose={() => setViewerVisible(false)} 
+                onClose={() => setViewerVisible(false)}
             />
         </View>
     );

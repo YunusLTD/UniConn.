@@ -17,6 +17,32 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 // ActionModal replaced with inline contextual popup
 import { getCommunityMembers } from '../../src/api/communities';
 import SharedPostCard from '../../src/components/SharedPostCard';
+import { useVideoPlayer, VideoView } from 'expo-video';
+
+const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: boolean) => void }) => {
+    const player = useVideoPlayer(uri, p => {
+        p.loop = true;
+        p.play();
+    });
+
+    useEffect(() => {
+        onLoading(true);
+        const sub = player.addListener('statusChange', (status) => {
+            if (status === 'readyToPlay') {
+                onLoading(false);
+            }
+        });
+        return () => sub.remove();
+    }, [player]);
+
+    return (
+        <VideoView 
+            player={player} 
+            style={{ width: '100%', height: '80%' }} 
+            contentMode="contain"
+        />
+    );
+};
 
 const SwipeableMessage = ({ children, onSwipe }: any) => {
     const translateX = useRef(new Animated.Value(0)).current;
@@ -91,7 +117,7 @@ const MessageItem = React.memo(({
     isDissolving,
     dissolveAnim,
     router,
-    setPreviewImage,
+    setPreviewMedia,
     isHidden
 }: any) => {
     const bubbleRef = useRef<View>(null);
@@ -164,11 +190,13 @@ const MessageItem = React.memo(({
 
                     {item.media_url && (
                          item.media_type === 'video' ? (
-                            <View style={styles.mediaPlaceholder}>
-                                <Ionicons name="play-circle" size={48} color={colors.white} />
-                            </View>
+                            <TouchableOpacity onPress={() => setPreviewMedia({ uri: item.media_url_local || item.media_url, type: 'video' })} activeOpacity={0.9}>
+                                <View style={styles.mediaPlaceholder}>
+                                    <Ionicons name="play-circle" size={48} color={colors.white} />
+                                </View>
+                            </TouchableOpacity>
                         ) : (
-                            <TouchableOpacity onPress={() => setPreviewImage(item.media_url_local || item.media_url)} activeOpacity={0.9}>
+                            <TouchableOpacity onPress={() => setPreviewMedia({ uri: item.media_url_local || item.media_url, type: 'image' })} activeOpacity={0.9}>
                                 <Image
                                     source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }}
                                     style={styles.attachedMedia}
@@ -246,7 +274,8 @@ export default function ChatScreen() {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const [mediaUri, setMediaUri] = useState<string | null>(null);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [previewMedia, setPreviewMedia] = useState<{ uri: string, type: 'image' | 'video' } | null>(null);
+    const [isMediaLoading, setIsMediaLoading] = useState(false);
     const [peerTyping, setPeerTyping] = useState(false);
     const [replyTo, setReplyTo] = useState<any>(null);
     const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
@@ -435,29 +464,22 @@ export default function ChatScreen() {
             channelRef.current = channel;
         };
 
-        let interval: any;
-        init().then(() => {
-            interval = setInterval(() => {
-                if (conversation?.id) {
-                    loadMessages(conversation.id);
-                    loadConversation();
-                }
-            }, 10000);
-        });
+        init();
 
         const syncRead = async () => {
             try {
                 await markConversationRead(conversation?.id || id as string);
-                channelRef.current?.send({
-                    type: 'broadcast',
-                    event: 'read',
-                    payload: { user_id: user?.id }
-                });
+                if (channelRef.current) {
+                    channelRef.current.send({
+                        type: 'broadcast',
+                        event: 'read',
+                        payload: { user_id: user?.id }
+                    });
+                }
             } catch (e) { }
         };
 
         return () => {
-            if (interval) clearInterval(interval);
             if (channelRef.current) supabase.removeChannel(channelRef.current);
         };
     }, [id]);
@@ -480,6 +502,7 @@ export default function ChatScreen() {
 
         const content = input.trim();
         const media = mediaUri;
+        const isMedia = !!media;
         
         // Use a real UUID for both local state, broadcast and DB to ensure perfect sync
         const messageUUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -503,17 +526,19 @@ export default function ChatScreen() {
         setMessages(prev => [...prev, optimisticMessage]);
         setInput('');
         setMediaUri(null);
-        setReplyTo(null); // Clear reply state immediately after building optimistic message
+        setReplyTo(null); 
         setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
 
         // Instant Broadcast to Peer for ultra-low latency
-        channelRef.current?.send({
-            type: 'broadcast',
-            event: 'new_msg',
-            payload: optimisticMessage
-        });
+        if (channelRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'new_msg',
+                payload: optimisticMessage
+            });
+        }
 
-        setSending(true);
+        if (isMedia) setSending(true);
         try {
             let uploadedUrl;
             let mediaType;
@@ -590,8 +615,8 @@ export default function ChatScreen() {
             setTaggingSearch(null);
         }
 
-        if (text.length > 0) {
-            channelRef.current?.send({
+        if (text.length > 0 && channelRef.current) {
+            channelRef.current.send({
                 type: 'broadcast',
                 event: 'typing',
                 payload: { user_id: user?.id }
@@ -742,7 +767,7 @@ export default function ChatScreen() {
                             isDissolving={deletingIds.has(item.id)}
                             dissolveAnim={getDeleteAnim(item.id)}
                             router={router}
-                            setPreviewImage={setPreviewImage}
+                            setPreviewMedia={setPreviewMedia}
                             isHidden={showingActions?.id === item.id}
                         />
                     );
@@ -859,18 +884,40 @@ export default function ChatScreen() {
                 </View>
             </KeyboardAvoidingView>
 
-            {/* Image Preview Modal */}
-            <Modal visible={!!previewImage} transparent={true} animationType="fade">
+            {/* Media Preview Modal */}
+            <Modal visible={!!previewMedia} transparent={true} animationType="fade">
                 <View style={styles.modalBg}>
-                    <TouchableOpacity style={styles.closePreview} onPress={() => setPreviewImage(null)}>
-                        <Ionicons name="close" size={30} color={colors.white} />
+                    <TouchableOpacity 
+                        style={styles.closePreview} 
+                        onPress={() => {
+                            setPreviewMedia(null);
+                            setIsMediaLoading(false);
+                        }}
+                    >
+                        <Ionicons name="close" size={30} color="#FFFFFF" />
                     </TouchableOpacity>
-                    {previewImage && (
-                        <Image 
-                            source={{ uri: previewImage, cache: 'force-cache' }} 
-                            style={styles.fullImage} 
-                            resizeMode="contain"
-                        />
+                    
+                    {isMediaLoading && (
+                        <View style={StyleSheet.absoluteFill}>
+                            <ActivityIndicator size="large" color="#FFFFFF" style={{ flex: 1 }} />
+                        </View>
+                    )}
+
+                    {previewMedia && (
+                        previewMedia.type === 'video' ? (
+                            <VideoPreview 
+                                uri={previewMedia.uri} 
+                                onLoading={(l: boolean) => setIsMediaLoading(l)} 
+                            />
+                        ) : (
+                            <Image 
+                                source={{ uri: previewMedia.uri, cache: 'force-cache' }} 
+                                style={styles.fullImage} 
+                                resizeMode="contain"
+                                onLoadStart={() => setIsMediaLoading(true)}
+                                onLoadEnd={() => setIsMediaLoading(false)}
+                            />
+                        )
                     )}
                 </View>
             </Modal>

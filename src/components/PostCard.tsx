@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, SafeAreaView, FlatList, Animated, Share, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Share, Clipboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -126,7 +127,7 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
 };
 
 // ─── PostCard ───
-export default function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
+function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
 
@@ -429,7 +430,7 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
                                 myVote === -1 && { color: themeColors.danger }
                             ]}>
                                 {voteCount}
-                            </Text>
+                                </Text>
 
                             <TouchableOpacity
                                 style={styles.voteBtn}
@@ -522,6 +523,15 @@ export default function PostCard({ post, showDelete = false, onDelete, hideNavig
         </View>
     );
 }
+
+export default React.memo(PostCard, (prevProps, nextProps) => {
+    return prevProps.post.id === nextProps.post.id &&
+           prevProps.post.updated_at === nextProps.post.updated_at &&
+           prevProps.post.my_vote === nextProps.post.my_vote &&
+           prevProps.post.vote_count === nextProps.post.vote_count &&
+           prevProps.post.comments?.[0]?.count === nextProps.post.comments?.[0]?.count &&
+           prevProps.hideNavigation === nextProps.hideNavigation;
+});
 
 // Add import
 import PostShareModal from './PostShareModal';
