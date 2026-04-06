@@ -4,15 +4,16 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
-import { formatRelativeTime } from '../../src/utils/date';
 import { getMarketplaceListing } from '../../src/api/marketplace';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketplaceDetailScreen() {
     const { colors, isDark } = useTheme();
-    const { id, title: headerTitle } = useLocalSearchParams();
+    const { t } = useLanguage();
+    const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [item, setItem] = useState<any>(null);
@@ -20,6 +21,24 @@ export default function MarketplaceDetailScreen() {
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isMediaLoading, setIsMediaLoading] = useState(false);
+
+    const formatRelativeLocalized = (dateStr?: string) => {
+        if (!dateStr) return '';
+        const now = new Date();
+        const d = new Date(dateStr);
+        const diffMs = now.getTime() - d.getTime();
+        if (!Number.isFinite(diffMs) || diffMs < 0) return t('just_now');
+
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHrs / 24);
+
+        if (diffMins < 1) return t('just_now');
+        if (diffMins < 60) return t('minute_ago').replace('{{count}}', String(diffMins));
+        if (diffHrs < 24) return t('hour_ago').replace('{{count}}', String(diffHrs));
+        if (diffDays === 1) return t('yesterday');
+        return t('day_ago').replace('{{count}}', String(diffDays));
+    };
 
     const loadData = useCallback(async () => {
         try {
@@ -37,8 +56,11 @@ export default function MarketplaceDetailScreen() {
     const handleShare = async () => {
         if (!item) return;
         try {
+            const formattedPrice = item.price === 0 ? t('free_badge') : `$${item.price?.toLocaleString() || 0}`;
             await Share.share({
-                message: `Check out this ${item.title} on Marketplace for $${item.price}!`,
+                message: t('market_share_text')
+                    .replace('{{title}}', item.title || '')
+                    .replace('{{price}}', formattedPrice),
                 url: `https://uniconn.app/market/${item.id}`,
             });
         } catch (e) {}
@@ -52,7 +74,7 @@ export default function MarketplaceDetailScreen() {
         <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             <Stack.Screen 
                 options={{ 
-                    title: (item?.title || (headerTitle as string) || 'Listing...'),
+                    title: item?.title || t('marketplace'),
                     headerTitleStyle: { fontFamily: fonts.bold, fontSize: 18, color: colors.black },
                     headerBackTitle: '',
                     headerStyle: { backgroundColor: colors.surface },
@@ -76,9 +98,9 @@ export default function MarketplaceDetailScreen() {
                 </View>
             ) : !item ? (
                 <View style={[styles.container, styles.centered]}>
-                    <Text style={styles.errorText}>Item not found</Text>
+                    <Text style={styles.errorText}>{t('market_item_not_found')}</Text>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
+                        <Text style={styles.backBtnText}>{t('go_back')}</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
@@ -102,16 +124,16 @@ export default function MarketplaceDetailScreen() {
                             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, gap: 6 }}>
                                 <Ionicons name="search" size={16} color={colors.primary} />
                                 <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.primary }}>
-                                    {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} is looking for...` : 'User is looking for...'}
+                                    {item.profiles?.name ? `${item.profiles.name.split(' ')[0]} ${t('looking_for')}` : t('user_looking_for')}
                                 </Text>
                             </View>
                         ) : (
                             <Text style={[styles.price, { color: colors.black }]}>
-                                {item.price === 0 ? 'FREE' : `$${item.price?.toLocaleString() || 0}`}
+                                {item.price === 0 ? t('free_badge') : `$${item.price?.toLocaleString() || 0}`}
                             </Text>
                         )}
                         <View style={[styles.categoryBadge, { backgroundColor: colors.surface }]}>
-                            <Text style={[styles.categoryText, { color: colors.gray600 }]}>{item.category || 'Other'}</Text>
+                            <Text style={[styles.categoryText, { color: colors.gray600 }]}>{item.category || t('other')}</Text>
                         </View>
                     </View>
 
@@ -121,19 +143,19 @@ export default function MarketplaceDetailScreen() {
                         <View style={styles.metaItem}>
                             <Ionicons name="time-outline" size={14} color={colors.gray400} />
                             <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                <Text style={{ color: colors.gray400 }}>Listed </Text>
-                                {formatRelativeTime(item.created_at)}
+                                <Text style={{ color: colors.gray400 }}>{t('listed')} </Text>
+                                {formatRelativeLocalized(item.created_at)}
                             </Text>
                         </View>
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: colors.black }]}>Description</Text>
-                        <Text style={[styles.description, { color: colors.gray600 }]}>{item.description || 'No description provided.'}</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.black }]}>{t('description')}</Text>
+                        <Text style={[styles.description, { color: colors.gray600 }]}>{item.description || t('no_description_provided')}</Text>
                     </View>
 
                     <View style={styles.sellerSection}>
-                        <Text style={[styles.sectionTitle, { color: colors.black }]}>{item.listing_type === 'request' ? 'Requested By' : 'Seller Information'}</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.black }]}>{item.listing_type === 'request' ? t('requested_by') : t('seller_information')}</Text>
                         <TouchableOpacity 
                             style={[styles.sellerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                             onPress={() => router.push(`/user/${item.seller_id}`)}
@@ -148,8 +170,8 @@ export default function MarketplaceDetailScreen() {
                                 )}
                             </View>
                             <View style={styles.sellerInfo}>
-                                <Text style={[styles.sellerName, { color: colors.black }]}>{item.profiles?.name || 'Unknown User'}</Text>
-                                <Text style={[styles.sellerSub, { color: colors.gray500 }]}>Active on Campus</Text>
+                                <Text style={[styles.sellerName, { color: colors.black }]}>{item.profiles?.name || t('unknown_user')}</Text>
+                                <Text style={[styles.sellerSub, { color: colors.gray500 }]}>{t('active_on_campus')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
                         </TouchableOpacity>
@@ -161,11 +183,11 @@ export default function MarketplaceDetailScreen() {
             {item && (
                 <View style={[styles.footer, { backgroundColor: isDark ? colors.surface : 'rgba(255,255,255,0.95)', borderTopColor: colors.border }]}>
                     <TouchableOpacity 
-                        style={[styles.chatBtn, { backgroundColor: colors.primary }]}
+                        style={[styles.chatBtn, { backgroundColor: isDark ? colors.blue : colors.primary }]}
                         onPress={() => router.push(`/chat/${item.seller_id}`)}
                     >
                         <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                        <Text style={[styles.chatBtnText, { color: colors.white }]}>{item.listing_type === 'request' ? 'Send Message' : 'Message Seller'}</Text>
+                        <Text style={[styles.chatBtnText, { color: colors.white }]}>{item.listing_type === 'request' ? t('send_message') : t('message_seller')}</Text>
                     </TouchableOpacity>
                 </View>
             )}

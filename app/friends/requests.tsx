@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { getFriendRequests, respondToFriendRequest } from '../../src/api/friends';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function FriendRequestsScreen() {
     const router = useRouter();
@@ -12,6 +13,7 @@ export default function FriendRequestsScreen() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const loadRequests = async () => {
         try {
@@ -64,7 +66,7 @@ export default function FriendRequestsScreen() {
                         {profile.university_name && (
                             <Text style={[styles.uniName, { color: colors.gray500 }]} numberOfLines={1}>{profile.university_name}</Text>
                         )}
-                        <Text style={styles.statusText}>Wants to be your friend</Text>
+                        <Text style={styles.statusText}>{t('wants_to_be_your_friend')}</Text>
                     </View>
                 </TouchableOpacity>
 
@@ -77,7 +79,7 @@ export default function FriendRequestsScreen() {
                         {actionLoading === `${item.id}-reject` ? (
                             <ActivityIndicator size="small" color={isDark ? colors.gray300 : colors.gray600} />
                         ) : (
-                            <Text style={[styles.rejectBtnText, { color: isDark ? colors.gray300 : colors.gray600 }]}>Decline</Text>
+                            <Text style={[styles.rejectBtnText, { color: isDark ? colors.gray300 : colors.gray600 }]}>{t('decline')}</Text>
                         )}
                     </TouchableOpacity>
                     <TouchableOpacity 
@@ -88,7 +90,7 @@ export default function FriendRequestsScreen() {
                         {actionLoading === `${item.id}-accept` ? (
                             <ActivityIndicator size="small" color={colors.white} />
                         ) : (
-                            <Text style={[styles.acceptBtnText, { color: colors.white }]}>Accept</Text>
+                            <Text style={[styles.acceptBtnText, { color: colors.white }]}>{t('accept')}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -99,7 +101,7 @@ export default function FriendRequestsScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
-                title: 'Friend Requests', 
+                title: t('friend_requests'), 
                 headerShown: true, 
                 headerBackTitle: '',
                 headerTintColor: colors.black,
@@ -119,8 +121,8 @@ export default function FriendRequestsScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Ionicons name="people-outline" size={64} color={colors.gray200} />
-                            <Text style={[styles.emptyTitle, { color: colors.black }]}>No pending requests</Text>
-                            <Text style={[styles.emptyText, { color: colors.gray500 }]}>When students want to be your friend, they'll appear here.</Text>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('no_pending_requests')}</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray500 }]}>{t('friend_requests_empty_sub')}</Text>
                         </View>
                     }
                 />

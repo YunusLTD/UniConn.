@@ -60,6 +60,12 @@ export default function ProfileScreen() {
     const [showThemeModal, setShowThemeModal] = useState(false);
     const router = useRouter();
 
+    const getThemeLabel = (mode: 'light' | 'dark' | 'system') => {
+        if (mode === 'light') return t('theme_light');
+        if (mode === 'dark') return t('theme_dark');
+        return t('theme_system');
+    };
+
     const loadProfileData = async () => {
         try {
             const res = await getProfile();
@@ -370,7 +376,7 @@ export default function ProfileScreen() {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.menuText, { color: colors.black }]}>{t('theme')}</Text>
-                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>{`${t('theme')}: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}</Text>
+                                    <Text style={[styles.menuSubText, { color: colors.gray500 }]}>{`${t('theme')}: ${getThemeLabel(theme as 'light' | 'dark' | 'system')}`}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
                             </TouchableOpacity>
@@ -531,7 +537,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowThemeModal(false)}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>Select Theme</Text>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('select_theme')}</Text>
                             <TouchableOpacity onPress={() => setShowThemeModal(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
@@ -547,7 +553,7 @@ export default function ProfileScreen() {
                                         name={m === 'light' ? 'sunny-outline' : m === 'dark' ? 'moon-outline' : 'phone-portrait-outline'} 
                                         size={20} color={colors.black} 
                                     />
-                                    <Text style={[styles.selectorText, { color: colors.black }]}>{m.charAt(0).toUpperCase() + m.slice(1)}</Text>
+                                    <Text style={[styles.selectorText, { color: colors.black }]}>{getThemeLabel(m)}</Text>
                                     {theme === m && <Ionicons name="checkmark-circle" size={20} color="#00A3FF" />}
                                 </TouchableOpacity>
                             ))}

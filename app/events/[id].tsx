@@ -6,6 +6,7 @@ import { useTheme } from '../../src/context/ThemeContext';
 import { getEvent, rsvpToEvent, toggleEventInterest } from '../../src/api/events';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -13,6 +14,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function EventDetailScreen() {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -65,10 +67,10 @@ export default function EventDetailScreen() {
         try {
             await rsvpToEvent(id as string, newStatus);
             setStatus(newStatus);
-            Alert.alert('Done', `You're marked as ${newStatus.replace('_', ' ')}!`);
+            Alert.alert(t('done_label'), t('marked_as_status').replace('{{status}}', newStatus.replace('_', ' ')));
             loadData();
         } catch (e: any) {
-            Alert.alert('Error', e.message);
+            Alert.alert(t('error'), e.message);
         }
     };
 
@@ -81,7 +83,7 @@ export default function EventDetailScreen() {
             <Stack.Screen
                 options={{
                     headerShown: true,
-                    title: event?.title || 'Event Details',
+                    title: event?.title || t('event_details_header'),
                     headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
                     headerBackTitle: '',
                     headerShadowVisible: false,
@@ -100,14 +102,14 @@ export default function EventDetailScreen() {
                 {isPassed && !loading && (
                     <View style={[styles.passedBanner, { backgroundColor: isDark ? '#2D2D2D' : colors.gray50 }]}>
                         <Ionicons name="alert-circle-outline" size={18} color={colors.gray500} />
-                        <Text style={[styles.passedText, { color: colors.gray500 }]}>This event has already ended.</Text>
+                        <Text style={[styles.passedText, { color: colors.gray500 }]}>{t('event_already_ended')}</Text>
                     </View>
                 )}
 
                 {loading && !event ? (
                     <View style={{ padding: 40, alignItems: 'center' }}>
                         <ActivityIndicator color={colors.text} />
-                        <Text style={{ marginTop: 12, fontFamily: fonts.medium, color: colors.gray400 }}>Loading event...</Text>
+                        <Text style={{ marginTop: 12, fontFamily: fonts.medium, color: colors.gray400 }}>{t('loading_event')}</Text>
                     </View>
                 ) : (
                     <>
@@ -121,7 +123,7 @@ export default function EventDetailScreen() {
                                     <View style={[styles.miniIcon, { backgroundColor: colors.primary + '15' }]}>
                                         <Ionicons name="business" size={12} color={colors.primary} />
                                     </View>
-                                    <Text style={styles.communityName}>{event?.communities?.name || 'Community'}</Text>
+                                    <Text style={styles.communityName}>{event?.communities?.name || t('community_label')}</Text>
                                 </TouchableOpacity>
 
                                 {event?.profiles && (
@@ -152,7 +154,7 @@ export default function EventDetailScreen() {
                                     </View>
                                     <Text style={styles.socialText}>
                                         <Text style={{ fontFamily: fonts.bold, color: colors.text }}>{interestedCount}</Text>
-                                        {interestedCount === 1 ? ' person is interested' : ' people are interested'}
+                                        {interestedCount === 1 ? ` ${t('person_is_interested')}` : ` ${t('people_are_interested')}`}
                                     </Text>
                                 </View>
                             )}
@@ -182,8 +184,8 @@ export default function EventDetailScreen() {
                         </View>
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>About this event</Text>
-                            <Text style={[styles.description, { color: colors.gray600 }]}>{event?.description || 'No description provided.'}</Text>
+                            <Text style={styles.sectionTitle}>{t('about_this_event')}</Text>
+                            <Text style={[styles.description, { color: colors.gray600 }]}>{event?.description || t('no_event_description')}</Text>
                         </View>
 
                         <View style={styles.actionSection}>
@@ -205,7 +207,7 @@ export default function EventDetailScreen() {
                                     styles.interestActionText,
                                     { color: isInterested ? colors.white : (isDark ? 'rgba(255,255,255,0.9)' : colors.text) }
                                 ]}>
-                                    {isInterested ? "I'm Interested" : "Mark as Interested"}
+                                    {isInterested ? t('im_interested_label') : t('mark_as_interested')}
                                 </Text>
                             </TouchableOpacity>
                         </View>

@@ -8,9 +8,11 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useToast } from '../../src/context/ToastContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function StudyDetailScreen() {
-    const { colors, isDark } = useTheme();
+    const { colors } = useTheme();
+    const { t } = useLanguage();
     const { id } = useLocalSearchParams();
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -23,6 +25,52 @@ export default function StudyDetailScreen() {
     const scrollViewRef = useRef<ScrollView>(null);
 
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const translateSubject = (subject?: string) => {
+        const normalized = (subject || '').trim().toLowerCase();
+        switch (normalized) {
+            case 'math':
+            case 'mathematics':
+                return t('math');
+            case 'science':
+                return t('science');
+            case 'english':
+                return t('english');
+            case 'history':
+                return t('history');
+            case 'physics':
+                return t('physics');
+            case 'computer science':
+            case 'comp sci':
+            case 'cs':
+                return t('cs');
+            case 'business':
+                return t('business');
+            case 'arts':
+            case 'art':
+                return t('arts');
+            case 'other':
+                return t('other');
+            default:
+                return subject || t('other');
+        }
+    };
+    const formatRelativeLocalized = (dateStr?: string) => {
+        if (!dateStr) return '';
+        const now = new Date();
+        const d = new Date(dateStr);
+        const diffMs = now.getTime() - d.getTime();
+        if (!Number.isFinite(diffMs) || diffMs < 0) return t('just_now');
+
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHrs / 24);
+
+        if (diffMins < 1) return t('just_now');
+        if (diffMins < 60) return t('minute_ago').replace('{{count}}', String(diffMins));
+        if (diffHrs < 24) return t('hour_ago').replace('{{count}}', String(diffHrs));
+        if (diffDays === 1) return t('yesterday');
+        return t('day_ago').replace('{{count}}', String(diffDays));
+    };
 
     const loadData = async () => {
         try {
@@ -52,7 +100,7 @@ export default function StudyDetailScreen() {
                 setTimeout(() => scrollViewRef.current?.scrollToEnd(), 100);
             }
         } catch (e) {
-            showToast({ title: 'Error', message: 'Failed to post answer', type: 'error' });
+            showToast({ title: t('error'), message: t('study_post_answer_failed'), type: 'error' });
         } finally {
             setSending(false);
         }
@@ -66,7 +114,7 @@ export default function StudyDetailScreen() {
 
     if (!question) return (
         <View style={styles.loadingContainer}>
-            <Text style={{ color: colors.gray400 }}>Question not found</Text>
+            <Text style={{ color: colors.gray400 }}>{t('study_question_not_found')}</Text>
         </View>
     );
 
@@ -75,7 +123,7 @@ export default function StudyDetailScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
             <Stack.Screen options={{ 
-                title: 'Study Discussion', 
+                title: t('study_discussion_header'), 
                 headerBackTitle: '',
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.text,
@@ -105,10 +153,10 @@ export default function StudyDetailScreen() {
                                 </View>
                                 <View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                        <Text style={styles.name}>{question.profiles?.name || 'User'}</Text>
-                                        {user?.id === question.user_id && <Text style={[styles.name, { color: colors.gray400, fontSize: 13 }]}>{'(You)'}</Text>}
+                                        <Text style={styles.name}>{question.profiles?.name || t('user_fallback')}</Text>
+                                        {user?.id === question.user_id && <Text style={[styles.name, { color: colors.gray400, fontSize: 13 }]}>{t('you_tag')}</Text>}
                                     </View>
-                                    <Text style={styles.subText}>{new Date(question.created_at).toLocaleDateString()} • {question.subject}</Text>
+                                    <Text style={styles.subText}>{formatRelativeLocalized(question.created_at)} • {translateSubject(question.subject)}</Text>
                                 </View>
                             </View>
                         </View>
@@ -125,13 +173,13 @@ export default function StudyDetailScreen() {
 
                     {/* Answers Section */}
                     <View style={styles.answersHeader}>
-                        <Text style={styles.answersTitle}>Answers ({answers.length})</Text>
+                        <Text style={styles.answersTitle}>{t('study_answers')} ({answers.length})</Text>
                     </View>
 
                     {answers.length === 0 ? (
                         <View style={styles.emptyAnswers}>
                             <Ionicons name="chatbubbles-outline" size={32} color={colors.gray300} />
-                            <Text style={styles.emptyAnswersText}>Nobody has answered yet. Be the first to help out!</Text>
+                            <Text style={styles.emptyAnswersText}>{t('study_empty_answers')} {t('study_empty_answers_sub')}</Text>
                         </View>
                     ) : (
                         answers.map(answer => (
@@ -146,10 +194,10 @@ export default function StudyDetailScreen() {
                                     </View>
                                     <View>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <Text style={styles.answerName}>{answer.profiles?.name || 'Helper'}</Text>
-                                            {user?.id === answer.user_id && <Text style={[styles.answerName, { color: colors.gray400, fontSize: 12 }]}>{'(You)'}</Text>}
+                                            <Text style={styles.answerName}>{answer.profiles?.name || t('user_fallback')}</Text>
+                                            {user?.id === answer.user_id && <Text style={[styles.answerName, { color: colors.gray400, fontSize: 12 }]}>{t('you_tag')}</Text>}
                                         </View>
-                                        <Text style={styles.answerTime}>{new Date(answer.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                                        <Text style={styles.answerTime}>{formatRelativeLocalized(answer.created_at)}</Text>
                                     </View>
                                 </View>
                                 <Text style={styles.answerContent}>{answer.content}</Text>
@@ -162,7 +210,7 @@ export default function StudyDetailScreen() {
                 <View style={styles.inputBar}>
                     <TextInput
                         style={styles.input}
-                        placeholder="Type your answer or explanation..."
+                        placeholder={t('study_answer_placeholder')}
                         placeholderTextColor={colors.gray400}
                         value={answerText}
                         onChangeText={setAnswerText}

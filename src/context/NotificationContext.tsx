@@ -46,6 +46,8 @@ type MessageBannerData = {
     avatarUrl?: string;
 };
 
+type BannerSource = 'realtime_push' | 'realtime_notifications' | 'polling_fallback';
+
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
@@ -63,6 +65,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const lastBannerRef = useRef<{ signature: string; shownAt: number } | null>(null);
     const lastConversationMessageAtRef = useRef<Record<string, string>>({});
     const seededConversationWatcherRef = useRef(false);
+    const bannerSourceRef = useRef<BannerSource>('polling_fallback');
+    const previousSourceRef = useRef<BannerSource | null>(null);
     const bannerTranslate = useRef(new Animated.Value(-160)).current;
     const bannerOpacity = useRef(new Animated.Value(0)).current;
     const activeBanner = messageBanner;
@@ -151,9 +155,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
     }, [t, user?.id]);
 
-    const showMessageBanner = useCallback((data: Partial<MessageBannerData> & { conversationId?: string }) => {
+    const setBannerSource = useCallback((source: BannerSource, reason: string) => {
+        bannerSourceRef.current = source;
+        if (previousSourceRef.current !== source) {
+            previousSourceRef.current = source;
+            console.log(`[MessageBanner] source=${source} reason=${reason}`);
+        }
+    }, []);
+
+    const showMessageBanner = useCallback((data: Partial<MessageBannerData> & { conversationId?: string; source?: BannerSource }) => {
         if (!data.conversationId) return;
         if (isOnMessagingScreen()) return;
+
+        const source = data.source || bannerSourceRef.current;
+        setBannerSource(source, 'banner_shown');
 
         const normalizedTitle = (data.title || '')
             .replace(/^Message from\s+/i, '')
@@ -194,7 +209,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         if (bannerTimer.current) clearTimeout(bannerTimer.current);
         bannerTimer.current = setTimeout(hideMessageBanner, 4500);
-    }, [bannerOpacity, bannerTranslate, hideMessageBanner, hydrateConversationMeta, isOnMessagingScreen, t]);
+    }, [bannerOpacity, bannerTranslate, hideMessageBanner, hydrateConversationMeta, isOnMessagingScreen, setBannerSource, t]);
 
     const checkConversationsForIncomingMessages = useCallback(async () => {
         const currentUserId = user?.id;
@@ -255,16 +270,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const body = (msg?.content || '').trim()
                 || (msg?.media_type === 'video' ? t('video_label') : msg?.media_url ? t('photo_label') : t('you_received_a_new_message'));
 
+            setBannerSource('polling_fallback', 'new_message_detected_by_polling');
             showMessageBanner({
                 conversationId: conv.id,
                 title,
                 body,
                 avatarUrl,
+                source: 'polling_fallback',
             });
         } catch (e) {
             console.log('Conversation watcher failed', e);
         }
-    }, [isOnMessagingScreen, showMessageBanner, t, token, user?.id]);
+    }, [isOnMessagingScreen, setBannerSource, showMessageBanner, t, token, user?.id]);
 
     useEffect(() => {
         if (messageBanner && isOnMessagingScreen()) {
@@ -283,10 +300,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 const data = (notification.request.content?.data || {}) as Record<string, any>;
                 const conversationId = typeof data?.reference_id === 'string' ? data.reference_id : undefined;
                 if (data?.type === 'message' && conversationId) {
+                    setBannerSource('realtime_push', 'foreground_push_received');
                     showMessageBanner({
                         conversationId,
                         title: notification.request.content.title ?? undefined,
                         body: notification.request.content.body ?? undefined,
+                        source: 'realtime_push',
                     });
                 }
             });
@@ -318,10 +337,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                         fetchUnreadCount();
 
                         if (payload.new?.type === 'message') {
+                            setBannerSource('realtime_notifications', 'notifications_realtime_insert');
                             showMessageBanner({
                                 conversationId: payload.new.reference_id,
                                 title: payload.new.title,
                                 body: payload.new.message,
+                                source: 'realtime_notifications',
                             });
                         }
                     }
@@ -335,7 +356,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 hideMessageBanner();
             };
         }
-    }, [token, user, showMessageBanner, hideMessageBanner]);
+    }, [token, user, showMessageBanner, hideMessageBanner, setBannerSource]);
 
     useEffect(() => {
         if (token) {

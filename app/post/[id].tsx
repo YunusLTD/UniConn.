@@ -11,6 +11,7 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 import { getCommunityMembers } from '../../src/api/communities';
 import { useAuth } from '../../src/context/AuthContext';
 import { Alert } from 'react-native';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -26,6 +27,7 @@ function timeAgo(dateStr: string) {
 
 export default function PostScreen() {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const { user } = useAuth();
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -131,7 +133,7 @@ export default function PostScreen() {
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
         } catch (e) {
             console.log('Error adding comment', e);
-            alert('Failed to post comment');
+            alert(t('failed_to_post_comment'));
         } finally {
             setSubmitting(false);
         }
@@ -146,10 +148,10 @@ export default function PostScreen() {
     };
 
     const handleDeleteComment = (commentId: string) => {
-        Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
-            { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('delete_comment_title'), t('delete_comment_confirm'), [
+            { text: t('cancel_request'), style: 'cancel' },
             { 
-                text: 'Delete', 
+                text: t('delete_label'), 
                 style: 'destructive', 
                 onPress: async () => {
                     try {
@@ -157,7 +159,7 @@ export default function PostScreen() {
                         const commentRes = await getComments(id as string);
                         if (commentRes?.data) setComments(buildCommentList(commentRes.data));
                     } catch (e) {
-                        Alert.alert('Error', 'Failed to delete comment');
+                        Alert.alert(t('error'), t('failed_to_delete_comment'));
                     }
                 } 
             }
@@ -199,13 +201,13 @@ export default function PostScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
             {/* @ts-ignore - headerBackTitleVisible exists in runtime but may not be in current types */}
-            <Stack.Screen options={{ title: 'Post', headerBackTitle: '', headerBackTitleVisible: false }} />
+            <Stack.Screen options={{ title: t('post_header'), headerBackTitle: '', headerBackTitleVisible: false }} />
 
             {loading ? (
                 <ShadowLoader />
             ) : !post ? (
                 <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-                    <Text style={[styles.errorText, { color: colors.gray500 }]}>Post not found</Text>
+                    <Text style={[styles.errorText, { color: colors.gray500 }]}>{t('post_not_found')}</Text>
                 </View>
             ) : (
                 <FlatList
@@ -235,19 +237,19 @@ export default function PostScreen() {
                                 >
                                     <View style={styles.commentHeader}>
                                         <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
-                                            <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || 'Unknown'}</Text>
+                                            <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || t('unknown_user')}</Text>
                                         </TouchableOpacity>
                                         <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
                                         {item.updated_at && (new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 10000) && (
-                                            <Text style={[styles.commentTime, { color: colors.gray400 }]}>· (edited)</Text>
+                                            <Text style={[styles.commentTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
                                         )}
                                     </View>
                                     <Text style={[styles.commentContent, { color: colors.gray700 }]}>
                                         {renderContentWithMentions(item.content)}
                                     </Text>
                                     <View style={styles.commentActions}>
-                                        <TouchableOpacity onPress={() => handleReply(item.id, item.profiles?.name || 'Unknown')}>
-                                            <Text style={[styles.replyBtnText, { color: colors.gray500 }]}>Reply</Text>
+                                        <TouchableOpacity onPress={() => handleReply(item.id, item.profiles?.name || t('unknown_user'))}>
+                                            <Text style={[styles.replyBtnText, { color: colors.gray500 }]}>{t('reply')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </TouchableOpacity>
@@ -259,14 +261,14 @@ export default function PostScreen() {
                             <PostCard post={post} hideNavigation={true} />
                             <View style={[styles.repliesHeader, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
                                 <Text style={[styles.repliesLabel, { color: colors.gray500 }]}>
-                                    {comments.length > 0 ? `${comments.length} ${comments.length === 1 ? 'reply' : 'replies'}` : 'Replies'}
+                                    {comments.length > 0 ? `${comments.length} ${comments.length === 1 ? t('reply') : t('replies')}` : t('replies')}
                                 </Text>
                             </View>
                         </>
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyComments}>
-                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>No replies yet. Be the first.</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>{t('no_replies_yet')}</Text>
                         </View>
                     }
                 />
@@ -300,7 +302,7 @@ export default function PostScreen() {
                     )}
                     {replyingTo && (
                         <View style={[styles.replyingToBanner, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-                            <Text style={[styles.replyingToText, { color: colors.gray600 }]}>Replying to {replyingTo.name}</Text>
+                            <Text style={[styles.replyingToText, { color: colors.gray600 }]}>{t('replying_to')} {replyingTo.name}</Text>
                             <TouchableOpacity onPress={cancelReply} hitSlop={10}>
                                 <Ionicons name="close-circle" size={18} color={colors.gray500} />
                             </TouchableOpacity>
@@ -309,7 +311,7 @@ export default function PostScreen() {
                     <View style={styles.inputBar}>
                         <TextInput
                             style={[styles.commentInput, { color: colors.black, backgroundColor: colors.background, borderColor: colors.border }]}
-                            placeholder={replyingTo ? `Reply to ${replyingTo.name}…` : "Write a comment…"}
+                            placeholder={replyingTo ? `${t('reply')} ${replyingTo.name}…` : t('write_comment_placeholder')}
                             placeholderTextColor={colors.gray400}
                             value={newComment}
                             onChangeText={handleInputChange}

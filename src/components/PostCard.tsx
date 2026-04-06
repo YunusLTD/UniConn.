@@ -10,6 +10,7 @@ import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ActionModal, { ActionOption } from './ActionModal';
+import { useLanguage } from '../context/LanguageContext';
 
 import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
 
@@ -139,6 +140,7 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
 function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
+    const { t } = useLanguage();
 
     const renderContentWithMentions = (content: string) => {
         if (!content) return null;
@@ -217,7 +219,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const handleCopyLink = () => {
         const shareUrl = `https://uni-platform.app/post/${post.id}`;
         Clipboard.setString(shareUrl);
-        Alert.alert('Link Copied', 'The post link has been copied to your clipboard.');
+        Alert.alert(t('link_copied_title'), t('post_link_copied'));
     };
 
     const handleReport = () => {
@@ -286,22 +288,22 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     };
 
     const actionOptions: ActionOption[] = [
-        { label: 'Share', icon: 'share-outline', onPress: handleShare },
-        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
-        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
+        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
+        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
     ];
 
     if (isOwner) {
         actionOptions.unshift(
-            { label: 'Edit Post', icon: 'create-outline', onPress: handleEdit },
-            { label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true }
+            { label: t('edit_post_option'), icon: 'create-outline', onPress: handleEdit },
+            { label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true }
         );
     }
 
     const reportOptions: ActionOption[] = [
-        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
-        { label: 'Harassment', icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
-        { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
+        { label: t('inappropriate_content_option'), icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: t('harassment_option'), icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
+        { label: t('spam_option'), icon: 'ban-outline', onPress: () => sendReport('spam') },
     ];
 
     useEffect(() => {
@@ -396,7 +398,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                 </TouchableOpacity>
                                 {!!isOwner && (
                                     <View style={[styles.youBadge, { backgroundColor: themeColors.elevated }]}>
-                                        <Text style={[styles.youText, { color: themeColors.blue }]}>you</Text>
+                                        <Text style={[styles.youText, { color: themeColors.blue }]}>{t('you_badge')}</Text>
                                     </View>
                                 )}
                                 <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
@@ -404,7 +406,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                 {isEdited && (
                                     <>
                                         <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11 }]}>edited</Text>
+                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11 }]}>{t('edited_label')}</Text>
                                     </>
                                 )}
                             </View>
@@ -541,7 +543,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                 visible={actionVisible}
                 onClose={() => setActionVisible(false)}
                 options={actionOptions}
-                title="Post Options"
+                title={t('post_options_title')}
             />
 
             {/* Report Reasons Sheet */}
@@ -549,7 +551,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                 visible={reportReasonVisible}
                 onClose={() => setReportReasonVisible(false)}
                 options={reportOptions}
-                title="Why are you reporting?"
+                title={t('why_reporting_title')}
             />
 
             <PostShareModal

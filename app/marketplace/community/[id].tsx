@@ -4,9 +4,11 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { colors, spacing, fonts, radii } from '../../../src/constants/theme';
 import { getMarketplaceListings } from '../../../src/api/marketplace';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../../src/context/LanguageContext';
 
 export default function CommunityMarketplaceScreen() {
     const { id } = useLocalSearchParams();
+    const { t } = useLanguage();
     const [listings, setListings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -21,7 +23,7 @@ export default function CommunityMarketplaceScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Marketplace', headerBackTitle: '' }} />
+            <Stack.Screen options={{ title: t('marketplace'), headerBackTitle: '' }} />
             {loading ? (
                 <View style={styles.centered}><ActivityIndicator size="small" color={colors.black} /></View>
             ) : (

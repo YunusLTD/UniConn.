@@ -9,6 +9,7 @@ import { deleteMarketplaceListing } from '../api/marketplace';
 import { submitReport } from '../api/reports';
 import ActionModal, { ActionOption } from './ActionModal';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
+import { useLanguage } from '../context/LanguageContext';
 
 interface MarketCardProps {
     item: any;
@@ -16,6 +17,7 @@ interface MarketCardProps {
 
 export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (id: string) => void }) {
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const router = useRouter();
     const { user } = useAuth();
     const [actionVisible, setActionVisible] = useState(false);
@@ -54,7 +56,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     const handleCopyLink = () => {
         const shareUrl = `https://uni-platform.app/marketplace/${item.id}`;
         Clipboard.setString(shareUrl);
-        Alert.alert('Link Copied', 'The listing link has been copied to your clipboard.');
+        Alert.alert(t('link_copied_title'), t('listing_link_copied'));
     };
 
     const handleMenu = () => {
@@ -95,19 +97,19 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     };
 
     const actionOptions: ActionOption[] = [
-        { label: 'Share', icon: 'share-outline', onPress: handleShare },
-        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
-        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
+        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
+        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
     ];
 
     if (isOwner) {
-        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [
-        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
-        { label: 'Scam', icon: 'ban-outline', onPress: () => sendReport('scam') },
-        { label: 'Other', icon: 'help-circle-outline', onPress: () => sendReport('other') },
+        { label: t('inappropriate_content_option'), icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: t('scam_option'), icon: 'ban-outline', onPress: () => sendReport('scam') },
+        { label: t('other'), icon: 'help-circle-outline', onPress: () => sendReport('other') },
     ];
 
     return (
@@ -122,17 +124,17 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
                 <View style={[styles.tag, { backgroundColor: colors.background }, item.listing_type === 'request' && { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
                     <Text style={[styles.tagText, { color: colors.gray500 }, item.listing_type === 'request' && { color: colors.blue }]}>
-                        {item.listing_type === 'request' ? 'REQUESTED' : 'MARKETPLACE'}
+                        {item.listing_type === 'request' ? t('request_badge') : t('marketplace').toUpperCase()}
                     </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     {item.listing_type === 'request' ? (
                         <Text style={[styles.price, { color: colors.blue }]}>
-                            {item.price ? `Willing to pay: $${item.price}` : 'Looking For'}
+                            {item.price ? `${t('willing_to_pay')}: $${item.price}` : t('looking_for_label')}
                         </Text>
                     ) : (
                         <Text style={[styles.price, { color: colors.black }, (!item.price || item.price === 0) && { color: '#10B981', fontFamily: fonts.bold }]}>
-                            {(!item.price || item.price === 0) ? 'FREE' : `$${item.price.toLocaleString()}`}
+                            {(!item.price || item.price === 0) ? t('free_badge') : `$${item.price.toLocaleString()}`}
                         </Text>
                     )}
                     <TouchableOpacity onPress={handleMenu} hitSlop={8}>
@@ -163,10 +165,10 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                         hitSlop={8}
                     >
                         <MaterialCommunityIcons name="account-circle-outline" size={14} color={colors.gray400} />
-                        <Text style={[styles.sellerName, { color: colors.gray400 }]}>{item.profiles?.name || 'Student'}</Text>
+                        <Text style={[styles.sellerName, { color: colors.gray400 }]}>{item.profiles?.name || t('user_fallback')}</Text>
                     </TouchableOpacity>
                     <View style={[styles.actionBtn, { backgroundColor: colors.black }, item.listing_type === 'request' && { backgroundColor: colors.blue }]}>
-                        <Text style={[styles.actionText, { color: colors.white }]}>{item.listing_type === 'request' ? 'Help Source' : 'View Item'}</Text>
+                        <Text style={[styles.actionText, { color: colors.white }]}>{item.listing_type === 'request' ? t('help_source') : t('view_item')}</Text>
                     </View>
                 </View>
             </View>
@@ -175,14 +177,14 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                 visible={actionVisible}
                 onClose={() => setActionVisible(false)}
                 options={actionOptions}
-                title="Marketplace Listing"
+                title={t('marketplace_listing_title')}
             />
 
             <ActionModal
                 visible={reportReasonVisible}
                 onClose={() => setReportReasonVisible(false)}
                 options={reportOptions}
-                title="Why are you reporting?"
+                title={t('why_reporting_title')}
             />
         </TouchableOpacity>
     );

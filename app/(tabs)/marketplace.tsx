@@ -221,7 +221,7 @@ export default function MarketplaceScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Stack.Screen options={{ title: 'Marketplace', headerBackTitle: '' }} />
+            <Stack.Screen options={{ title: t('marketplace'), headerBackTitle: '' }} />
             
             {loading ? (
                 <View style={{ flex: 1 }}>

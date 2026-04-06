@@ -8,27 +8,15 @@ import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import ActionModal, { ActionOption } from './ActionModal';
+import { useLanguage } from '../context/LanguageContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-function timeAgo(dateStr: string) {
-    const now = new Date();
-    const diff = now.getTime() - new Date(dateStr).getTime();
-    if (diff < 0) return 'now';
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
-    return new Date(dateStr).toLocaleDateString();
-}
-
 export default function PollCard({ poll, showDelete = false, onDelete }: { poll: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const { user } = useAuth();
     const router = useRouter();
     const [selected, setSelected] = useState<string | null>(poll?.voted_option);
@@ -39,6 +27,20 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const isOwner = user?.id === poll?.created_by;
     const initial = poll?.profiles?.name?.[0]?.toUpperCase() || '?';
+    const timeAgo = (dateStr: string) => {
+        const now = new Date();
+        const diff = now.getTime() - new Date(dateStr).getTime();
+        if (diff < 0) return t('just_now');
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return t('just_now');
+        if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return t('yesterday');
+        if (days < 7) return t('day_ago').replace('{{count}}', String(days));
+        return new Date(dateStr).toLocaleDateString();
+    };
 
     // Sync from props on mount or change
     React.useEffect(() => {
@@ -125,7 +127,7 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     const handleCopyLink = () => {
         const shareUrl = `https://uni-platform.app/poll/${poll.id}`;
         Clipboard.setString(shareUrl);
-        Alert.alert('Link Copied', 'The poll link has been copied to your clipboard.');
+        Alert.alert(t('link_copied_title'), t('poll_link_copied'));
     };
 
     const handleMenu = () => {
@@ -164,19 +166,19 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     };
 
     const actionOptions: ActionOption[] = [
-        { label: 'Share', icon: 'share-outline', onPress: handleShare },
-        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
-        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
+        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
+        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
     ];
 
     if (isOwner) {
-        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [
-        { label: 'Inappropriate Content', icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
-        { label: 'Harassment', icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
-        { label: 'Spam', icon: 'ban-outline', onPress: () => sendReport('spam') },
+        { label: t('inappropriate_content_option'), icon: 'alert-circle-outline', onPress: () => sendReport('inappropriate') },
+        { label: t('harassment_option'), icon: 'hand-left-outline', onPress: () => sendReport('harassment') },
+        { label: t('spam_option'), icon: 'ban-outline', onPress: () => sendReport('spam') },
     ];
 
     return (
@@ -204,13 +206,13 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                         <View style={{ flex: 1 }}>
                             <View style={styles.nameRow}>
                                 <TouchableOpacity onPress={() => poll.created_by && router.push(`/user/${poll.created_by}`)}>
-                                    <Text style={[styles.name, { color: colors.black }]}>{poll?.profiles?.name || 'Anonymous'}</Text>
+                                    <Text style={[styles.name, { color: colors.black }]}>{poll?.profiles?.name || t('anonymous_user')}</Text>
                                 </TouchableOpacity>
                                 <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(poll.created_at)}</Text>
                             </View>
                             <View style={styles.typeTag}>
-                                <Text style={[styles.typeTagText, { color: colors.primary }]}>POLL</Text>
+                                <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('poll_badge')}</Text>
                                 {poll?.communities?.name && (
                                     <>
                                         <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
@@ -273,11 +275,11 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
 
                     <View style={styles.footerRow}>
                         <Ionicons name="people-outline" size={13} color={colors.gray400} />
-                        <Text style={[styles.voteCount, { color: colors.gray500 }]}>{localTotalVotes} votes</Text>
+                        <Text style={[styles.voteCount, { color: colors.gray500 }]}>{localTotalVotes} {t('votes_label')}</Text>
                         {!selected && (
                             <>
                                 <Text style={[styles.dotSeparator, { color: colors.gray400 }]}>·</Text>
-                                <Text style={[styles.actionHint, { color: colors.primary }]}>Tap to vote</Text>
+                                <Text style={[styles.actionHint, { color: colors.primary }]}>{t('tap_to_vote')}</Text>
                             </>
                         )}
                     </View>
@@ -288,14 +290,14 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                 visible={actionVisible}
                 onClose={() => setActionVisible(false)}
                 options={actionOptions}
-                title="Poll Options"
+                title={t('poll_options_title')}
             />
 
             <ActionModal
                 visible={reportReasonVisible}
                 onClose={() => setReportReasonVisible(false)}
                 options={reportOptions}
-                title="Why are you reporting?"
+                title={t('why_reporting_title')}
             />
         </View>
     );

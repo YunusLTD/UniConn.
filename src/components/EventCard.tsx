@@ -6,27 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { deleteEvent, toggleEventInterest } from '../api/events';
 import { useRouter } from 'expo-router';
+import { useLanguage } from '../context/LanguageContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-function timeAgo(dateStr: string) {
-    const now = new Date();
-    const diff = now.getTime() - new Date(dateStr).getTime();
-    if (diff < 0) return 'now';
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
-    return new Date(dateStr).toLocaleDateString();
-}
-
 export default function EventCard({ event, showDelete = false, onDelete }: { event: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const { user } = useAuth();
     const router = useRouter();
     const [isInterested, setIsInterested] = useState(!!event.is_interested);
@@ -46,6 +34,21 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
  
     const endTime = event.end_time ? new Date(event.end_time) : null;
     const isPassed = endTime ? (endTime < new Date()) : (eventDate < new Date());
+
+    const timeAgo = (dateStr: string) => {
+        const now = new Date();
+        const diff = now.getTime() - new Date(dateStr).getTime();
+        if (diff < 0) return t('just_now');
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return t('just_now');
+        if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return t('yesterday');
+        if (days < 7) return t('day_ago').replace('{{count}}', String(days));
+        return new Date(dateStr).toLocaleDateString();
+    };
 
     const handleInterest = async () => {
         if (loading) return;
@@ -114,7 +117,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         <View style={{ flex: 1 }}>
                             <View style={styles.nameRow}>
                                 <TouchableOpacity onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}>
-                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || 'Anonymous'}</Text>
+                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || t('anonymous_user')}</Text>
                                 </TouchableOpacity>
                                 <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(event.created_at)}</Text>
@@ -189,7 +192,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         >
                             <Ionicons name={isInterested ? "star" : "star-outline"} size={16} color={isInterested ? colors.white : colors.gray500} />
                             <Text style={[styles.interestBtnText, { color: colors.gray600 }, isInterested && { color: colors.white }]}>
-                                {isInterested ? 'Interested' : 'Interested'}
+                                Interested
                             </Text>
                         </TouchableOpacity>
 
