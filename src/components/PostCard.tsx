@@ -16,6 +16,8 @@ import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/
 
 const { width } = Dimensions.get('window');
 const GRID_GAP = 2;
+const STAT_SWIPE_DISTANCE = 14;
+const STAT_SWIPE_DURATION = 180;
 
 function timeAgo(dateStr: string) {
     const now = new Date();
@@ -132,6 +134,93 @@ const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
                 style={styles.viewerImage} 
                 resizeMode="contain" 
             />
+        </View>
+    );
+};
+
+const AnimatedStatNumber = ({ value, style }: { value: number; style: any }) => {
+    const [baseValue, setBaseValue] = useState<number>(value);
+    const [targetValue, setTargetValue] = useState<number | null>(null);
+    const [direction, setDirection] = useState<1 | -1>(1);
+    const progress = React.useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const currentlyVisible = targetValue ?? baseValue;
+        if (value === currentlyVisible) return;
+
+        const nextDirection: 1 | -1 = value > currentlyVisible ? 1 : -1;
+        setDirection(nextDirection);
+        setBaseValue(currentlyVisible);
+        setTargetValue(value);
+
+        progress.stopAnimation(() => {
+            progress.setValue(0);
+            Animated.timing(progress, {
+                toValue: 1,
+                duration: STAT_SWIPE_DURATION,
+                useNativeDriver: true,
+            }).start(({ finished }) => {
+                if (!finished) return;
+                setBaseValue(value);
+                setTargetValue(null);
+                progress.setValue(0);
+            });
+        });
+    }, [baseValue, progress, targetValue, value]);
+
+    if (targetValue === null) {
+        return (
+            <View style={styles.animatedStatWrap}>
+                <Text style={style}>{baseValue}</Text>
+            </View>
+        );
+    }
+
+    const outTo = direction === 1 ? -STAT_SWIPE_DISTANCE : STAT_SWIPE_DISTANCE;
+    const inFrom = direction === 1 ? STAT_SWIPE_DISTANCE : -STAT_SWIPE_DISTANCE;
+
+    const outgoingTranslateY = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, outTo],
+    });
+    const incomingTranslateY = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [inFrom, 0],
+    });
+    const outgoingOpacity = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0],
+    });
+    const incomingOpacity = progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+    });
+
+    return (
+        <View style={styles.animatedStatWrap}>
+            <Animated.Text
+                style={[
+                    style,
+                    {
+                        opacity: outgoingOpacity,
+                        transform: [{ translateY: outgoingTranslateY }],
+                    },
+                ]}
+            >
+                {baseValue}
+            </Animated.Text>
+            <Animated.Text
+                style={[
+                    style,
+                    styles.animatedStatOverlay,
+                    {
+                        opacity: incomingOpacity,
+                        transform: [{ translateY: incomingTranslateY }],
+                    },
+                ]}
+            >
+                {targetValue}
+            </Animated.Text>
         </View>
     );
 };
@@ -362,6 +451,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const media_types = (post.media_types && post.media_types.length > 0)
         ? post.media_types
         : (post.image_url ? ['image'] : []);
+    const commentCount = Number(post.comments?.[0]?.count || 0);
 
     return (
         <View style={[styles.card, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
@@ -462,14 +552,15 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                 </Animated.View>
                             </TouchableOpacity>
 
-                            <Text style={[
-                                styles.voteCountText,
-                                { color: themeColors.gray600 },
-                                myVote === 1 && { color: themeColors.blue },
-                                myVote === -1 && { color: themeColors.danger }
-                            ]}>
-                                {voteCount}
-                                </Text>
+                            <AnimatedStatNumber
+                                value={voteCount}
+                                style={[
+                                    styles.voteCountText,
+                                    { color: themeColors.gray600 },
+                                    myVote === 1 && { color: themeColors.blue },
+                                    myVote === -1 && { color: themeColors.danger }
+                                ]}
+                            />
 
                             <TouchableOpacity
                                 style={styles.voteBtn}
@@ -490,8 +581,11 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
 
                         <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/post/${post.id}`)} hitSlop={6} disabled={hideNavigation}>
                             <Ionicons name="chatbubble-outline" size={18} color={themeColors.gray500} />
-                            {(post.comments?.[0]?.count || 0) > 0 && (
-                                <Text style={[styles.actionCount, { color: themeColors.gray500 }]}>{post.comments[0].count}</Text>
+                            {commentCount > 0 && (
+                                <AnimatedStatNumber
+                                    value={commentCount}
+                                    style={[styles.actionCount, { color: themeColors.gray500 }]}
+                                />
                             )}
                         </TouchableOpacity>
 
@@ -503,7 +597,14 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
             </View>
 
             {/* Image Viewer Modal */}
-            <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+            <Modal
+                visible={viewerVisible}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                presentationStyle="overFullScreen"
+                onRequestClose={() => setViewerVisible(false)}
+            >
                 <View style={styles.viewerContainer}>
                     <SafeAreaView style={styles.viewerSafeArea}>
                         <View style={styles.viewerHeader}>
@@ -734,7 +835,18 @@ const styles = StyleSheet.create({
         fontFamily: fonts.medium,
         fontSize: 13,
     },
+    animatedStatWrap: {
+        overflow: 'hidden',
+        justifyContent: 'center',
+        minHeight: 18,
+    },
+    animatedStatOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+    },
     viewerContainer: {
+        ...StyleSheet.absoluteFillObject,
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.95)',
     },
@@ -751,7 +863,8 @@ const styles = StyleSheet.create({
     },
     viewerClose: {
         position: 'absolute',
-        left: spacing.lg,
+        right: spacing.lg,
+        top: spacing.xxl + spacing.lg,
         zIndex: 10,
     },
     viewerCount: {
