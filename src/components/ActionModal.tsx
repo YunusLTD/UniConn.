@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hapticLight, hapticSelection } from '../utils/haptics';
@@ -25,6 +26,7 @@ export interface ActionModalProps {
 export default function ActionModal({ visible, onClose, options, title }: ActionModalProps) {
     const insets = useSafeAreaInsets();
     const { colors: themeColors } = useTheme();
+    const { t } = useLanguage();
     const animatedValue = React.useRef(new Animated.Value(0)).current;
 
     React.useEffect(() => {
@@ -117,7 +119,7 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                         hapticSelection();
                         onClose();
                     }} activeOpacity={0.8}>
-                        <Text style={[styles.cancelText, { color: themeColors.black }]}>Cancel</Text>
+                        <Text style={[styles.cancelText, { color: themeColors.black }]}>{t('cancel_label')}</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>

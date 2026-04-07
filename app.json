@@ -1,20 +1,36 @@
 {
   "expo": {
-    "name": "UniConnectApp",
-    "slug": "UniConnectApp",
+    "name": "uniconn",
+    "slug": "uniconn",
     "version": "1.0.0",
     "scheme": "uniconnect",
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/android-icon-monochrome.png",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/android-icon-monochrome.png",
+            "backgroundColor": "#000000"
+          },
+          "imageWidth": 120
+        }
+      ]
     ],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/favicon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/android-icon-monochrome.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#FFFFFF",
+      "dark": {
+        "image": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#000000"
+      }
     },
     "ios": {
       "supportsTablet": true

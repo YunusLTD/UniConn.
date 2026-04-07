@@ -1,14 +1,13 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { SplashScreen, Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { OnboardingProvider, useOnboarding } from '../src/context/OnboardingContext';
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { ToastProvider } from '../src/context/ToastContext';
 import { LanguageProvider, useLanguage } from '../src/context/LanguageContext';
-import { useEffect } from 'react';
-import { View, ActivityIndicator, StatusBar, TouchableOpacity as RNTouchableOpacity, useColorScheme, Platform } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import {
     useFonts,
     SpaceGrotesk_400Regular,
@@ -16,17 +15,21 @@ import {
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { Text } from 'react-native';
 import CustomBackBtn from '../src/components/CustomBackBtn';
 
+SplashScreen.preventAutoHideAsync().catch(() => {
+    // ignore if splash is already controlled elsewhere
+});
 
-function RootLayoutNav() {
+
+function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
     const { user, token, isLoading: authLoading, isNewUser } = useAuth();
     const { hasCompletedOnboarding } = useOnboarding();
     const { colors, isDark } = useTheme();
     const { t } = useLanguage();
     const segments = useSegments();
     const router = useRouter();
+    const splashHiddenRef = useRef(false);
 
     useEffect(() => {
         if (authLoading || hasCompletedOnboarding === null) return;
@@ -35,14 +38,16 @@ function RootLayoutNav() {
         const inOnboardingGroup = segments[0] === '(onboarding)';
         const inSetupGroup = segments[0] === '(setup)';
 
-        if (!hasCompletedOnboarding && !token) {
-            if (!inOnboardingGroup) router.replace('/(onboarding)/intro');
+        if (!token) {
+            // Logged-out users should always start from onboarding,
+            // but allow auth routes after onboarding CTA navigation.
+            if (!inOnboardingGroup && !inAuthGroup) {
+                router.replace('/(onboarding)/intro');
+            }
             return;
         }
 
-        if (!token && !inAuthGroup) {
-            router.replace('/(auth)/login');
-        } else if (token && user) {
+        if (token && user) {
             const status = user?.profile?.status || 'approved';
             const hasUniversity = !!user?.profile?.university_id;
 
@@ -76,21 +81,16 @@ function RootLayoutNav() {
         }
     }, [token, authLoading, hasCompletedOnboarding, segments, isNewUser, user]);
 
-    if (authLoading || hasCompletedOnboarding === null) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white }}>
-                <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-                <Text style={{
-                    fontFamily: 'SpaceGrotesk_700Bold',
-                    fontSize: 32,
-                    color: colors.black,
-                    letterSpacing: -1
-                }}>
-                    UniConn
-                </Text>
-            </View>
-        );
-    }
+    useEffect(() => {
+        const ready = fontsLoaded && !authLoading && hasCompletedOnboarding !== null;
+        if (!ready || splashHiddenRef.current) return;
+        splashHiddenRef.current = true;
+        SplashScreen.hideAsync().catch(() => {
+            // noop
+        });
+    }, [fontsLoaded, authLoading, hasCompletedOnboarding]);
+
+    if (!fontsLoaded || authLoading || hasCompletedOnboarding === null) return null;
 
     return (
         <>
@@ -169,35 +169,12 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-
     const [fontsLoaded] = useFonts({
         SpaceGrotesk_400Regular,
         SpaceGrotesk_500Medium,
         SpaceGrotesk_600SemiBold,
         SpaceGrotesk_700Bold,
     });
-
-    if (!fontsLoaded) {
-        return (
-            <View style={{ 
-                flex: 1, 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                backgroundColor: isDark ? '#000000' : '#FFFFFF' 
-            }}>
-                <Text style={{ 
-                    fontSize: 32, 
-                    fontWeight: '700', 
-                    color: isDark ? '#FFFFFF' : '#000000',
-                    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' 
-                }}>
-                    UniConn
-                </Text>
-            </View>
-        );
-    }
 
     return (
         <SafeAreaProvider>
@@ -207,7 +184,7 @@ export default function RootLayout() {
                         <AuthProvider>
                             <NotificationProvider>
                                 <ToastProvider>
-                                    <RootLayoutNav />
+                                    <RootLayoutNav fontsLoaded={fontsLoaded} />
                                 </ToastProvider>
                             </NotificationProvider>
                         </AuthProvider>

@@ -1,31 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 const SLIDES = [
     {
         id: '1',
-        emoji: '🤝',
-        title: 'Connect\nwith Ease',
-        description: 'Join your university community and stay connected with your peers.',
+        icon: 'people-outline',
+        title: 'Build Your Campus Circle',
+        description: 'Connect with students in your school, follow communities, and stay in sync with your people.',
     },
     {
         id: '2',
-        emoji: '📅',
-        title: 'Discover\nEvents',
-        description: 'Never miss campus activities, workshops, and social gatherings.',
+        icon: 'calendar-clear-outline',
+        title: 'Discover What Is Happening',
+        description: 'Find events, workshops, and campus moments in one place so you never miss out.',
     },
     {
         id: '3',
-        emoji: '🚀',
-        title: 'Thrive\nTogether',
-        description: 'Collaborate in study groups, find jobs, and trade in the marketplace.',
+        icon: 'rocket-outline',
+        title: 'Thrive With UniConn',
+        description: 'Study together, discover opportunities, and buy or sell essentials inside your student hub.',
     },
-];
+] as const;
 
 export default function IntroScreen() {
     const { colors } = useTheme();
@@ -46,21 +47,21 @@ export default function IntroScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
-            {/* Logo */}
             <View style={styles.header}>
-                <View style={[styles.logo, { backgroundColor: colors.black }]}>
-                    <Text style={[styles.logoText, { color: colors.white }]}>U</Text>
+                <View style={[styles.logoWrap, { borderColor: colors.gray200 }]}>
+                    <Image source={require('../../assets/favicon.png')} style={styles.logoImage} resizeMode="contain" />
                 </View>
+                <Text style={[styles.brandText, { color: colors.black }]}>uniconn</Text>
             </View>
 
-            {/* Slide Content */}
             <View style={styles.content}>
-                <Text style={styles.emoji}>{slide.emoji}</Text>
+                <View style={[styles.iconCircle, { backgroundColor: colors.gray100 }]}>
+                    <Ionicons name={slide.icon} size={38} color={colors.black} />
+                </View>
                 <Text style={[styles.title, { color: colors.black }]}>{slide.title}</Text>
                 <Text style={[styles.description, { color: colors.gray500 }]}>{slide.description}</Text>
             </View>
 
-            {/* Footer */}
             <View style={styles.footer}>
                 <View style={styles.indicators}>
                     {SLIDES.map((_, index) => (
@@ -106,16 +107,23 @@ const styles = StyleSheet.create({
         marginTop: spacing.xxl,
         alignItems: 'center',
     },
-    logo: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+    logoWrap: {
+        width: 64,
+        height: 64,
+        borderRadius: 20,
+        borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    logoText: {
+    logoImage: {
+        width: 40,
+        height: 40,
+    },
+    brandText: {
+        marginTop: spacing.sm,
         fontFamily: fonts.bold,
-        fontSize: 22,
+        fontSize: 18,
+        letterSpacing: 0.3,
     },
     content: {
         flex: 1,
@@ -123,15 +131,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
     },
-    emoji: {
-        fontSize: 56,
+    iconCircle: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: spacing.xl,
     },
     title: {
         fontFamily: fonts.bold,
-        fontSize: 36,
+        fontSize: 32,
         textAlign: 'center',
-        lineHeight: 42,
+        lineHeight: 38,
         marginBottom: spacing.md,
     },
     description: {

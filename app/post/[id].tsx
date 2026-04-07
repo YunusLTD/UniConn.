@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image as RNImage, Alert, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
@@ -10,19 +10,25 @@ import PostCard from '../../src/components/PostCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { getCommunityMembers } from '../../src/api/communities';
 import { useAuth } from '../../src/context/AuthContext';
-import { Alert } from 'react-native';
 import { useLanguage } from '../../src/context/LanguageContext';
+import {
+    POST_COMMENT_COUNT_CHANGED_EVENT,
+    applyPostCommentCountChange,
+    getCommentTotalFromResponse,
+} from '../../src/utils/postCommentCount';
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, t: (key: any) => string) {
     const d = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
+    if (mins < 1) return t('just_now');
+    if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    return `${Math.floor(hrs / 24)}d`;
+    if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return t('day_ago').replace('{{count}}', String(days));
+    return d.toLocaleDateString();
 }
 
 export default function PostScreen() {
@@ -30,6 +36,7 @@ export default function PostScreen() {
     const { t } = useLanguage();
     const { user } = useAuth();
     const { id } = useLocalSearchParams();
+    const postId = Array.isArray(id) ? id[0] : id;
     const router = useRouter();
     const [post, setPost] = useState<any>(null);
     const [comments, setComments] = useState<any[]>([]);
@@ -42,13 +49,19 @@ export default function PostScreen() {
     const insets = useSafeAreaInsets();
 
     const loadData = async () => {
+        if (!postId) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const [postRes, commentRes] = await Promise.all([
-                getPost(id as string),
-                getComments(id as string),
+                getPost(postId),
+                getComments(postId),
             ]);
+            const totalComments = getCommentTotalFromResponse(commentRes);
             if (postRes?.data) {
-                setPost(postRes.data);
+                setPost(applyPostCommentCountChange(postRes.data, { postId: postRes.data.id, count: totalComments }));
                 loadMembers(postRes.data.community_id);
             }
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
@@ -123,14 +136,18 @@ export default function PostScreen() {
     };
 
     const handleAddComment = async () => {
-        if (!newComment.trim()) return;
+        if (!newComment.trim() || !postId) return;
         setSubmitting(true);
         try {
-            await addComment(id as string, newComment, replyingTo?.id);
+            await addComment(postId, newComment, replyingTo?.id);
             setNewComment('');
             setReplyingTo(null);
-            const commentRes = await getComments(id as string);
+            const commentRes = await getComments(postId);
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+            const nextCount = getCommentTotalFromResponse(commentRes);
+            const payload = { postId, count: nextCount };
+            setPost((prev: any) => prev ? applyPostCommentCountChange(prev, payload) : prev);
+            DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, payload);
         } catch (e) {
             console.log('Error adding comment', e);
             alert(t('failed_to_post_comment'));
@@ -149,15 +166,20 @@ export default function PostScreen() {
 
     const handleDeleteComment = (commentId: string) => {
         Alert.alert(t('delete_comment_title'), t('delete_comment_confirm'), [
-            { text: t('cancel_request'), style: 'cancel' },
+            { text: t('cancel_label'), style: 'cancel' },
             { 
                 text: t('delete_label'), 
                 style: 'destructive', 
                 onPress: async () => {
+                    if (!postId) return;
                     try {
-                        await deleteComment(id as string, commentId);
-                        const commentRes = await getComments(id as string);
+                        await deleteComment(postId, commentId);
+                        const commentRes = await getComments(postId);
                         if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+                        const nextCount = getCommentTotalFromResponse(commentRes);
+                        const payload = { postId, count: nextCount };
+                        setPost((prev: any) => prev ? applyPostCommentCountChange(prev, payload) : prev);
+                        DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, payload);
                     } catch (e) {
                         Alert.alert(t('error'), t('failed_to_delete_comment'));
                     }
@@ -239,7 +261,7 @@ export default function PostScreen() {
                                         <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
                                             <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || t('unknown_user')}</Text>
                                         </TouchableOpacity>
-                                        <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at)}</Text>
+                                        <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at, t)}</Text>
                                         {item.updated_at && (new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 10000) && (
                                             <Text style={[styles.commentTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
                                         )}

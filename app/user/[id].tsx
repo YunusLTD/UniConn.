@@ -24,6 +24,7 @@ import { getUserStories } from '../../src/api/stories';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings';
 
@@ -187,11 +188,17 @@ export default function UserProfileScreen() {
             }));
         });
 
+        const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data: any) => {
+            if (activeTab !== 'posts' || !data?.postId) return;
+            setContent((prev: any[]) => prev.map(item => applyPostCommentCountChange(item, data)));
+        });
+
         return () => {
             sub.remove();
             voteSub.remove();
+            commentCountSub.remove();
         };
-    }, [currentUser, profile?.id, id]);
+    }, [currentUser, profile?.id, id, activeTab]);
 
 
 
@@ -471,7 +478,7 @@ export default function UserProfileScreen() {
                             </View>
                             <TouchableOpacity style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showScoreContext} activeOpacity={0.7}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('score_label')}</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Uniscore</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -603,10 +610,10 @@ export default function UserProfileScreen() {
                                             )}
                                         </TouchableOpacity>
                                         <TouchableOpacity 
-                                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]} 
+                                            style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : '#000000', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]} 
                                             onPress={handleMessage}
                                         >
-                                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('message_label') || 'Message'}</Text>
+                                            <Text style={[styles.actionBtnText, { color: isDark ? colors.black : '#FFFFFF' }]}>{t('message_label') || 'Message'}</Text>
                                         </TouchableOpacity>
                                     </>
                                 )}

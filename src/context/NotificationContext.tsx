@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Animated, Easing, TouchableOpacity, View, Text, Image, StyleSheet } from 'react-native';
+import { Animated, Easing, TouchableOpacity, View, Text, Image, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './AuthContext';
@@ -14,6 +14,7 @@ import { useLanguage } from './LanguageContext';
 import { getConversation, getConversations } from '../api/messages';
 import { fonts, spacing } from '../constants/theme';
 import { hapticLight } from '../utils/haptics';
+import { POST_COMMENT_COUNT_CHANGED_EVENT } from '../utils/postCommentCount';
 
 Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
@@ -349,10 +350,41 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 )
                 .subscribe();
 
+            const commentsChannel = supabase
+                .channel(`comments:counts:${user.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'comments',
+                    },
+                    (payload) => {
+                        const postId = payload.new?.post_id;
+                        if (!postId || payload.new?.user_id === user.id) return;
+                        DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, { postId, delta: 1 });
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'DELETE',
+                        schema: 'public',
+                        table: 'comments',
+                    },
+                    (payload) => {
+                        const postId = payload.old?.post_id;
+                        if (!postId || payload.old?.user_id === user.id) return;
+                        DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, { postId, delta: -1 });
+                    }
+                )
+                .subscribe();
+
             return () => {
                 notificationListener.current?.remove();
                 responseListener.current?.remove();
                 supabase.removeChannel(channel);
+                supabase.removeChannel(commentsChannel);
                 hideMessageBanner();
             };
         }

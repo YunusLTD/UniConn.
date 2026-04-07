@@ -88,7 +88,12 @@ export default function TabLayout() {
                 hitSlop={8}
             >
                 <Image source={{ uri: `https://img.icons8.com/?size=100&id=33452&format=png&color=${isDark ? '000000' : 'FFFFFF'}` }} style={{ width: 16, height: 16 }} />
-                <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: isDark ? '#000000' : '#FFFFFF', letterSpacing: 1 }}>PULSE</Text>
+                <Text
+                    numberOfLines={1}
+                    style={{ fontFamily: fonts.bold, fontSize: 11, color: isDark ? '#000000' : '#FFFFFF' }}
+                >
+                    {t('pulse_title')}
+                </Text>
                 {pulseUnreadCount > 0 && (
                     <View style={[s.badge, { top: -4, right: -4, width: 18, height: 18, borderRadius: 9, borderColor: colors.surface }]}>
                         <Text style={[s.badgeText, { color: '#FFFFFF' }]}>

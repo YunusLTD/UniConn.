@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useLayoutEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, Dimensions, StatusBar, Alert, Share, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { spacing, fonts, radii } from '../../../src/constants/theme';
@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
 import { useLanguage } from '../../../src/context/LanguageContext';
+import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../../src/utils/postCommentCount';
 
 const { width } = Dimensions.get('window');
 const COVER_HEIGHT = 380;
@@ -66,6 +67,15 @@ export default function CommunityDetailScreen() {
             loadData();
         }, [id])
     );
+
+    useEffect(() => {
+        const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data) => {
+            if (!data?.postId) return;
+            setPosts(prev => prev.map(p => applyPostCommentCountChange(p, data)));
+        });
+
+        return () => commentCountSub.remove();
+    }, []);
 
     const handleJoinLeave = async () => {
         if (!community || submitting) return;

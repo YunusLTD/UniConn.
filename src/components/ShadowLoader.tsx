@@ -204,7 +204,7 @@ export function ProfileHeaderSkeleton() {
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 24 }}>
                     <Skeleton
                         style={{ flex: 1, borderWidth: 1, borderColor: colors.border }}
-                        backgroundColor={softPillBg}
+                       
                         height={44}
                         borderRadius={42}
                     />
@@ -220,7 +220,7 @@ export function ProfileHeaderSkeleton() {
                             width={w}
                             height={34}
                             borderRadius={17}
-                            backgroundColor={softPillBg}
+                        
                             style={{ borderWidth: 1, borderColor: colors.border }}
                         />
                     ))}

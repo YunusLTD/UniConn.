@@ -1,43 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Animated, Image } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fonts, radii } from '../../src/constants/theme';
+import { spacing, fonts, lightColors } from '../../src/constants/theme';
 import { StatusBar } from 'expo-status-bar';
-import { getPulse, votePulse, getPulseComments, addPulseComment, deletePulse } from '../../src/api/pulse';
-import { useRouter } from 'expo-router';
+import { getPulse, getPulseComments, addPulseComment, deletePulse } from '../../src/api/pulse';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { useTheme } from '../../src/context/ThemeContext';
+import { createPulseAliasSeed, getPulseAlias } from '../../src/utils/pulseAlias';
 
-const GHOST_GRADIENTS = [
-    '#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a',
-    '#a18cd1', '#fccb90', '#e0c3fc', '#ff6b6b', '#54a0ff',
-    '#5f27cd', '#01a3a4', '#f368e0', '#ff9f43', '#0abde3',
+const GHOST_COLORS = [
+    '#A154F2', '#7C3AED', '#9333EA', '#C084FC', '#6D28D9',
+    '#8B5CF6', '#A78BFA', '#B794F4', '#A855F7', '#D8B4FE',
 ];
+const PULSE_ICON_WHITE_URI = 'https://img.icons8.com/?size=100&id=33452&format=png&color=FFFFFF';
 
-function getColor(id: string, index?: number): string {
+function getGhostColor(id: string, index?: number): string {
     const hash = (id + (index ?? '')).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return GHOST_GRADIENTS[hash % GHOST_GRADIENTS.length];
+    return GHOST_COLORS[hash % GHOST_COLORS.length];
 }
 
-function timeAgo(date: string): string {
+function timeAgo(date: string, t: (key: any) => string, language: 'en' | 'tr' | 'ka'): string {
     const now = new Date();
     const d = new Date(date);
     const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diff < 60) return t('just_now');
+    if (diff < 3600) return t('minute_ago').replace('{{count}}', String(Math.floor(diff / 60)));
+    if (diff < 86400) return t('hour_ago').replace('{{count}}', String(Math.floor(diff / 3600)));
+    if (diff < 604800) return t('day_ago').replace('{{count}}', String(Math.floor(diff / 86400)));
+
+    const localeMap = {
+        en: 'en-US',
+        tr: 'tr-TR',
+        ka: 'ka-GE',
+    };
+    return d.toLocaleDateString(localeMap[language]);
 }
 
 export default function PulseDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t, language } = useLanguage();
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
     const [pulse, setPulse] = useState<any>(null);
     const [comments, setComments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
     const [sending, setSending] = useState(false);
-    const bounceAnim = useRef(new Animated.Value(1)).current;
+    const aliasSeedRef = useRef(createPulseAliasSeed());
 
     useEffect(() => {
         loadData();
@@ -49,9 +60,7 @@ export default function PulseDetailScreen() {
                 getPulse(id as string),
                 getPulseComments(id as string),
             ]);
-            if (pulseRes?.data) {
-                setPulse(pulseRes.data);
-            }
+            if (pulseRes?.data) setPulse(pulseRes.data);
             if (commentsRes?.data) setComments(commentsRes.data);
         } catch (e) {
             console.log('Error loading pulse', e);
@@ -59,8 +68,6 @@ export default function PulseDetailScreen() {
             setLoading(false);
         }
     };
-
-
 
     const handleComment = async () => {
         if (!commentText.trim() || sending) return;
@@ -72,22 +79,22 @@ export default function PulseDetailScreen() {
                 setCommentText('');
             }
         } catch (e) {
-            Alert.alert('Error', 'Failed to post comment');
+            Alert.alert(t('error'), t('pulse_comment_failed'));
         } finally {
             setSending(false);
         }
     };
 
     const handleDelete = async () => {
-        Alert.alert('Delete Pulse', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('pulse_delete_title'), t('pulse_delete_are_you_sure'), [
+            { text: t('cancel_label'), style: 'cancel' },
             {
-                text: 'Delete', style: 'destructive', onPress: async () => {
+                text: t('delete_label'), style: 'destructive', onPress: async () => {
                     try {
                         await deletePulse(id as string);
                         router.back();
                     } catch (e) {
-                        Alert.alert('Error', 'Failed to delete');
+                        Alert.alert(t('error'), t('pulse_failed_to_delete'));
                     }
                 }
             }
@@ -97,9 +104,15 @@ export default function PulseDetailScreen() {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <StatusBar style="light" />
-                <Stack.Screen options={{ title: 'The Pulse', headerBackTitle: '', headerStyle: { backgroundColor: '#0f0f1a' }, headerTitleStyle: { color: 'white' }, headerTintColor: 'white' }} />
-                <ActivityIndicator size="small" color="white" />
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                <Stack.Screen options={{
+                    title: t('pulse_title'),
+                    headerBackTitle: '',
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTitleStyle: { color: colors.black },
+                    headerTintColor: colors.black,
+                }} />
+                <ActivityIndicator size="small" color={colors.gray500} />
             </View>
         );
     }
@@ -107,28 +120,35 @@ export default function PulseDetailScreen() {
     if (!pulse) {
         return (
             <View style={styles.centered}>
-                <StatusBar style="light" />
-                <Stack.Screen options={{ title: 'Not Found', headerBackTitle: '', headerStyle: { backgroundColor: '#0f0f1a' }, headerTitleStyle: { color: 'white' }, headerTintColor: 'white' }} />
-                <Text style={styles.errorText}>This confession has been removed.</Text>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                <Stack.Screen options={{
+                    title: t('pulse_not_found_title'),
+                    headerBackTitle: '',
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTitleStyle: { color: colors.black },
+                    headerTintColor: colors.black,
+                }} />
+                <Text style={styles.errorText}>{t('pulse_removed_message')}</Text>
             </View>
         );
     }
 
-    const ghostColor = getColor(pulse.id);
+    const ghostColor = getGhostColor(pulse.id);
+    const postAlias = pulse.is_mine ? t('pulse_you_anonymous') : getPulseAlias(pulse.id, aliasSeedRef.current);
 
     const CommentItem = ({ item, index }: { item: any; index: number }) => {
-        const commentColor = getColor(item.id, index);
+        const commentColor = getGhostColor(item.id, index);
+        const commentAlias = item.is_mine ? t('pulse_you_anonymous') : getPulseAlias(item.id, aliasSeedRef.current);
+
         return (
             <View style={styles.commentCard}>
                 <View style={[styles.commentAvatar, { backgroundColor: commentColor }]}>
-                    <Ionicons name="person" size={12} color="white" />
+                    <Ionicons name="person" size={12} color={lightColors.background} />
                 </View>
                 <View style={styles.commentContent}>
                     <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>
-                            {item.is_mine ? 'You (anonymous)' : `Anon #${index + 1}`}
-                        </Text>
-                        <Text style={styles.commentTime}>{timeAgo(item.created_at)}</Text>
+                        <Text style={styles.commentAuthor}>{commentAlias}</Text>
+                        <Text style={styles.commentTime}>{timeAgo(item.created_at, t, language)}</Text>
                     </View>
                     <Text style={styles.commentText}>{item.content}</Text>
                 </View>
@@ -138,17 +158,17 @@ export default function PulseDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <StatusBar style="light" />
+            <StatusBar style={isDark ? 'light' : 'dark'} />
             <Stack.Screen options={{
-                title: 'The Pulse',
+                title: t('pulse_title'),
                 headerBackTitle: '',
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: '#0f0f1a' },
-                headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16, color: 'white' },
-                headerTintColor: 'white',
+                headerStyle: { backgroundColor: colors.surface },
+                headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16, color: colors.black },
+                headerTintColor: colors.black,
                 headerRight: () => pulse.is_mine ? (
                     <TouchableOpacity onPress={handleDelete} style={{ padding: 8 }}>
-                        <Ionicons name="trash-outline" size={20} color="white" />
+                        <Ionicons name="trash-outline" size={20} color={colors.black} />
                     </TouchableOpacity>
                 ) : null,
             }} />
@@ -166,59 +186,62 @@ export default function PulseDetailScreen() {
                     contentContainerStyle={{ paddingBottom: 20 }}
                     ListHeaderComponent={
                         <View style={styles.postSection}>
-                            {/* Post Header */}
+                            <View style={styles.betaBanner}>
+                                <Ionicons name="information-circle-outline" size={16} color={accentColor} />
+                                <Text style={styles.betaText}>{t('pulse_beta_notice')}</Text>
+                            </View>
+
                             <View style={styles.postHeader}>
                                 <View style={[styles.ghostAvatar, { backgroundColor: ghostColor }]}>
-                                    <Ionicons name="eye-off" size={22} color="white" />
+                                    <Image source={{ uri: PULSE_ICON_WHITE_URI }} style={styles.ghostIcon} />
                                 </View>
                                 <View style={styles.postHeaderInfo}>
-                                    <Text style={styles.anonLabel}>Anonymous Student</Text>
-                                    <Text style={styles.timestamp}>{timeAgo(pulse.created_at)}</Text>
+                                    <Text style={styles.anonLabel}>{postAlias}</Text>
+                                    <Text style={styles.timestamp}>{timeAgo(pulse.created_at, t, language)}</Text>
                                 </View>
                             </View>
 
-                            {/* Content */}
                             <Text style={styles.postContent}>{pulse.content}</Text>
 
-                            {/* Image */}
                             {pulse.image_url && (
                                 <Image source={{ uri: pulse.image_url }} style={styles.postImage} />
                             )}
 
-                            {/* Bottom Info Bar: Replies */}
-                            <View style={styles.voteBar}>
+                            <View style={styles.infoBar}>
                                 <View />
                                 <View style={styles.commentCountPill}>
                                     <Ionicons name="chatbubble-outline" size={16} color={colors.gray500} />
-                                    <Text style={styles.commentCountText}>{comments.length} replies</Text>
+                                    <Text style={styles.commentCountText}>
+                                        {comments.length > 0
+                                            ? `${comments.length} ${comments.length === 1 ? t('reply') : t('replies')}`
+                                            : t('replies')}
+                                    </Text>
                                 </View>
                             </View>
 
-                            {/* Comments Section Header */}
                             <View style={styles.commentsHeader}>
-                                <Text style={styles.commentsTitle}>Anonymous Replies</Text>
+                                <Text style={styles.commentsTitle}>{t('pulse_replies_header')}</Text>
                             </View>
                         </View>
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyComments}>
-                            <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.gray300} />
-                            <Text style={styles.emptyCommentsText}>No replies yet. Be the first!</Text>
+                            <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.gray400} />
+                            <Text style={styles.emptyCommentsText}>{t('no_replies_yet')}</Text>
                         </View>
                     }
                 />
 
-                {/* Comment Input */}
                 <View style={styles.inputBar}>
-                    <View style={[styles.inputAvatar, { backgroundColor: '#A154F2' }]}>
-                        <Ionicons name="person" size={14} color="white" />
+                    <View style={styles.inputAvatar}>
+                        <Ionicons name="person" size={14} color={lightColors.background} />
                     </View>
                     <TextInput
                         style={styles.commentInput}
                         value={commentText}
                         onChangeText={setCommentText}
-                        placeholder="Reply anonymously..."
-                        placeholderTextColor="rgba(255,255,255,0.4)"
+                        placeholder={t('pulse_reply_placeholder')}
+                        placeholderTextColor={colors.gray400}
                         multiline
                         maxLength={300}
                     />
@@ -228,9 +251,9 @@ export default function PulseDetailScreen() {
                         style={[styles.sendBtn, (!commentText.trim() || sending) && { opacity: 0.4 }]}
                     >
                         {sending ? (
-                            <ActivityIndicator size="small" color="white" />
+                            <ActivityIndicator size="small" color={lightColors.background} />
                         ) : (
-                            <Ionicons name="send" size={18} color="white" />
+                            <Ionicons name="send" size={18} color={lightColors.background} />
                         )}
                     </TouchableOpacity>
                 </View>
@@ -239,200 +262,218 @@ export default function PulseDetailScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0f0f1a' },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f0f1a' },
-    errorText: { fontFamily: fonts.regular, fontSize: 16, color: "rgba(255,255,255,0.5)" },
+const accentColor = '#A154F2';
 
-    postSection: {
-        padding: spacing.lg,
-        borderBottomWidth: 8,
-        borderBottomColor: 'rgba(255,255,255,0.02)',
-    },
-    postHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    ghostAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    postHeaderInfo: {
-        marginLeft: 14,
-    },
-    anonLabel: {
-        fontFamily: fonts.bold,
-        fontSize: 16,
-        color: 'white',
-    },
-    timestamp: {
-        fontFamily: fonts.regular,
-        fontSize: 13,
-        color: '#8F9BB3',
-        marginTop: 2,
-    },
-    postContent: {
-        fontFamily: fonts.regular,
-        fontSize: 18,
-        color: 'rgba(255,255,255,0.9)',
-        lineHeight: 28,
-    },
-    postImage: {
-        width: '100%',
-        height: 220,
-        borderRadius: 16,
-        marginTop: 16,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    voteBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 20,
-        paddingTop: 16,
-        borderTopWidth: 0.5,
-        borderTopColor: 'rgba(255,255,255,0.05)',
-    },
-    voteContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 28,
-        paddingHorizontal: 6,
-        paddingVertical: 4,
-        gap: 2,
-    },
-    voteBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    upvotedBtn: { backgroundColor: 'rgba(16,185,129,0.15)' },
-    downvotedBtn: { backgroundColor: 'rgba(239,68,68,0.15)' },
-    scoreText: {
-        fontFamily: fonts.bold,
-        fontSize: 18,
-        color: '#E0E0E0',
-        minWidth: 40,
-        textAlign: 'center',
-    },
-    commentCountPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 20,
-    },
-    commentCountText: {
-        fontFamily: fonts.semibold,
-        fontSize: 14,
-        color: '#E0E0E0',
-    },
-    commentsHeader: {
-        marginTop: 20,
-    },
-    commentsTitle: {
-        fontFamily: fonts.bold,
-        fontSize: 17,
-        color: 'white',
-    },
+const createStyles = (colors: typeof lightColors, isDark: boolean) => {
+    const page = colors.background;
+    const panel = colors.surface;
+    const panelSoft = colors.elevated;
+    const accent = accentColor;
 
-    commentCard: {
-        flexDirection: 'row',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: 14,
-        gap: 12,
-    },
-    commentAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 2,
-    },
-    commentContent: { flex: 1 },
-    commentHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    commentAuthor: {
-        fontFamily: fonts.semibold,
-        fontSize: 13,
-        color: '#E0E0E0',
-    },
-    commentTime: {
-        fontFamily: fonts.regular,
-        fontSize: 11,
-        color: '#8F9BB3',
-    },
-    commentText: {
-        fontFamily: fonts.regular,
-        fontSize: 15,
-        color: 'rgba(255,255,255,0.9)',
-        lineHeight: 22,
-    },
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: page },
+        centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: page },
+        errorText: { fontFamily: fonts.regular, fontSize: 16, color: colors.gray500, paddingHorizontal: spacing.lg, textAlign: 'center' },
 
-    emptyComments: {
-        alignItems: 'center',
-        paddingVertical: 40,
-        gap: 12,
-    },
-    emptyCommentsText: {
-        fontFamily: fonts.regular,
-        fontSize: 15,
-        color: 'rgba(255,255,255,0.4)',
-    },
+        postSection: {
+            margin: spacing.md,
+            padding: spacing.lg,
+            backgroundColor: panel,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        betaBanner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 14,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            backgroundColor: panelSoft,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        betaText: {
+            flex: 1,
+            fontFamily: fonts.medium,
+            fontSize: 12,
+            color: colors.gray600,
+            lineHeight: 16,
+        },
+        postHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 16,
+        },
+        ghostAvatar: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        ghostIcon: {
+            width: 22,
+            height: 22,
+        },
+        postHeaderInfo: {
+            marginLeft: 14,
+            flex: 1,
+        },
+        anonLabel: {
+            fontFamily: fonts.bold,
+            fontSize: 16,
+            color: colors.black,
+        },
+        timestamp: {
+            fontFamily: fonts.regular,
+            fontSize: 13,
+            color: colors.gray500,
+            marginTop: 2,
+        },
+        postContent: {
+            fontFamily: fonts.regular,
+            fontSize: 17,
+            color: colors.black,
+            lineHeight: 27,
+        },
+        postImage: {
+            width: '100%',
+            height: 220,
+            borderRadius: 16,
+            marginTop: 16,
+            backgroundColor: panelSoft,
+        },
+        infoBar: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 20,
+            paddingTop: 16,
+            borderTopWidth: 0.5,
+            borderTopColor: colors.border,
+        },
+        commentCountPill: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            backgroundColor: panelSoft,
+            borderRadius: 20,
+        },
+        commentCountText: {
+            fontFamily: fonts.semibold,
+            fontSize: 14,
+            color: colors.gray600,
+        },
+        commentsHeader: {
+            marginTop: 20,
+        },
+        commentsTitle: {
+            fontFamily: fonts.bold,
+            fontSize: 17,
+            color: colors.black,
+        },
 
-    inputBar: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: 12,
-        paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-        borderTopWidth: 0.5,
-        borderTopColor: 'rgba(255,255,255,0.1)',
-        backgroundColor: '#0f0f1a',
-        gap: 10,
-    },
-    inputAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    commentInput: {
-        flex: 1,
-        backgroundColor: '#1a1a2e',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        fontFamily: fonts.regular,
-        fontSize: 15,
-        color: 'white',
-        maxHeight: 100,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    sendBtn: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        backgroundColor: '#A154F2',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 2,
-    },
-});
+        commentCard: {
+            flexDirection: 'row',
+            marginHorizontal: spacing.md,
+            marginBottom: 10,
+            paddingHorizontal: spacing.md,
+            paddingVertical: 14,
+            backgroundColor: panel,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 12,
+        },
+        commentAvatar: {
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: 2,
+        },
+        commentContent: { flex: 1 },
+        commentHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 4,
+        },
+        commentAuthor: {
+            fontFamily: fonts.semibold,
+            fontSize: 13,
+            color: colors.black,
+        },
+        commentTime: {
+            fontFamily: fonts.regular,
+            fontSize: 11,
+            color: colors.gray500,
+        },
+        commentText: {
+            fontFamily: fonts.regular,
+            fontSize: 15,
+            color: colors.black,
+            lineHeight: 22,
+        },
+
+        emptyComments: {
+            alignItems: 'center',
+            paddingVertical: 40,
+            gap: 12,
+        },
+        emptyCommentsText: {
+            fontFamily: fonts.regular,
+            fontSize: 15,
+            color: colors.gray500,
+        },
+
+        inputBar: {
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            paddingHorizontal: spacing.lg,
+            paddingVertical: 12,
+            paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+            borderTopWidth: 0.5,
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+            gap: 10,
+        },
+        inputAvatar: {
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 4,
+            backgroundColor: accent,
+        },
+        commentInput: {
+            flex: 1,
+            backgroundColor: panelSoft,
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            fontFamily: fonts.regular,
+            fontSize: 15,
+            color: colors.black,
+            maxHeight: 100,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        sendBtn: {
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: accent,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 2,
+        },
+    });
+};

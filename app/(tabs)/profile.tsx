@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, DeviceEventEmitter } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -24,6 +24,7 @@ import { getUserStories } from '../../src/api/stories';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings' | 'settings';
@@ -56,6 +57,7 @@ export default function ProfileScreen() {
     const [viewerVisible, setViewerVisible] = useState(false);
     const [fetchingStory, setFetchingStory] = useState(false);
     const [showRankModal, setShowRankModal] = useState(false);
+    const [showUniScoreModal, setShowUniScoreModal] = useState(false);
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const router = useRouter();
@@ -122,6 +124,15 @@ export default function ProfileScreen() {
     );
 
     useEffect(() => { loadTabContent(activeTab); }, [activeTab]);
+
+    useEffect(() => {
+        const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data) => {
+            if (activeTab !== 'posts' || !data?.postId) return;
+            setContent(prev => prev.map(item => applyPostCommentCountChange(item, data)));
+        });
+
+        return () => commentCountSub.remove();
+    }, [activeTab]);
 
     const handleItemDelete = (id: string) => {
         setContent(prev => prev.filter(item => item.id !== id));
@@ -212,10 +223,14 @@ export default function ProfileScreen() {
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.friends_count || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends')}</Text>
                             </TouchableOpacity>
-                            <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <TouchableOpacity
+                                style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                onPress={() => setShowUniScoreModal(true)}
+                                activeOpacity={0.7}
+                            >
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Score</Text>
-                            </View>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('uniscore_label')}</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -510,6 +525,29 @@ export default function ProfileScreen() {
                             <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
                                 Your Pioneer Rank represents your early adoption status at {profile?.universities?.name || 'your university'}. 
                                 The lower the number, the earlier you joined the community. Because this is unique to your campus, you hold a permanent piece of history!
+                            </Text>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* UniScore Modal */}
+            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('uniscore_title')}</Text>
+                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.black} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                            <Ionicons name="sparkles" size={44} color="#00A3FF" style={{ marginBottom: spacing.sm }} />
+                            <Text style={[styles.statNumber, { fontSize: 32, color: '#00A3FF', marginBottom: spacing.md }]}>
+                                {profile?.user_score || 0}
+                            </Text>
+                            <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
+                                {t('uniscore_body')}
                             </Text>
                         </View>
                     </View>

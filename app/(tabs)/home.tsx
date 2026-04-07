@@ -17,6 +17,7 @@ import { getStoryFeed } from '../../src/api/stories';
 import { useAuth } from '../../src/context/AuthContext';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
+import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -169,12 +170,18 @@ export default function HomeScreen() {
             }));
         });
 
+        const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data) => {
+            if (!data?.postId) return;
+            setPosts(prev => prev.map(p => applyPostCommentCountChange(p, data)));
+        });
+
         return () => {
             sub.remove();
             storySub.remove();
             profileSub.remove();
             voteSub.remove();
             updateSub.remove();
+            commentCountSub.remove();
         }
     }, []);
 
