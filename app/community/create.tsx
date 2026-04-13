@@ -7,6 +7,7 @@ import { uploadMultipleMedia } from '../../src/api/upload';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 const TYPES = [
     { key: 'course', label: 'Course', icon: 'book-outline' as const },
@@ -17,6 +18,7 @@ const TYPES = [
 
 export default function CreateCommunityScreen() {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { edit, id } = useLocalSearchParams();
     const isEdit = edit === 'true';
@@ -29,6 +31,13 @@ export default function CreateCommunityScreen() {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(isEdit);
     const router = useRouter();
+
+    const TYPES = [
+        { key: 'course', label: t('course'), icon: 'book-outline' as const },
+        { key: 'interest', label: t('interest'), icon: 'sparkles-outline' as const },
+        { key: 'club', label: t('club'), icon: 'people-outline' as const },
+        { key: 'study_group', label: t('study_group'), icon: 'library-outline' as const },
+    ];
 
     useEffect(() => {
         if (isEdit && id) {
@@ -47,7 +56,7 @@ export default function CreateCommunityScreen() {
                 if (res.data.image_url) setImage(res.data.image_url);
             }
         } catch (e) {
-            Alert.alert('Error', 'Failed to load community details');
+            Alert.alert(t('error'), 'Failed to load community details');
         } finally {
             setFetching(false);
         }
@@ -64,7 +73,7 @@ export default function CreateCommunityScreen() {
     };
 
     const handleAction = async () => {
-        if (!name.trim()) return Alert.alert('Error', 'Community name is required');
+        if (!name.trim()) return Alert.alert(t('error'), 'Community name is required');
         setLoading(true);
         try {
             let imageUrl = image;
@@ -86,7 +95,7 @@ export default function CreateCommunityScreen() {
 
             if (isEdit) {
                 await updateCommunity(id as string, data);
-                Alert.alert('Success', 'Community updated successfully');
+                Alert.alert(t('success'), 'Community updated successfully');
                 DeviceEventEmitter.emit('communityUpdated');
             } else {
                 await createCommunity(data as any);
@@ -94,7 +103,7 @@ export default function CreateCommunityScreen() {
             }
             router.back();
         } catch (e: any) {
-            Alert.alert('Error', e.message);
+            Alert.alert(t('error'), e.message);
         } finally {
             setLoading(false);
         }
@@ -104,7 +113,7 @@ export default function CreateCommunityScreen() {
         <View style={styles.container}>
             <Stack.Screen
                 options={{
-                    title: isEdit ? 'Edit Community' : 'New Community',
+                    title: isEdit ? t('header_edit') + ' ' + t('community_hub') : t('header_new') + ' ' + t('community_hub'),
                     headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17, color: colors.text },
                     headerStyle: { backgroundColor: colors.background },
                     headerTintColor: colors.text,
@@ -114,7 +123,7 @@ export default function CreateCommunityScreen() {
                                 <ActivityIndicator size="small" color={colors.text} />
                             ) : (
                                 <Text style={[styles.headerAction, { color: colors.text }, !name.trim() && { opacity: 0.3 }]}>
-                                    {isEdit ? 'Save' : 'Create'}
+                                    {isEdit ? t('save') : t('create')}
                                 </Text>
                             )}
                         </TouchableOpacity>
@@ -134,14 +143,14 @@ export default function CreateCommunityScreen() {
                 <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     {/* Banner */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>COMMUNITY BANNER</Text>
+                        <Text style={styles.label}>{t('community_banner')}</Text>
                         <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
                             {image ? (
                                 <Image source={{ uri: image }} style={styles.previewImage} />
                             ) : (
                                 <View style={styles.imagePlaceholder}>
                                     <Ionicons name="camera-outline" size={28} color={colors.gray400} />
-                                    <Text style={styles.imagePlaceholderText}>Add cover photo (displayed on community profile)</Text>
+                                    <Text style={styles.imagePlaceholderText}>{t('add_cover_photo')}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -149,7 +158,7 @@ export default function CreateCommunityScreen() {
 
                     {/* Name */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>NAME</Text>
+                        <Text style={styles.label}>{t('community_name')}</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="Community name"
@@ -163,7 +172,7 @@ export default function CreateCommunityScreen() {
 
                     {/* Description */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>DESCRIPTION</Text>
+                        <Text style={styles.label}>{t('description').toUpperCase()}</Text>
                         <TextInput
                             style={[styles.input, styles.textArea]}
                             placeholder="What's this community about?"
@@ -178,7 +187,7 @@ export default function CreateCommunityScreen() {
 
                     {/* Type */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>TYPE</Text>
+                        <Text style={styles.label}>{t('community_type')}</Text>
                         <View style={styles.typeGrid}>
                             {TYPES.map(type => (
                                 <TouchableOpacity
@@ -202,17 +211,17 @@ export default function CreateCommunityScreen() {
 
                     {/* Privacy Toggle */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>PRIVACY</Text>
+                        <Text style={styles.label}>{t('privacy')}</Text>
                         <View style={styles.privacyRow}>
                             <View style={styles.privacyInfo}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                     <Ionicons name={isPrivate ? 'lock-closed' : 'earth'} size={20} color={colors.text} />
-                                    <Text style={styles.privacyTitle}>{isPrivate ? 'Private Community' : 'Public Community'}</Text>
+                                    <Text style={styles.privacyTitle}>{isPrivate ? t('private_community') : t('public_community')}</Text>
                                 </View>
                                 <Text style={styles.privacyDesc}>
                                     {isPrivate
-                                        ? 'Only members can see posts and content. Join requests need approval.'
-                                        : 'Anyone can see posts and join freely.'
+                                        ? t('private_desc')
+                                        : t('public_desc')
                                     }
                                 </Text>
                             </View>

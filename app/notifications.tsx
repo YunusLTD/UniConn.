@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../src/context/NotificationContext';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/context/ThemeContext';
+import { useLanguage } from '../src/context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
 
 function timeAgo(dateStr: string) {
@@ -43,6 +44,7 @@ const NOTIF_ICONS: Record<string, string> = {
 
 export default function NotificationsScreen() {
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -135,10 +137,22 @@ export default function NotificationsScreen() {
                             </View>
                             <View style={styles.info}>
                                 <Text style={[styles.title, !item.read && styles.titleUnread]} numberOfLines={1}>
-                                    {item.title}
+                                    {item.title.startsWith('New in ') ? `${t('New in ')}${item.title.replace('New in ', '')}` : (t(item.title as any) || item.title)}
                                 </Text>
                                 <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
-                                <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
+                                <Text style={styles.time}>{(() => {
+                                    const d = new Date(item.created_at);
+                                    const now = new Date();
+                                    const diff = now.getTime() - d.getTime();
+                                    const mins = Math.floor(diff / 60000);
+                                    if (mins < 1) return t('notif_now');
+                                    if (mins < 60) return `${mins}${t('time_m')}`;
+                                    const hrs = Math.floor(mins / 60);
+                                    if (hrs < 24) return `${hrs}${t('time_h')}`;
+                                    const days = Math.floor(hrs / 24);
+                                    if (days < 7) return `${days}${t('time_d')}`;
+                                    return d.toLocaleDateString();
+                                })()}</Text>
                             </View>
                             {!item.read && <View style={styles.dot} />}
                         </TouchableOpacity>
@@ -147,8 +161,8 @@ export default function NotificationsScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Ionicons name="notifications-outline" size={64} color={colors.gray200} />
-                        <Text style={styles.emptyTitle}>All caught up</Text>
-                        <Text style={styles.emptySub}>We will notify you about important updates here</Text>
+                        <Text style={styles.emptyTitle}>{t('notif_all_caught_up')}</Text>
+                        <Text style={styles.emptySub}>{t('notif_updates_here')}</Text>
                     </View>
                 }
             />

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Activi
 import { useRouter, Stack } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadMultipleMedia } from '../../src/api/upload';
@@ -10,14 +11,24 @@ import { createStudyQuestion } from '../../src/api/study';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from '../../src/context/ToastContext';
 import CustomBackBtn from '../../src/components/CustomBackBtn';
-
-const SUBJECTS = ['Math', 'Science', 'English', 'History', 'Physics', 'Computer Science', 'Business', 'Arts', 'Other'];
+const SUBJECT_KEYS = [
+    { value: 'Math', key: 'subject_math' },
+    { value: 'Science', key: 'subject_science' },
+    { value: 'English', key: 'subject_english' },
+    { value: 'History', key: 'subject_history' },
+    { value: 'Physics', key: 'subject_physics' },
+    { value: 'Computer Science', key: 'subject_cs' },
+    { value: 'Business', key: 'subject_business' },
+    { value: 'Arts', key: 'subject_arts' },
+    { value: 'Other', key: 'subject_other' },
+];
 
 export default function CreateQuestionScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { showToast } = useToast();
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [subject, setSubject] = useState('');
@@ -38,7 +49,7 @@ export default function CreateQuestionScreen() {
 
     const handleSubmit = async () => {
         if (!title.trim() || !content.trim() || !subject) {
-            showToast({ title: 'Wait', message: 'Please fill in all fields', type: 'error' });
+            showToast({ title: t('wait'), message: t('fill_all_fields'), type: 'error' });
             return;
         }
 
@@ -59,11 +70,11 @@ export default function CreateQuestionScreen() {
                 image_url: imageUrl,
             });
 
-            showToast({ title: 'Success', message: 'Question posted! Good luck!', type: 'success' });
+            showToast({ title: t('success'), message: t('question_posted_success'), type: 'success' });
             router.back();
         } catch (e) {
             console.log('Failed to post question', e);
-            showToast({ title: 'Error', message: 'Something went wrong while posting', type: 'error' });
+            showToast({ title: t('error'), message: t('posting_failed'), type: 'error' });
         } finally {
             setSubmitting(false);
         }
@@ -75,7 +86,7 @@ export default function CreateQuestionScreen() {
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.black,
                 headerShown: true,
-                title: 'Ask for Help',
+                title: t('ask_for_help_header'),
                 headerLeft: () => (
                     <CustomBackBtn
                         onPress={() => router.back()}
@@ -92,7 +103,7 @@ export default function CreateQuestionScreen() {
                         {submitting ? (
                             <ActivityIndicator size="small" color={colors.white} />
                         ) : (
-                            <Text style={[styles.postBtnText, { color: colors.white }]}>Ask</Text>
+                            <Text style={[styles.postBtnText, { color: colors.white }]}>{t('ask_label')}</Text>
                         )}
                     </TouchableOpacity>
                 )
@@ -105,24 +116,24 @@ export default function CreateQuestionScreen() {
             >
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <View style={styles.inputSection}>
-                        <Text style={[styles.label, { color: colors.gray500 }]}>Subject</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>{t('subject_label')}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subjectScroll} contentContainerStyle={{ gap: 8 }}>
-                            {SUBJECTS.map(sub => (
+                            {SUBJECT_KEYS.map(sub => (
                                 <TouchableOpacity
-                                    key={sub}
+                                    key={sub.value}
                                     style={[
                                         styles.subjectChip,
                                         { backgroundColor: colors.surface, borderColor: colors.border },
-                                        subject === sub && { backgroundColor: colors.black, borderColor: colors.black }
+                                        subject === sub.value && { backgroundColor: colors.black, borderColor: colors.black }
                                     ]}
-                                    onPress={() => setSubject(sub)}
+                                    onPress={() => setSubject(sub.value)}
                                 >
                                     <Text style={[
                                         styles.subjectChipText,
                                         { color: colors.gray600 },
-                                        subject === sub && { color: colors.white }
+                                        subject === sub.value && { color: colors.white }
                                     ]}>
-                                        {sub}
+                                        {t(sub.key as any)}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -130,10 +141,10 @@ export default function CreateQuestionScreen() {
                     </View>
 
                     <View style={styles.inputSection}>
-                        <Text style={[styles.label, { color: colors.gray500 }]}>Title</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>{t('title_label')}</Text>
                         <TextInput
                             style={[styles.titleInput, { color: colors.black, borderBottomColor: colors.border }]}
-                            placeholder="What's the core problem? (e.g. Calculus: Chain Rule)"
+                            placeholder={t('core_problem_placeholder')}
                             value={title}
                             onChangeText={setTitle}
                             maxLength={80}
@@ -142,10 +153,10 @@ export default function CreateQuestionScreen() {
                     </View>
 
                     <View style={styles.inputSection}>
-                        <Text style={[styles.label, { color: colors.gray500 }]}>Details / Context</Text>
+                        <Text style={[styles.label, { color: colors.gray500 }]}>{t('details')}</Text>
                         <TextInput
                             style={[styles.contentInput, { color: colors.black }]}
-                            placeholder="Explain where you're stuck or what you've tried so far..."
+                            placeholder={t('stuck_placeholder')}
                             value={content}
                             onChangeText={setContent}
                             multiline
@@ -167,7 +178,7 @@ export default function CreateQuestionScreen() {
                         ) : (
                             <View style={[styles.imagePlaceholder, { borderColor: colors.border }]}>
                                 <Ionicons name="camera-outline" size={32} color={colors.gray400} />
-                                <Text style={[styles.placeholderText, { color: colors.gray500 }]}>Add a photo of the problem</Text>
+                                <Text style={[styles.placeholderText, { color: colors.gray500 }]}>{t('add_problem_photo')}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
@@ -175,19 +186,19 @@ export default function CreateQuestionScreen() {
                     <View style={[styles.tipsSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <View style={styles.tipsHeader}>
                             <Ionicons name="bulb" size={18} color={colors.black} />
-                            <Text style={[styles.tipsTitle, { color: colors.black }]}>Quick Tips for Better Help</Text>
+                            <Text style={[styles.tipsTitle, { color: colors.black }]}>{t('tips_title')}</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Be clear and specific in your title so peers know exactly what's up.</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>{t('tip_1')}</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Show what you've tried—it helps others find where you're stuck!</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>{t('tip_2')}</Text>
                         </View>
                         <View style={styles.tipItem}>
                             <Ionicons name="checkmark-circle" size={16} color={colors.black} style={{ marginTop: 2 }} />
-                            <Text style={[styles.tipText, { color: colors.gray700 }]}>Upload a sharp photo if the problem is visual or has diagrams.</Text>
+                            <Text style={[styles.tipText, { color: colors.gray700 }]}>{t('tip_3')}</Text>
                         </View>
                     </View>
                 </ScrollView>

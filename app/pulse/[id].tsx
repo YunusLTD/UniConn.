@@ -75,7 +75,8 @@ export default function PulseDetailScreen() {
         try {
             const res = await addPulseComment(id as string, commentText.trim());
             if (res?.data) {
-                setComments(prev => [...prev, res.data]);
+                // Show reply like a third person until re-entering
+                setComments(prev => [...prev, { ...res.data, is_mine: false }]);
                 setCommentText('');
             }
         } catch (e) {
@@ -197,7 +198,15 @@ export default function PulseDetailScreen() {
                                 </View>
                                 <View style={styles.postHeaderInfo}>
                                     <Text style={styles.anonLabel}>{postAlias}</Text>
-                                    <Text style={styles.timestamp}>{timeAgo(pulse.created_at, t, language)}</Text>
+                                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                                        <Text style={styles.timestamp}>{timeAgo(pulse.created_at, t, language)}</Text>
+                                        {pulse.is_edited && (
+                                            <>
+                                                <Text style={[styles.timestamp, { fontSize: 10 }]}>·</Text>
+                                                <Text style={[styles.timestamp, { fontSize: 11 }]}>{t('edited_label')}</Text>
+                                            </>
+                                        )}
+                                    </View>
                                 </View>
                             </View>
 

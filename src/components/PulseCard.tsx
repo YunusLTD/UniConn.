@@ -104,7 +104,10 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
     ];
 
     if (pulse.is_mine) {
-        actionOptions.unshift({ label: t('edit_label'), icon: 'pencil-outline', onPress: () => router.push(`/pulse/edit?id=${pulse.id}&content=${encodeURIComponent(pulse.content)}`) });
+        const canEdit = new Date().getTime() - new Date(pulse.created_at).getTime() < 30 * 60 * 1000;
+        if (canEdit) {
+            actionOptions.unshift({ label: t('edit_label'), icon: 'pencil-outline', onPress: () => router.push(`/pulse/edit?id=${pulse.id}&content=${encodeURIComponent(pulse.content)}`) });
+        }
         actionOptions.push({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
     }
 
@@ -129,9 +132,17 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
                 </View>
                 <View style={styles.headerInfo}>
                     <Text style={styles.anonLabel}>{authorLabel}</Text>
-                    <Text style={styles.timestamp}>
-                        {timeAgo(pulse.created_at, t, language)}
-                    </Text>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                        <Text style={styles.timestamp}>
+                            {timeAgo(pulse.created_at, t, language)}
+                        </Text>
+                        {pulse.is_edited && (
+                            <>
+                                <Text style={[styles.timestamp, { fontSize: 10 }]}>·</Text>
+                                <Text style={[styles.timestamp, { fontSize: 11 }]}>{t('edited_label')}</Text>
+                            </>
+                        )}
+                    </View>
                 </View>
                 <TouchableOpacity onPress={() => { hapticLight(); setActionVisible(true); }} hitSlop={12} style={styles.menuBtn}>
                     <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray500} />

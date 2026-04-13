@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { createMarketplaceListing } from '../../src/api/marketplace';
 import { uploadSingleMedia } from '../../src/api/upload';
 import { getMyCommunities } from '../../src/api/communities';
@@ -23,6 +24,7 @@ export default function CreateListingScreen() {
     const { communityId: initialCommunityId, defaultType } = useLocalSearchParams();
     const router = useRouter();
     const { colors } = useTheme();
+    const { t } = useLanguage();
     
     const [title, setTitle] = useState('');
     const [price, setPrice] = useState('');
@@ -68,10 +70,10 @@ export default function CreateListingScreen() {
     };
 
     const handleCreate = async () => {
-        if (!selectedCommunityId) return Alert.alert('Error', 'Please select a community');
-        if (!title) return Alert.alert('Error', 'Title is required');
-        if (listingType === 'sell' && price === '') return Alert.alert('Error', 'Price is required for selling');
-        if (listingType === 'sell' && isNaN(Number(price))) return Alert.alert('Error', 'Price must be a number');
+        if (!selectedCommunityId) return Alert.alert(t('error'), 'Please select a community');
+        if (!title) return Alert.alert(t('error'), 'Title is required');
+        if (listingType === 'sell' && price === '') return Alert.alert(t('error'), 'Price is required for selling');
+        if (listingType === 'sell' && isNaN(Number(price))) return Alert.alert(t('error'), 'Price must be a number');
         
         setLoading(true);
         try {
@@ -91,23 +93,23 @@ export default function CreateListingScreen() {
             });
 
             if (res?.data) {
-                Alert.alert('Success', 'Item listed successfully!');
+                Alert.alert(t('success'), 'Item listed successfully!');
                 router.back();
             }
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to list item');
+            Alert.alert(t('error'), e.message || 'Failed to list item');
         } finally {
             setLoading(false);
         }
     };
 
     const selectedComm = myCommunities.find(c => c.id === selectedCommunityId);
-    const commName = selectedComm ? selectedComm.name : 'Choose Community';
+    const commName = selectedComm ? selectedComm.name.replace(/Community/gi, '').trim() : t('choose_community');
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <Stack.Screen options={{ 
-                title: 'List an Item', 
+                title: t('header_new') + ' ' + t('listing_label'), 
                 headerBackTitle: '',
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.black
@@ -115,7 +117,7 @@ export default function CreateListingScreen() {
             
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerRow}>
-                    <Text style={[styles.smallLabel, { color: colors.gray500 }]}>Listing on </Text>
+                    <Text style={[styles.smallLabel, { color: colors.gray500 }]}>{t('posting_to_label')} </Text>
                     <TouchableOpacity onPress={() => setShowCommModal(true)} style={styles.clickableWrapper}>
                         <Text style={styles.clickableComm}>{commName}</Text>
                         <Ionicons name="chevron-down" size={14} color="#00A3FF" style={{ marginLeft: 2 }} />
@@ -133,7 +135,7 @@ export default function CreateListingScreen() {
                         <Text style={[
                             styles.typeBtnText, { color: colors.gray500 },
                             listingType === 'sell' && styles.typeBtnTextActive
-                        ]}>Sell Item</Text>
+                        ]}>{t('selling')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[
@@ -145,7 +147,7 @@ export default function CreateListingScreen() {
                         <Text style={[
                             styles.typeBtnText, { color: colors.gray500 },
                             listingType === 'request' && styles.typeBtnTextActive
-                        ]}>Request Item</Text>
+                        ]}>{t('requesting')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -155,22 +157,22 @@ export default function CreateListingScreen() {
                             <Image source={{ uri: image }} style={styles.previewImage} />
                             <View style={styles.imageOverlay}>
                                 <Ionicons name="camera" size={24} color="#FFFFFF" />
-                                <Text style={styles.changePhotoText}>Change Photo</Text>
+                                <Text style={styles.changePhotoText}>{t('change_cover')}</Text>
                             </View>
                         </>
                     ) : (
                         <View style={styles.imagePlaceholder}>
                             <Ionicons name="camera-outline" size={40} color={colors.gray400} />
-                            <Text style={[styles.uploadText, { color: colors.gray500 }]}>{listingType === 'sell' ? 'Add Product Photo' : 'Add Reference Photo (Optional)'}</Text>
+                            <Text style={[styles.uploadText, { color: colors.gray500 }]}>{listingType === 'sell' ? t('add_problem_photo') : t('add_problem_photo')}</Text>
                         </View>
                     )}
                 </TouchableOpacity>
 
                 <View style={styles.section}>
-                    <Text style={[styles.label, { color: colors.gray500 }]}>ITEM DETAILS</Text>
+                    <Text style={[styles.label, { color: colors.gray500 }]}>{t('item_details_label')}</Text>
                     <TextInput 
                         style={[styles.input, { borderColor: colors.border, color: colors.black, backgroundColor: colors.surface }]} 
-                        placeholder={listingType === 'sell' ? "What are you selling?" : "What are you looking for?"} 
+                        placeholder={listingType === 'sell' ? t('what_selling_placeholder') : t('what_looking_placeholder')} 
                         placeholderTextColor={colors.gray400} 
                         value={title} 
                         onChangeText={setTitle} 
@@ -191,7 +193,7 @@ export default function CreateListingScreen() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={[styles.label, { color: colors.gray500 }]}>CATEGORY</Text>
+                    <Text style={[styles.label, { color: colors.gray500 }]}>{t('category')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
                         {CATEGORIES.map((cat) => (
                             <TouchableOpacity 
@@ -211,7 +213,7 @@ export default function CreateListingScreen() {
                                     styles.categoryBtnText, { color: colors.gray500 },
                                     category === cat.id && [styles.categoryBtnTextActive, { color: colors.white }]
                                 ]}>
-                                    {cat.label}
+                                    {t(cat.id as any)}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -219,10 +221,10 @@ export default function CreateListingScreen() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={[styles.label, { color: colors.gray500 }]}>DESCRIPTION</Text>
+                    <Text style={[styles.label, { color: colors.gray500 }]}>{t('description').toUpperCase()}</Text>
                     <TextInput 
                         style={[styles.input, styles.textArea, { borderColor: colors.border, color: colors.black, backgroundColor: colors.surface }]} 
-                        placeholder="Tell us more about the item..." 
+                        placeholder={t('tell_more_placeholder')} 
                         placeholderTextColor={colors.gray400} 
                         value={description} 
                         onChangeText={setDescription} 
@@ -239,7 +241,7 @@ export default function CreateListingScreen() {
                     {loading ? (
                         <ActivityIndicator color={colors.white} />
                     ) : (
-                        <Text style={[styles.btnText, { color: colors.white }]}>Post Listing</Text>
+                        <Text style={[styles.btnText, { color: colors.white }]}>{t('post_listing_label')}</Text>
                     )}
                 </TouchableOpacity>
             </ScrollView>
@@ -248,7 +250,7 @@ export default function CreateListingScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>Choose Community</Text>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('community_hub')}</Text>
                             <TouchableOpacity onPress={() => setShowCommModal(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>

@@ -281,7 +281,15 @@ export default function EditProfileScreen() {
                                 onPress={() => setShowRelModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: relationshipStatus ? colors.black : colors.gray400, textTransform: 'capitalize' }}>
-                                    {relationshipStatus || t('select_status')}
+                                    {relationshipStatus ? (() => {
+                                        const s = relationshipStatus.toLowerCase();
+                                        if (s === 'private') return t('rel_private');
+                                        if (s === 'single') return t('rel_single');
+                                        if (s === 'in a relationship') return t('rel_in_relationship');
+                                        if (s === 'married') return t('rel_married');
+                                        if (s === 'complicated') return t('rel_complicated');
+                                        return relationshipStatus;
+                                    })() : t('select_status')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -376,11 +384,11 @@ export default function EditProfileScreen() {
                 onClose={() => setShowRelModal(false)}
                 title="Relationship Status"
                 options={[
-                    { label: 'Private', icon: 'lock-closed-outline', onPress: () => { setRelationshipStatus('Private'); setShowRelModal(false); } },
-                    { label: 'Single', icon: 'person-outline', onPress: () => { setRelationshipStatus('Single'); setShowRelModal(false); } },
-                    { label: 'In a relationship', icon: 'heart-outline', onPress: () => { setRelationshipStatus('In a relationship'); setShowRelModal(false); } },
-                    { label: 'Married', icon: 'heart-circle-outline', onPress: () => { setRelationshipStatus('Married'); setShowRelModal(false); } },
-                    { label: 'Complicated', icon: 'sync-circle-outline', onPress: () => { setRelationshipStatus('Complicated'); setShowRelModal(false); } },
+                    { label: t('rel_private'), icon: 'lock-closed-outline', onPress: () => { setRelationshipStatus('Private'); setShowRelModal(false); } },
+                    { label: t('rel_single'), icon: 'person-outline', onPress: () => { setRelationshipStatus('Single'); setShowRelModal(false); } },
+                    { label: t('rel_in_relationship'), icon: 'heart-outline', onPress: () => { setRelationshipStatus('In a relationship'); setShowRelModal(false); } },
+                    { label: t('rel_married'), icon: 'heart-circle-outline', onPress: () => { setRelationshipStatus('Married'); setShowRelModal(false); } },
+                    { label: t('rel_complicated'), icon: 'sync-circle-outline', onPress: () => { setRelationshipStatus('Complicated'); setShowRelModal(false); } },
                     { label: 'Not sure', icon: 'help-circle-outline', onPress: () => { setRelationshipStatus('Not sure'); setShowRelModal(false); } },
                     { label: 'Clear', icon: 'close-circle-outline', destructive: true, onPress: () => { setRelationshipStatus(''); setShowRelModal(false); } }
                 ]}

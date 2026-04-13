@@ -14,6 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { supabase } from '../../src/api/supabase';
 import ShadowLoader from '../../src/components/ShadowLoader';
+import { useLanguage } from '../../src/context/LanguageContext';
 // ActionModal replaced with inline contextual popup
 import { getCommunityMembers } from '../../src/api/communities';
 import SharedPostCard from '../../src/components/SharedPostCard';
@@ -290,6 +291,7 @@ export default function ChatScreen() {
     const channelRef = useRef<any>(null);
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const loadMessages = async (convId: string) => {
         try {
@@ -678,18 +680,18 @@ export default function ChatScreen() {
     }
 
     const getLastSeenText = (lastSeen: string | null) => {
-        if (isOnline) return 'Online';
-        if (!lastSeen) return 'Offline';
+        if (isOnline) return t('online');
+        if (!lastSeen) return t('offline');
         const date = new Date(lastSeen);
         const now = new Date();
         const diff = now.getTime() - date.getTime();
         const mins = Math.floor(diff / 60000);
-        if (mins < 3) return 'Online';
-        if (mins < 60) return `${mins}m ago`;
+        if (mins < 3) return t('online');
+        if (mins < 60) return `${mins}${t('time_m')} ${t('time_ago')}`;
         const hours = Math.floor(mins / 60);
-        if (hours < 24) return `${hours}h ago`;
+        if (hours < 24) return `${hours}${t('time_h')} ${t('time_ago')}`;
         const days = Math.floor(hours / 24);
-        if (days < 7) return `${days}d ago`;
+        if (days < 7) return `${days}${t('time_d')} ${t('time_ago')}`;
         return date.toLocaleDateString();
     };
 
@@ -729,7 +731,7 @@ export default function ChatScreen() {
                             </View>
                             {conversation?.type === 'direct' && (
                                 <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: isOnline ? '#34C759' : colors.gray500 }}>
-                                    {isPlatform ? 'System Account' : getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
+                                    {isPlatform ? t('system_account') : getLastSeenText(otherParticipant?.profiles?.last_seen_at)}
                                 </Text>
                             )}
                         </View>
@@ -788,7 +790,7 @@ export default function ChatScreen() {
             )}
             {peerTyping && (
                 <View style={styles.typingWrap}>
-                    <Text style={[styles.typingText, { color: colors.gray500 }]}>{displayName} is typing...</Text>
+                    <Text style={[styles.typingText, { color: colors.gray500 }]}>{displayName} {t('chat_typing')}</Text>
                 </View>
             )}
 
@@ -853,7 +855,7 @@ export default function ChatScreen() {
                     {isPlatform ? (
                         <View style={{ flex: 1, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}>
                             <View style={styles.platformNotice}>
-                                <Text style={styles.platformNoticeText}>This is a system-only account. You cannot reply to this message.</Text>
+                                <Text style={styles.platformNoticeText}>{t('system_only_message')}</Text>
                             </View>
                         </View>
                     ) : (
@@ -865,7 +867,7 @@ export default function ChatScreen() {
                                 <TextInput
                                     ref={textInputRef}
                                     style={[styles.input, { maxHeight: 120, color: colors.black }]}
-                                    placeholder="Message..."
+                                    placeholder={t('chat_message_placeholder')}
                                     placeholderTextColor={colors.gray400}
                                     value={input}
                                     onChangeText={handleInputChange}
@@ -1051,7 +1053,7 @@ export default function ChatScreen() {
                                         onPress={() => { setReplyTo(showingActions); setShowingActions(null); setBubbleLayout(null); setTimeout(() => textInputRef.current?.focus(), 100); }}
                                     >
                                         <Ionicons name="return-up-back-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
-                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>Reply</Text>
+                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>{t('chat_reply')}</Text>
                                     </TouchableOpacity>
                                     <View style={[styles.contextDivider, { backgroundColor: isDark ? '#404040' : '#F0F0F0' }]} />
                                     <TouchableOpacity 
@@ -1059,7 +1061,7 @@ export default function ChatScreen() {
                                         onPress={() => { if(showingActions?.content) Clipboard.setString(showingActions.content); setShowingActions(null); setBubbleLayout(null); }}
                                     >
                                         <Ionicons name="copy-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
-                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>Copy</Text>
+                                        <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>{t('chat_copy')}</Text>
                                     </TouchableOpacity>
                                     {actIsMine && (
                                         <>
@@ -1069,7 +1071,7 @@ export default function ChatScreen() {
                                                 onPress={() => handleDeleteMessage(showingActions.id)}
                                             >
                                                 <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                                                <Text style={[styles.contextOptionText, { color: '#FF3B30' }]}>Delete</Text>
+                                                <Text style={[styles.contextOptionText, { color: '#FF3B30' }]}>{t('chat_delete')}</Text>
                                             </TouchableOpacity>
                                         </>
                                     )}

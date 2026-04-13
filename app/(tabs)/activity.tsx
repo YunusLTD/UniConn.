@@ -182,7 +182,7 @@ export default function ActivityScreen() {
                                     { color: colors.gray600 },
                                     isUnread && { fontFamily: fonts.semibold, color: colors.text }
                                 ]}>
-                                    {item.title}
+                                    {item.title.startsWith('New in ') ? `${t('New in ')}${item.title.replace('New in ', '')}` : (t(item.title as any) || item.title)}
                                 </Text>
                                 <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>
                                     {item.message}

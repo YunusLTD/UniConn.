@@ -14,7 +14,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function EventCard({ event, showDelete = false, onDelete }: { event: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
     const { colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    // Special translation helper for EventCard to avoid Georgian overflow issues
+    const te = (key: any, defaultText: string) => {
+        if (language === 'ka') return defaultText;
+        return t(key);
+    };
     const { user } = useAuth();
     const router = useRouter();
     const [isInterested, setIsInterested] = useState(!!event.is_interested);
@@ -38,15 +43,15 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
     const timeAgo = (dateStr: string) => {
         const now = new Date();
         const diff = now.getTime() - new Date(dateStr).getTime();
-        if (diff < 0) return t('just_now');
+        if (diff < 0) return te('just_now', 'just now');
         const mins = Math.floor(diff / 60000);
-        if (mins < 1) return t('just_now');
-        if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
+        if (mins < 1) return te('just_now', 'just now');
+        if (mins < 60) return te('minute_ago', '{{count}}m ago').replace('{{count}}', String(mins));
         const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
+        if (hrs < 24) return te('hour_ago', '{{count}}h ago').replace('{{count}}', String(hrs));
         const days = Math.floor(hrs / 24);
-        if (days === 1) return t('yesterday');
-        if (days < 7) return t('day_ago').replace('{{count}}', String(days));
+        if (days === 1) return te('yesterday', 'yesterday');
+        if (days < 7) return te('day_ago', '{{count}} days ago').replace('{{count}}', String(days));
         return new Date(dateStr).toLocaleDateString();
     };
 
@@ -117,7 +122,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         <View style={{ flex: 1 }}>
                             <View style={styles.nameRow}>
                                 <TouchableOpacity onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}>
-                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || t('anonymous_user')}</Text>
+                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || te('anonymous_user', 'Anonymous')}</Text>
                                 </TouchableOpacity>
                                 <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(event.created_at)}</Text>
@@ -192,7 +197,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         >
                             <Ionicons name={isInterested ? "star" : "star-outline"} size={16} color={isInterested ? colors.white : colors.gray500} />
                             <Text style={[styles.interestBtnText, { color: colors.gray600 }, isInterested && { color: colors.white }]}>
-                                Interested
+                                {te('interested_label', 'Interested')}
                             </Text>
                         </TouchableOpacity>
 
@@ -202,7 +207,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                                 <View style={[styles.miniAvatar, { backgroundColor: colors.gray200, borderColor: colors.surface, zIndex: 2, marginLeft: -10 }]} />
                                 <View style={[styles.miniAvatar, { backgroundColor: colors.gray300, borderColor: colors.surface, zIndex: 1, marginLeft: -10 }]} />
                             </View>
-                            <Text style={[styles.statsText, { color: colors.gray500 }]}>{interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested</Text>
+                            <Text style={[styles.statsText, { color: colors.gray500 }]}>{interestedCount} {interestedCount === 1 ? te('person_interested', 'person interested') : te('people_interested', 'people interested')}</Text>
                         </View>
                     </View>
                 </View>

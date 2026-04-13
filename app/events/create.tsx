@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { useRouter, Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 import { createEvent } from '../../src/api/events';
 import { getMyCommunities } from '../../src/api/communities';
 import { uploadMultipleMedia } from '../../src/api/upload';
@@ -17,6 +18,7 @@ export default function CreateEventScreen() {
     const navigation = useNavigation();
     const params = useLocalSearchParams();
     const { colors, theme, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
@@ -69,7 +71,7 @@ export default function CreateEventScreen() {
                 const res = await uploadMultipleMedia([{ uri: result.assets[0].uri, type: 'image' }]);
                 if (res?.[0]?.url) setImageUrl(res[0].url);
             } catch (e) {
-                Alert.alert('Upload Failed', 'Could not upload image');
+                Alert.alert(t('upload_failed'), 'Could not upload image');
             } finally {
                 setUploading(false);
             }
@@ -77,8 +79,8 @@ export default function CreateEventScreen() {
     };
 
     const handleCreate = async () => {
-        if (!selectedCommunity) return Alert.alert('Error', 'Please select a community first');
-        if (!title.trim()) return Alert.alert('Error', 'Please enter an event title');
+        if (!selectedCommunity) return Alert.alert(t('error'), 'Please select a community first');
+        if (!title.trim()) return Alert.alert(t('error'), 'Please enter an event title');
 
         setPosting(true);
         try {
@@ -90,10 +92,10 @@ export default function CreateEventScreen() {
                 image_url: imageUrl || undefined
             });
             DeviceEventEmitter.emit('postCreated');
-            Alert.alert('Success', 'Event scheduled!');
+            Alert.alert(t('success'), 'Event scheduled!');
             router.back();
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to schedule event');
+            Alert.alert(t('error'), e.message || 'Failed to schedule event');
         } finally {
             setPosting(false);
         }
@@ -114,14 +116,14 @@ export default function CreateEventScreen() {
 
         navigation.setOptions({
             headerShown: true,
-            title: 'Schedule Event',
+            title: t('schedule_event_header'),
             headerTitleAlign: 'center',
             headerBackTitleVisible: false,
             headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.black,
             headerLeft: () => (
                 <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 16 }}>
-                    <Text style={{ fontFamily: fonts.medium, fontSize: 16, color: colors.gray600 }}>Cancel</Text>
+                    <Text style={{ fontFamily: fonts.medium, fontSize: 16, color: colors.gray600 }}>{t('cancel_label')}</Text>
                 </TouchableOpacity>
             ),
             headerRight: () => (
@@ -138,7 +140,7 @@ export default function CreateEventScreen() {
                     ]}
                     hitSlop={20}
                 >
-                    {posting ? <Text style={[styles.doneBtn, { color: colors.gray400 }]}>Sharing</Text> : <Text style={[styles.doneBtn, { color: colors.black }]}>Share</Text>}
+                    {posting ? <Text style={[styles.doneBtn, { color: colors.gray400 }]}>{t('sharing_label')}</Text> : <Text style={[styles.doneBtn, { color: colors.black }]}>{t('share')}</Text>}
                 </Pressable>
             )
         });
@@ -172,7 +174,7 @@ export default function CreateEventScreen() {
                                 <Ionicons name="people-outline" size={20} color={colors.gray500} />
                             </View>
                             <View>
-                                <Text style={[styles.pickerSub, { color: colors.gray500 }]}>POSTING TO</Text>
+                                <Text style={[styles.pickerSub, { color: colors.gray500 }]}>{t('posting_to_label')}</Text>
                                 <Text style={[styles.pickerName, { color: colors.black }]}>{selectedCommunity?.name?.replace(/Community/gi, '').trim() || 'Select Community'}</Text>
                             </View>
                         </View>
@@ -203,7 +205,7 @@ export default function CreateEventScreen() {
                                 <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
                                 <View style={styles.imageOverlay}>
                                     <Ionicons name="camera" size={24} color="white" />
-                                    <Text style={styles.changePhotoText}>Change Cover</Text>
+                                    <Text style={styles.changePhotoText}>{t('change_cover')}</Text>
                                 </View>
                             </View>
                         ) : (
@@ -213,7 +215,7 @@ export default function CreateEventScreen() {
                                 ) : (
                                     <>
                                         <Ionicons name="image-outline" size={40} color={colors.gray400} />
-                                        <Text style={[styles.imageLabel, { color: colors.gray500 }]}>Add Event Cover Photo</Text>
+                                        <Text style={[styles.imageLabel, { color: colors.gray500 }]}>{t('add_event_cover')}</Text>
                                     </>
                                 )}
                             </View>
@@ -223,10 +225,10 @@ export default function CreateEventScreen() {
                     {/* Form Fields */}
                     <View style={styles.form}>
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>TITLE</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>{t('title_label')}</Text>
                             <TextInput
                                 style={[styles.titleInput, { color: colors.black }]}
-                                placeholder="What's the event?"
+                                placeholder={t('event_placeholder')}
                                 placeholderTextColor={colors.gray400}
                                 value={title}
                                 onChangeText={setTitle}
@@ -234,7 +236,7 @@ export default function CreateEventScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>WHEN</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>{t('when_label')}</Text>
                             <TouchableOpacity style={[styles.datePickerBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setShowDatePicker(true)}>
                                 <Ionicons name="calendar-outline" size={20} color={colors.gray500} />
                                 <Text style={[styles.dateText, { color: colors.black }]}>{formatSmartDate(eventDate)}</Text>
@@ -244,7 +246,7 @@ export default function CreateEventScreen() {
                                     {Platform.OS === 'ios' && (
                                         <View style={[styles.pickerHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                                             <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                                <Text style={[styles.pickerDoneText, { color: colors.black }]}>Done</Text>
+                                                <Text style={[styles.pickerDoneText, { color: colors.black }]}>{t('done_label')}</Text>
                                             </TouchableOpacity>
                                         </View>
                                     )}
@@ -260,12 +262,12 @@ export default function CreateEventScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>WHERE</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>{t('where_label')}</Text>
                             <View style={[styles.locationWrap, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
                                 <Ionicons name="location-outline" size={20} color={colors.gray500} />
                                 <TextInput
                                     style={[styles.locationInput, { color: colors.black }]}
-                                    placeholder="Venue or Link"
+                                    placeholder={t('venue_placeholder')}
                                     placeholderTextColor={colors.gray400}
                                     value={location}
                                     onChangeText={setLocation}
@@ -274,10 +276,10 @@ export default function CreateEventScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>DESCRIPTION</Text>
+                            <Text style={[styles.fieldLabel, { color: colors.gray500 }]}>{t('description').toUpperCase()}</Text>
                             <TextInput
                                 style={[styles.descInput, { backgroundColor: colors.surface, color: colors.black, borderColor: colors.border, borderWidth: 1 }]}
-                                placeholder="Tell everyone more about it..."
+                                placeholder={t('tell_event_more_placeholder')}
                                 placeholderTextColor={colors.gray400}
                                 value={description}
                                 onChangeText={setDescription}

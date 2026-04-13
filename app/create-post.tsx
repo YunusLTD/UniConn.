@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, FlatList, DeviceEventEmitter } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { spacing, fonts, radii } from '../src/constants/theme';
-import { useTheme } from '../src/context/ThemeContext';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { useLanguage } from '../src/context/LanguageContext';
 import { getMyCommunities, createCommunity } from '../src/api/communities';
 import { createPost, getPost, updatePost } from '../src/api/posts';
 import { createEvent } from '../src/api/events';
@@ -21,6 +22,7 @@ export default function CreatePostModal() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
@@ -145,7 +147,7 @@ export default function CreatePostModal() {
 
     const takeMedia = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return Alert.alert('Error', 'Camera permission is required');
+        if (status !== 'granted') return Alert.alert(t('error'), 'Camera permission is required');
         const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 });
         if (!result.canceled) {
             const asset = result.assets[0];
@@ -155,7 +157,7 @@ export default function CreatePostModal() {
     };
 
     const handlePost = async () => {
-        if (!selectedCommunity && !['study'].includes(creationType)) return Alert.alert('Error', 'Please select a community.');
+        if (!selectedCommunity && !['study'].includes(creationType)) return Alert.alert(t('error'), 'Please select a community.');
         setPosting(true);
         try {
             let media_urls: string[] = [];
@@ -219,14 +221,14 @@ export default function CreatePostModal() {
             }
             router.back();
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to create');
+            Alert.alert(t('error'), e.message || 'Failed to create');
             setPosting(false);
         }
     };
 
     const TYPES: { key: typeof creationType, icon: string, label: string }[] = [
-        { key: 'post', icon: 'document-text-outline', label: 'Post' },
-        { key: 'poll', icon: 'stats-chart-outline', label: 'Poll' },
+        { key: 'post', icon: 'document-text-outline', label: t('post_tab') },
+        { key: 'poll', icon: 'stats-chart-outline', label: t('poll_tab') },
     ];
 
     const formatSmartDate = (date: Date) => {
@@ -239,8 +241,8 @@ export default function CreatePostModal() {
 
         const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-        if (isToday) return `Today, ${time}`;
-        if (isTomorrow) return `Tomorrow, ${time}`;
+        if (isToday) return `${t('today')}, ${time}`;
+        if (isTomorrow) return `${t('tomorrow')}, ${time}`;
 
         // If within the next 7 days, show day name
         const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -302,9 +304,18 @@ export default function CreatePostModal() {
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <View style={[styles.header, { borderBottomColor: colors.border }]}>
                     <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-                        <Text style={[styles.cancelText, { color: colors.gray500 }]}>Cancel</Text>
+                        <Text style={[styles.cancelText, { color: colors.gray500 }]}>{t('cancel_label')}</Text>
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.black }]}>{params.edit === 'true' ? 'Edit' : 'New'} {creationType === 'study' ? 'Mini Community' : creationType === 'market' ? 'Listing' : creationType}</Text>
+                    <Text style={[styles.headerTitle, { color: colors.black }]}>
+                        {params.edit === 'true' ? t('header_edit') : t('header_new')} {
+                            creationType === 'study' ? t('mini_community') : 
+                            creationType === 'market' ? t('listing_label') : 
+                            creationType === 'event' ? t('event_tab') :
+                            creationType === 'job' ? t('job_tab') :
+                            creationType === 'poll' ? t('poll_tab') :
+                            t('post_tab')
+                        }
+                    </Text>
                     <TouchableOpacity
                         style={[
                             styles.postBtn, 
@@ -321,7 +332,7 @@ export default function CreatePostModal() {
                             <ActivityIndicator size="small" color={colors.background} />
                         ) : (
                             <Text style={[styles.postBtnText, { color: colors.background }]}>
-                                {params.edit === 'true' ? 'Save' : (creationType === 'post' ? 'Share' : 'Launch')}
+                                {params.edit === 'true' ? t('save') : (creationType === 'post' ? t('share') : t('launch'))}
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -330,7 +341,7 @@ export default function CreatePostModal() {
                 {/* Community Selector */}
                 {!['study', 'story'].includes(creationType) && (
                     <View style={[styles.selectorRow, !!params.communityId && { opacity: 0.7 }]}>
-                        <Text style={[styles.selectorLabel, { color: colors.gray400 }]}>in</Text>
+                        <Text style={[styles.selectorLabel, { color: colors.gray400 }]}>{t('in_label')}</Text>
                         {loading ? (
                             <Skeleton width={120} height={32} borderRadius={16} />
                         ) : (
@@ -387,7 +398,7 @@ export default function CreatePostModal() {
                 <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
                     {creationType === 'post' && (
                         <View style={{ flex: 1 }}>
-                            <TextInput style={[styles.mainInput, { color: colors.black }]} placeholder="What's on your mind?" placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            <TextInput style={[styles.mainInput, { color: colors.black }]} placeholder={t('post_placeholder')} placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={t => handleInputChange(t, 'content')} />
                             {taggingSearch !== null && filteredMembers.length > 0 && (
                                 <View style={[styles.taggingList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                     {filteredMembers.map((item) => (
@@ -422,30 +433,30 @@ export default function CreatePostModal() {
                                 </ScrollView>
                             )}
                             <View style={[styles.toolbar, { borderTopColor: colors.border }]}>
-                                <TouchableOpacity style={styles.toolbarItem} onPress={pickMedia}><Ionicons name="images-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>Library</Text></TouchableOpacity>
-                                <TouchableOpacity style={styles.toolbarItem} onPress={takeMedia}><Ionicons name="camera-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>Camera</Text></TouchableOpacity>
+                                <TouchableOpacity style={styles.toolbarItem} onPress={pickMedia}><Ionicons name="images-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>{t('library_label')}</Text></TouchableOpacity>
+                                <TouchableOpacity style={styles.toolbarItem} onPress={takeMedia}><Ionicons name="camera-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>{t('camera_label')}</Text></TouchableOpacity>
                             </View>
                         </View>
                     )}
 
                     {creationType === 'study' && (
                         <View style={styles.formSection}>
-                            <Text style={[styles.sectionHint, { color: colors.gray500 }]}>Starting a study mini-community will allow others to join and collaborate in a dedicated space.</Text>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Mini Community Name (e.g. Bio 101 Study Room)" placeholderTextColor={colors.gray400} value={studyTitle} onChangeText={setStudyTitle} />
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Primary Topic" placeholderTextColor={colors.gray400} value={studyTopic} onChangeText={setStudyTopic} />
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Schedule Goal (e.g. Weekends only)" placeholderTextColor={colors.gray400} value={studySchedule} onChangeText={setStudySchedule} />
-                            <TextInput style={[styles.formInput, { height: 80, borderBottomWidth: 0, color: colors.black }]} placeholder="What's this group for?" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                                <Text style={[styles.sectionHint, { color: colors.gray500 }]}>{t('mini_community_hint')}</Text>
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('mini_community_name_placeholder')} placeholderTextColor={colors.gray400} value={studyTitle} onChangeText={setStudyTitle} />
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('subject_label')} placeholderTextColor={colors.gray400} value={studyTopic} onChangeText={setStudyTopic} />
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('schedule_goal_placeholder')} placeholderTextColor={colors.gray400} value={studySchedule} onChangeText={setStudySchedule} />
+                            <TextInput style={[styles.formInput, { height: 80, borderBottomWidth: 0, color: colors.black }]} placeholder={t('group_purpose_placeholder')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                         </View>
                     )}
 
                     {creationType === 'event' && (
                         <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Event title" placeholderTextColor={colors.gray400} value={eventTitle} onChangeText={setEventTitle} />
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('event_placeholder')} placeholderTextColor={colors.gray400} value={eventTitle} onChangeText={setEventTitle} />
                             <TouchableOpacity style={[styles.datePickerBtn, { borderBottomColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
                                 <Ionicons name="calendar-outline" size={18} color={colors.primary} />
                                 <Text style={[styles.datePickerText, { color: colors.black }]}>{formatSmartDate(eventDate)}</Text>
                                 <View style={[styles.changeTag, { backgroundColor: colors.surface }]}>
-                                    <Text style={[styles.changeLabel, { color: colors.gray600 }]}>{showDatePicker ? 'Setting Time...' : 'Change'}</Text>
+                                    <Text style={[styles.changeLabel, { color: colors.gray600 }]}>{showDatePicker ? t('setting_time') : t('change')}</Text>
                                 </View>
                             </TouchableOpacity>
                             {showDatePicker && (
@@ -459,43 +470,43 @@ export default function CreatePostModal() {
                                     />
                                     {Platform.OS === 'ios' && (
                                         <TouchableOpacity style={[styles.doneBtn, { backgroundColor: colors.black }]} onPress={() => setShowDatePicker(false)}>
-                                            <Text style={[styles.doneText, { color: colors.white }]}>Done</Text>
+                                            <Text style={[styles.doneText, { color: colors.white }]}>{t('done_label')}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
                             )}
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Location" placeholderTextColor={colors.gray400} value={eventLocation} onChangeText={setEventLocation} />
-                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder="Description" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? 'Image selected' : 'Add event banner'}</Text></TouchableOpacity>
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('location_label')} placeholderTextColor={colors.gray400} value={eventLocation} onChangeText={setEventLocation} />
+                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('description_label')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? t('image_selected') : t('add_event_banner')}</Text></TouchableOpacity>
                         </View>
                     )}
 
                     {creationType === 'job' && (
                         <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Job title" placeholderTextColor={colors.gray400} value={jobTitle} onChangeText={setJobTitle} />
-                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder="Budget" placeholderTextColor={colors.gray400} value={jobBudget} onChangeText={setJobBudget} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 120, color: colors.black, borderBottomColor: colors.border }]} placeholder="Details" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('job_title')} placeholderTextColor={colors.gray400} value={jobTitle} onChangeText={setJobTitle} />
+                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder={t('budget')} placeholderTextColor={colors.gray400} value={jobBudget} onChangeText={setJobBudget} keyboardType="numeric" /></View>
+                            <TextInput style={[styles.formInput, { height: 120, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('details')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
                         </View>
                     )}
 
                     {creationType === 'market' && (
                         <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="What are you selling?" placeholderTextColor={colors.gray400} value={marketTitle} onChangeText={setMarketTitle} />
-                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder="Price" placeholderTextColor={colors.gray400} value={marketPrice} onChangeText={setMarketPrice} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder="Item details (Condition, etc.)" placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? 'Image selected' : 'Add item image'}</Text></TouchableOpacity>
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('what_selling_placeholder')} placeholderTextColor={colors.gray400} value={marketTitle} onChangeText={setMarketTitle} />
+                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder={t('price_label')} placeholderTextColor={colors.gray400} value={marketPrice} onChangeText={setMarketPrice} keyboardType="numeric" /></View>
+                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('tell_more_placeholder')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? t('image_selected') : t('add_problem_photo')}</Text></TouchableOpacity>
                         </View>
                     )}
 
                     {creationType === 'poll' && (
                         <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder="Ask a question..." placeholderTextColor={colors.gray400} value={pollQuestion} onChangeText={t => handleInputChange(t, 'poll')} autoFocus />
+                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('poll_question_placeholder')} placeholderTextColor={colors.gray400} value={pollQuestion} onChangeText={t => handleInputChange(t, 'poll')} autoFocus />
                             {pollOptions.map((opt, i) => (
                                 <View key={i} style={styles.pollOptionRow}>
                                     <View style={[styles.pollDot, { backgroundColor: colors.gray300 }]} />
                                     <TextInput
                                         style={[styles.formInput, { flex: 1, marginBottom: 0, color: colors.black, borderBottomColor: colors.border }]}
-                                        placeholder={`Option ${i + 1}`}
+                                        placeholder={`${t('option_label')} ${i + 1}`}
                                         placeholderTextColor={colors.gray400}
                                         value={opt}
                                         onChangeText={text => {
@@ -514,7 +525,7 @@ export default function CreatePostModal() {
                             {pollOptions.length < 6 && (
                                 <TouchableOpacity style={styles.addOptionBtn} onPress={() => setPollOptions(prev => [...prev, ''])}>
                                     <Ionicons name="add-circle-outline" size={18} color={colors.gray500} />
-                                    <Text style={[styles.addOptionText, { color: colors.gray500 }]}>Add option</Text>
+                                    <Text style={[styles.addOptionText, { color: colors.gray500 }]}>{t('add_option_label')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
