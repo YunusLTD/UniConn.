@@ -336,7 +336,7 @@ export default function MarketplaceScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    listContent: { paddingBottom: spacing.xl },
+    listContent: { paddingBottom: 100 },
     headerContainer: { paddingBottom: spacing.sm },
     categoryList: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 10 },
     categoryChip: {

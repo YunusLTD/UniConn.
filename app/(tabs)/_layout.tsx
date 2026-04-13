@@ -1,14 +1,18 @@
 import { Tabs, useRouter } from 'expo-router';
-import { View, StyleSheet, Platform, TouchableOpacity, Modal, Text, Pressable, Image } from 'react-native';
-import React, { useState } from 'react';
+import { View, StyleSheet, Platform, TouchableOpacity, Modal, Text, Pressable, Image, Animated, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { hapticLight, hapticSelection } from '../../src/utils/haptics';
 import { useLanguage } from '../../src/context/LanguageContext';
 
-const TAB_HEIGHT = Platform.OS === 'ios' ? 80 : 62;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TAB_BAR_WIDTH = SCREEN_WIDTH * 0.94;
+const TAB_HEIGHT = 60;
+const PILL_SPACING = 20;
 
 function getIcons(isDark: boolean) {
     const black = isDark ? 'FFFFFF' : '000000';
@@ -51,18 +55,115 @@ export default function TabLayout() {
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const ICONS = getIcons(isDark);
 
-    function TabIcon({ name, focused }: { name: keyof ReturnType<typeof getIcons>; focused: boolean }) {
+    function TabIcon({ name, focused, badgeCount }: { name: keyof ReturnType<typeof getIcons>; focused: boolean; badgeCount?: number }) {
         const icon = ICONS[name] as any;
         const url = typeof icon === 'string' ? icon : (focused ? icon.active : icon.inactive);
         return (
             <View style={s.iconWrap}>
                 <Image
                     source={{ uri: url }}
-                    style={{ width: 24, height: 24, opacity: focused ? 1 : 0.6 }}
+                    style={{
+                        width: 22,
+                        height: 22,
+                        opacity: focused ? 1 : 0.5,
+                        transform: [{ scale: focused ? 1.1 : 1 }]
+                    }}
                 />
+                {badgeCount !== undefined && badgeCount > 0 && (
+                    <View style={[s.tabBadge, { backgroundColor: '#EF4444' }]}>
+                        <Text style={s.tabBadgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
+                    </View>
+                )}
             </View>
         );
     }
+
+    const CustomTabBar = ({ state, descriptors, navigation }: any) => {
+        const TAB_ROUTES = ['home', 'communities', 'marketplace', 'study', 'profile'];
+        const visibleRoutes = state.routes.filter((r: any) =>
+            TAB_ROUTES.includes(r.name) && descriptors[r.key].options.href !== null
+        );
+
+        const totalTabs = visibleRoutes.length;
+        const tabWidth = TAB_BAR_WIDTH / totalTabs;
+
+        // Find current active index in our filtered list
+        const activeVisibleIndex = visibleRoutes.findIndex((r: any) => r.name === state.routes[state.index].name);
+        const translateX = useRef(new Animated.Value(0)).current;
+
+        useEffect(() => {
+            if (activeVisibleIndex !== -1) {
+                Animated.spring(translateX, {
+                    toValue: activeVisibleIndex * tabWidth,
+                    useNativeDriver: true,
+                    tension: 40,
+                    friction: 8,
+                }).start();
+            }
+        }, [activeVisibleIndex]);
+
+        return (
+            <View style={s.tabBarContainer}>
+                <View style={[s.tabBarShadow, { shadowColor: isDark ? '#000' : colors.gray400 }]} />
+                <View 
+                    style={[
+                        s.tabBar, 
+                        { 
+                            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.98)' : 'rgba(255, 255, 255, 0.96)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                        }
+                    ]}
+                >
+                    {visibleRoutes.map((route: any, index: number) => {
+                        const isFocused = visibleRoutes[activeVisibleIndex]?.name === route.name;
+
+                        const onPress = () => {
+                            if (!isFocused) hapticSelection();
+                            const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                            });
+
+                            if (!isFocused && !event.defaultPrevented) {
+                                navigation.navigate(route.name);
+                            }
+                        };
+
+                        let iconName: keyof ReturnType<typeof getIcons>;
+                        if (route.name === 'home') iconName = 'home';
+                        else if (route.name === 'communities') iconName = 'community';
+                        else if (route.name === 'marketplace') iconName = 'market';
+                        else if (route.name === 'study') iconName = 'study';
+                        else if (route.name === 'profile') iconName = 'profile';
+                        else return null;
+
+                        return (
+                            <TouchableOpacity
+                                key={route.key}
+                                onPress={onPress}
+                                style={s.tabItem}
+                                activeOpacity={0.7}
+                            >
+                                <TabIcon name={iconName} focused={isFocused} />
+                                <Text
+                                    numberOfLines={1}
+                                    style={[
+                                        s.tabLabel,
+                                        {
+                                            color: isFocused ? colors.black : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)'),
+                                        }
+                                    ]}
+                                >
+                                    {descriptors[route.key].options.title}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </View>
+        );
+    };
 
     const handleCreateAction = (route: string) => {
         hapticSelection();
@@ -73,18 +174,18 @@ export default function TabLayout() {
     // Feed-only header right (with PULSE)
     const feedHeaderRight = () => (
         <View style={[s.headerRight, { marginRight: spacing.lg }]}>
-            <TouchableOpacity 
-                onPress={() => { hapticLight(); router.push('/pulse'); }} 
+            <TouchableOpacity
+                onPress={() => { hapticLight(); router.push('/pulse'); }}
                 style={{
-                    paddingHorizontal: 12, 
+                    paddingHorizontal: 12,
                     paddingVertical: 6,
-                    backgroundColor: isDark ? '#FFFFFF' : '#000000', 
+                    backgroundColor: isDark ? '#FFFFFF' : '#000000',
                     borderRadius: 14,
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 4,
                     position: 'relative',
-                }} 
+                }}
                 hitSlop={8}
             >
                 <Image source={{ uri: `https://img.icons8.com/?size=100&id=33452&format=png&color=${isDark ? '000000' : 'FFFFFF'}` }} style={{ width: 16, height: 16 }} />
@@ -161,22 +262,10 @@ export default function TabLayout() {
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <Tabs
+                tabBar={(props) => <CustomTabBar {...props} />}
                 screenOptions={{
                     tabBarActiveTintColor: colors.black,
                     tabBarInactiveTintColor: colors.gray400,
-                    tabBarShowLabel: true,
-                    tabBarLabelStyle: {
-                        fontFamily: fonts.medium,
-                        fontSize: 10,
-                        marginBottom: Platform.OS === 'ios' ? 0 : 4,
-                    },
-                    tabBarStyle: {
-                        backgroundColor: colors.surface,
-                        borderTopWidth: 0.5,
-                        borderTopColor: colors.border,
-                        height: TAB_HEIGHT + 4,
-                        elevation: 0,
-                    },
                     headerStyle: {
                         backgroundColor: colors.surface,
                         elevation: 0,
@@ -197,52 +286,32 @@ export default function TabLayout() {
                     options={{
                         title: t('feed'),
                         headerRight: feedHeaderRight,
-                        tabBarIcon: ({ focused }) => (
-                            <TabIcon name="home" focused={focused} />
-                        ),
                     }}
-                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="communities"
                     options={{
                         title: t('explore'),
-                        tabBarIcon: ({ focused }) => (
-                            <TabIcon name="community" focused={focused} />
-                        ),
                     }}
-                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="marketplace"
                     options={{
                         title: t('marketplace'),
-                        tabBarIcon: ({ focused }) => (
-                            <TabIcon name="market" focused={focused} />
-                        ),
                     }}
-                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="study"
                     options={{
                         title: t('study'),
-                        tabBarIcon: ({ focused }) => (
-                            <TabIcon name="study" focused={focused} />
-                        ),
                     }}
-                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="profile"
                     options={{
                         title: t('profile'),
                         headerShown: false,
-                        tabBarIcon: ({ focused }) => (
-                            <TabIcon name="profile" focused={focused} />
-                        ),
                     }}
-                    listeners={{ tabPress: () => hapticSelection() }}
                 />
                 <Tabs.Screen
                     name="activity"
@@ -333,8 +402,67 @@ const s = StyleSheet.create({
     iconWrap: {
         alignItems: 'center',
         justifyContent: 'center',
-        height: 32,
-        width: 32,
+        height: 28,
+        width: 28,
+    },
+    tabBarContainer: {
+        position: 'absolute',
+        bottom: Platform.OS === 'ios' ? 30 : 10,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: (SCREEN_WIDTH - TAB_BAR_WIDTH) / 2,
+    },
+    tabBarShadow: {
+        position: 'absolute',
+        width: TAB_BAR_WIDTH - 20,
+        height: TAB_HEIGHT - 6,
+        borderRadius: TAB_HEIGHT / 2,
+        backgroundColor: 'transparent',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 14,
+        elevation: 10,
+    },
+    tabBar: {
+        flexDirection: 'row',
+        height: TAB_HEIGHT,
+        width: TAB_BAR_WIDTH,
+        borderRadius: TAB_HEIGHT / 2,
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        overflow: 'hidden',
+        borderWidth: 1.5,
+    },
+    tabItem: {
+        flex: 1,
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: -2,
+    },
+    tabLabel: {
+        fontSize: 10,
+        fontFamily: fonts.medium,
+        marginTop: 0,
+    },
+    tabBadge: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 2,
+    },
+    tabBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 9,
+        fontFamily: fonts.bold,
+        includeFontPadding: false,
     },
     headerRight: {
         flexDirection: 'row',

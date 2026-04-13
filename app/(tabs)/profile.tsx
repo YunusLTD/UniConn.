@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     tabLabel: { fontFamily: fonts.bold, fontSize: 13 },
     activeTabLabel: { },
 
-    contentArea: { flex: 1, minHeight: 300, paddingBottom: 100 },
+    contentArea: { flex: 1, minHeight: 300, paddingBottom: 110 },
     emptyState: { alignItems: 'center', marginTop: 60 },
     emptyText: { fontFamily: fonts.medium, fontSize: 15, marginTop: 12 },
 

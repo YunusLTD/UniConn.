@@ -287,6 +287,7 @@ export default function CommunitiesScreen() {
                         </View>
                     )
                 }
+                contentContainerStyle={{ paddingBottom: 100 }}
             />
         </View >
     );

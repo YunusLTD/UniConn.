@@ -298,7 +298,7 @@ export default function HomeScreen() {
                     ) : null
                 }
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{ paddingBottom: 100 }}
                 ListEmptyComponent={
                     loading && posts.length === 0 ? (
                         <View style={{ paddingTop: 0 }}>

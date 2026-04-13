@@ -109,7 +109,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 await updateProfile({ push_token: pushToken } as any);
             }
         } catch (e) {
-            console.error('Failed to register for push notifications:', e);
+            console.log('Push notification registration skipped or failed:', e.message || e);
         }
     };
 
