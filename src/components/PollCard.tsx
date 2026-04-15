@@ -142,24 +142,8 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
         try {
             await submitReport({ target_type: 'poll', target_id: poll.id, reason });
             setReportReasonVisible(false);
-            
-            Alert.alert(
-                'Reported',
-                'Thank you. We will review this poll.',
-                [
-                    {
-                        text: 'Hide Poll',
-                        style: 'destructive',
-                        onPress: () => {
-                            if (onDelete && poll.id) onDelete(poll.id);
-                        }
-                    },
-                    {
-                        text: 'Done',
-                        style: 'default',
-                    }
-                ]
-            );
+            if (onDelete && poll.id) onDelete(poll.id);
+            Alert.alert('Reported', 'Thank you. We will review this poll.');
         } catch (e) {
             console.log('Report error', e);
         }

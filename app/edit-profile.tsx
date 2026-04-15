@@ -11,12 +11,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { apiFetch } from '../src/api/client';
 import ActionModal from '../src/components/ActionModal';
 import { useLanguage } from '../src/context/LanguageContext';
+import { buildYearOptions, getRelationshipStatusLabel, getYearOfStudyLabel } from '../src/utils/localization';
 
 export default function EditProfileScreen() {
     const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const bioLabel = language === 'tr' ? 'Biyografi' : language === 'ka' ? 'ბიოგრაფია' : 'Bio';
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -237,12 +239,12 @@ export default function EditProfileScreen() {
                         </View>
 
                         <View style={styles.field}>
-                            <Text style={[styles.label, { color: colors.gray500 }]}>Bio</Text>
+                            <Text style={[styles.label, { color: colors.gray500 }]}>{bioLabel}</Text>
                             <TextInput
                                 style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.black }]}
                                 value={bio}
                                 onChangeText={setBio}
-                                placeholder="Tell us about yourself..."
+                                placeholder={t('bio_placeholder')}
                                 placeholderTextColor={colors.gray400}
                                 multiline
                                 numberOfLines={4}
@@ -281,15 +283,7 @@ export default function EditProfileScreen() {
                                 onPress={() => setShowRelModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: relationshipStatus ? colors.black : colors.gray400, textTransform: 'capitalize' }}>
-                                    {relationshipStatus ? (() => {
-                                        const s = relationshipStatus.toLowerCase();
-                                        if (s === 'private') return t('rel_private');
-                                        if (s === 'single') return t('rel_single');
-                                        if (s === 'in a relationship') return t('rel_in_relationship');
-                                        if (s === 'married') return t('rel_married');
-                                        if (s === 'complicated') return t('rel_complicated');
-                                        return relationshipStatus;
-                                    })() : t('select_status')}
+                                    {relationshipStatus ? getRelationshipStatusLabel(relationshipStatus, language) : t('select_status')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -322,14 +316,7 @@ export default function EditProfileScreen() {
                                 onPress={() => setShowYearModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: yearOfStudy ? colors.black : colors.gray400 }}>
-                                    {yearOfStudy ? (() => {
-                                        const y = parseInt(yearOfStudy);
-                                        if (yearOfStudy === 'vats') return 'Vats';
-                                        if (yearOfStudy === 'graduated') return 'Graduated';
-                                        if (y === 0) return 'Not graduated yet';
-                                        if (y > 2000) return `Class of '${String(y).slice(-2)}`;
-                                        return yearOfStudy;
-                                    })() : t('select_year')}
+                                    {yearOfStudy ? getYearOfStudyLabel(yearOfStudy, language, t) : t('select_year')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -351,14 +338,14 @@ export default function EditProfileScreen() {
                 options={[
                     { label: t('cs'), icon: 'code-slash-outline', onPress: () => { setDepartment(t('cs')); setShowDeptModal(false); } },
                     { label: t('business'), icon: 'business-outline', onPress: () => { setDepartment(t('business')); setShowDeptModal(false); } },
-                    { label: 'Engineering', icon: 'construct-outline', onPress: () => { setDepartment('Engineering'); setShowDeptModal(false); } },
-                    { label: 'Medicine & Health', icon: 'medical-outline', onPress: () => { setDepartment('Medicine & Health'); setShowDeptModal(false); } },
-                    { label: 'Law', icon: 'scale-outline', onPress: () => { setDepartment('Law'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Muhendislik' : language === 'ka' ? 'ინჟინერია' : 'Engineering', icon: 'construct-outline', onPress: () => { setDepartment(language === 'tr' ? 'Muhendislik' : language === 'ka' ? 'ინჟინერია' : 'Engineering'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Tip ve Saglik' : language === 'ka' ? 'მედიცინა და ჯანმრთელობა' : 'Medicine & Health', icon: 'medical-outline', onPress: () => { setDepartment(language === 'tr' ? 'Tip ve Saglik' : language === 'ka' ? 'მედიცინა და ჯანმრთელობა' : 'Medicine & Health'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Hukuk' : language === 'ka' ? 'სამართალი' : 'Law', icon: 'scale-outline', onPress: () => { setDepartment(language === 'tr' ? 'Hukuk' : language === 'ka' ? 'სამართალი' : 'Law'); setShowDeptModal(false); } },
                     { label: t('arts'), icon: 'color-palette-outline', onPress: () => { setDepartment(t('arts')); setShowDeptModal(false); } },
-                    { label: 'Social Sciences', icon: 'people-outline', onPress: () => { setDepartment('Social Sciences'); setShowDeptModal(false); } },
-                    { label: 'Natural Sciences', icon: 'leaf-outline', onPress: () => { setDepartment('Natural Sciences'); setShowDeptModal(false); } },
-                    { label: 'Economics', icon: 'stats-chart-outline', onPress: () => { setDepartment('Economics'); setShowDeptModal(false); } },
-                    { label: 'Architecture', icon: 'home-outline', onPress: () => { setDepartment('Architecture'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Sosyal Bilimler' : language === 'ka' ? 'სოციალური მეცნიერებები' : 'Social Sciences', icon: 'people-outline', onPress: () => { setDepartment(language === 'tr' ? 'Sosyal Bilimler' : language === 'ka' ? 'სოციალური მეცნიერებები' : 'Social Sciences'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Dogal Bilimler' : language === 'ka' ? 'ბუნების მეცნიერებები' : 'Natural Sciences', icon: 'leaf-outline', onPress: () => { setDepartment(language === 'tr' ? 'Dogal Bilimler' : language === 'ka' ? 'ბუნების მეცნიერებები' : 'Natural Sciences'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Ekonomi' : language === 'ka' ? 'ეკონომიკა' : 'Economics', icon: 'stats-chart-outline', onPress: () => { setDepartment(language === 'tr' ? 'Ekonomi' : language === 'ka' ? 'ეკონომიკა' : 'Economics'); setShowDeptModal(false); } },
+                    { label: language === 'tr' ? 'Mimarlik' : language === 'ka' ? 'არქიტექტურა' : 'Architecture', icon: 'home-outline', onPress: () => { setDepartment(language === 'tr' ? 'Mimarlik' : language === 'ka' ? 'არქიტექტურა' : 'Architecture'); setShowDeptModal(false); } },
                     { label: t('other'), icon: 'ellipsis-horizontal-outline', onPress: () => { setDepartment(t('other')); setShowDeptModal(false); } },
                 ]}
             />
@@ -367,30 +354,25 @@ export default function EditProfileScreen() {
                 visible={showYearModal}
                 onClose={() => setShowYearModal(false)}
                 title={t('graduation_year_label')}
-                options={[
-                    { label: "Class of '24", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2024'); setShowYearModal(false); } },
-                    { label: "Class of '25", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2025'); setShowYearModal(false); } },
-                    { label: "Class of '26", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2026'); setShowYearModal(false); } },
-                    { label: "Class of '27", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2027'); setShowYearModal(false); } },
-                    { label: "Class of '28", icon: 'calendar-outline', onPress: () => { setYearOfStudy('2028'); setShowYearModal(false); } },
-                    { label: 'Vats', icon: 'medal-outline', onPress: () => { setYearOfStudy('vats'); setShowYearModal(false); } },
-                    { label: 'Graduated', icon: 'trophy-outline', onPress: () => { setYearOfStudy('graduated'); setShowYearModal(false); } },
-                    { label: 'Not graduated yet', icon: 'time-outline', onPress: () => { setYearOfStudy('0'); setShowYearModal(false); } },
-                ]}
+                options={buildYearOptions(language, t).map((option) => ({
+                    label: option.label,
+                    icon: option.value === 'graduated' ? 'trophy-outline' : option.value === 'vats' ? 'medal-outline' : option.value === '0' ? 'time-outline' : 'calendar-outline',
+                    onPress: () => { setYearOfStudy(option.value); setShowYearModal(false); },
+                }))}
             />
             
             <ActionModal
                 visible={showRelModal}
                 onClose={() => setShowRelModal(false)}
-                title="Relationship Status"
+                title={t('relationship_status')}
                 options={[
                     { label: t('rel_private'), icon: 'lock-closed-outline', onPress: () => { setRelationshipStatus('Private'); setShowRelModal(false); } },
                     { label: t('rel_single'), icon: 'person-outline', onPress: () => { setRelationshipStatus('Single'); setShowRelModal(false); } },
                     { label: t('rel_in_relationship'), icon: 'heart-outline', onPress: () => { setRelationshipStatus('In a relationship'); setShowRelModal(false); } },
                     { label: t('rel_married'), icon: 'heart-circle-outline', onPress: () => { setRelationshipStatus('Married'); setShowRelModal(false); } },
                     { label: t('rel_complicated'), icon: 'sync-circle-outline', onPress: () => { setRelationshipStatus('Complicated'); setShowRelModal(false); } },
-                    { label: 'Not sure', icon: 'help-circle-outline', onPress: () => { setRelationshipStatus('Not sure'); setShowRelModal(false); } },
-                    { label: 'Clear', icon: 'close-circle-outline', destructive: true, onPress: () => { setRelationshipStatus(''); setShowRelModal(false); } }
+                    { label: language === 'tr' ? 'Emin degil' : language === 'ka' ? 'დარწმუნებული არ არის' : 'Not sure', icon: 'help-circle-outline', onPress: () => { setRelationshipStatus('Not sure'); setShowRelModal(false); } },
+                    { label: t('clear'), icon: 'close-circle-outline', destructive: true, onPress: () => { setRelationshipStatus(''); setShowRelModal(false); } }
                 ]}
             />
         </SafeAreaView>

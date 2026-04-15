@@ -7,10 +7,13 @@ import { Ionicons } from '@expo/vector-icons';
 import ShadowLoader from '../../../src/components/ShadowLoader';
 import { useTheme } from '../../../src/context/ThemeContext';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useLanguage } from '../../../src/context/LanguageContext';
+import { getYearOfStudyLabel } from '../../../src/utils/localization';
 
 export default function CommunityMembersScreen() {
     const { colors, isDark } = useTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t, language } = useLanguage();
     const { id } = useLocalSearchParams();
     const { user } = useAuth();
     const router = useRouter();
@@ -140,16 +143,9 @@ export default function CommunityMembersScreen() {
                                         )}
                                     </View>
                                     <Text style={[styles.department, { color: colors.gray500 }]}>
-                                        {profile.department || 'Student'}
+                                        {profile.department || (language === 'tr' ? 'Ogrenci' : language === 'ka' ? 'სტუდენტი' : 'Student')}
                                         {profile.year_of_study ? (
-                                            ` • ${(() => {
-                                                const y = parseInt(profile.year_of_study);
-                                                if (profile.year_of_study === 'vats') return 'Vats';
-                                                if (profile.year_of_study === 'graduated') return 'Graduated';
-                                                if (y === 0) return 'Not graduated yet';
-                                                let label = String(profile.year_of_study).slice(-2);
-                                                return `Class of ${label.startsWith("'") ? label : "'" + label}`;
-                                            })()}`
+                                            ` • ${getYearOfStudyLabel(String(profile.year_of_study), language, t)}`
                                         ) : ''}
                                     </Text>
                                 </View>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, DeviceEventEmitter, Alert } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -24,6 +24,8 @@ import { getUserStories } from '../../src/api/stories';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useDialog } from '../../src/context/DialogContext';
+import { getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 
@@ -40,6 +42,7 @@ export default function ProfileScreen() {
     const { logout, user, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
     const { theme, setTheme, colors, isDark } = useTheme();
     const { t, language, setLanguage } = useLanguage();
+    const { prompt } = useDialog();
     const TABS = buildTabs(t);
 
     const [profile, setProfile] = useState<any>(null);
@@ -150,15 +153,32 @@ export default function ProfileScreen() {
         router.push('/(auth)/login');
     };
 
-    const handleDelete = () => {
-        Alert.alert('Delete Account', 'Are you absolutely sure? This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete', style: 'destructive', onPress: async () => {
-                    try { await deleteAccount(); logout(); } catch (e: any) { Alert.alert('Error', e.message); }
-                }
-            }
-        ]);
+    const handleDelete = async () => {
+        const reason = await prompt({
+            title: t('delete_account_label'),
+            message: language === 'tr'
+                ? 'Hesabini neden sildigini yaz.'
+                : language === 'ka'
+                    ? 'მოკლედ დაწერე, რატომ შლი ანგარიშს.'
+                    : 'Tell us why you are deleting your account.',
+            placeholder: language === 'tr'
+                ? 'Sebep'
+                : language === 'ka'
+                    ? 'მიზეზი'
+                    : 'Reason',
+            confirmText: t('delete_label'),
+            cancelText: t('cancel_label'),
+            requireInput: true,
+        });
+
+        if (!reason) return;
+
+        try {
+            await deleteAccount(reason);
+            await logout();
+        } catch (e: any) {
+            Alert.alert(t('error'), e.message);
+        }
     };
 
     const initial = profile?.name?.[0]?.toUpperCase() || 'U';
@@ -260,14 +280,9 @@ export default function ProfileScreen() {
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
                                     {profile.department}
                                     {profile?.show_year !== false && profile.year_of_study ? ' • ' : ''}
-                                    {profile?.show_year !== false && profile.year_of_study ? (() => {
-                                        const y = parseInt(profile.year_of_study);
-                                        if (profile.year_of_study === 'vats') return 'Vats';
-                                        if (profile.year_of_study === 'graduated') return 'Graduated';
-                                        if (y === 0) return 'Not graduated yet';
-                                        let label = String(profile.year_of_study).slice(-2);
-                                        return `Class of ${label.startsWith("'") ? label : "'" + label}`;
-                                    })() : ''}
+                                    {profile?.show_year !== false && profile.year_of_study
+                                        ? getYearOfStudyLabel(String(profile.year_of_study), language, t)
+                                        : ''}
                                 </Text>
                             </View>
                         )}
@@ -287,13 +302,21 @@ export default function ProfileScreen() {
                                         {profile?.show_age !== false && profile?.age && (
                                             <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                                 <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
-                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.age} yrs</Text>
+                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>
+                                                    {language === 'tr'
+                                                        ? `${profile.age} yas`
+                                                        : language === 'ka'
+                                                            ? `${profile.age} წ.`
+                                                            : `${profile.age} yrs`}
+                                                </Text>
                                             </View>
                                         )}
                                         {profile?.show_relationship !== false && profile?.relationship_status && (
                                             <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                                 <Ionicons name="heart-outline" size={12} color={colors.gray500} />
-                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.relationship_status}</Text>
+                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>
+                                                    {getRelationshipStatusLabel(profile.relationship_status, language)}
+                                                </Text>
                                             </View>
                                         )}
                                     </View>

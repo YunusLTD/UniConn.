@@ -7,12 +7,13 @@ import { useTheme } from '../../src/context/ThemeContext';
 import { getMarketplaceListing } from '../../src/api/marketplace';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { formatListingDate } from '../../src/utils/localization';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MarketplaceDetailScreen() {
     const { colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -21,24 +22,6 @@ export default function MarketplaceDetailScreen() {
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isMediaLoading, setIsMediaLoading] = useState(false);
-
-    const formatRelativeLocalized = (dateStr?: string) => {
-        if (!dateStr) return '';
-        const now = new Date();
-        const d = new Date(dateStr);
-        const diffMs = now.getTime() - d.getTime();
-        if (!Number.isFinite(diffMs) || diffMs < 0) return t('just_now');
-
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHrs = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHrs / 24);
-
-        if (diffMins < 1) return t('just_now');
-        if (diffMins < 60) return t('minute_ago').replace('{{count}}', String(diffMins));
-        if (diffHrs < 24) return t('hour_ago').replace('{{count}}', String(diffHrs));
-        if (diffDays === 1) return t('yesterday');
-        return t('day_ago').replace('{{count}}', String(diffDays));
-    };
 
     const loadData = useCallback(async () => {
         try {
@@ -143,8 +126,7 @@ export default function MarketplaceDetailScreen() {
                         <View style={styles.metaItem}>
                             <Ionicons name="time-outline" size={14} color={colors.gray400} />
                             <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                <Text style={{ color: colors.gray400 }}>{t('listed')} </Text>
-                                {formatRelativeLocalized(item.created_at)}
+                                {formatListingDate(item.created_at, language, t)}
                             </Text>
                         </View>
                     </View>

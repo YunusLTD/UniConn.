@@ -11,6 +11,7 @@ import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { markAllAsRead, getNotifications, markAsRead } from '../../src/api/notifications';
 import { useCallback } from 'react';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { buildLocalizedNotificationMessage } from '../../src/utils/localization';
 
 function timeAgoLocalized(dateStr: string, t: any) {
     const d = new Date(dateStr);
@@ -54,7 +55,7 @@ const NOTIF_ICONS: Record<string, string> = {
 export default function ActivityScreen() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -182,10 +183,10 @@ export default function ActivityScreen() {
                                     { color: colors.gray600 },
                                     isUnread && { fontFamily: fonts.semibold, color: colors.text }
                                 ]}>
-                                    {item.title.startsWith('New in ') ? `${t('New in ')}${item.title.replace('New in ', '')}` : (t(item.title as any) || item.title)}
+                                    {item.title}
                                 </Text>
                                 <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>
-                                    {item.message}
+                                    {buildLocalizedNotificationMessage(item, language)}
                                 </Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>
                                     {timeAgoLocalized(item.created_at, t)}

@@ -38,8 +38,11 @@ export const unblockUser = async (targetId: string) => {
     return await apiFetch(`/users/${targetId}/unblock`, { method: 'POST' });
 };
 
-export const deleteAccount = async () => {
-    return await apiFetch('/users/account', { method: 'DELETE' });
+export const deleteAccount = async (reason?: string) => {
+    return await apiFetch('/users/account', {
+        method: 'DELETE',
+        body: JSON.stringify({ reason }),
+    });
 };
 
 export const submitVerification = async (data: { university_id: string, department: string, year_of_study: string, student_id_url: string }) => {

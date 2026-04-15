@@ -10,6 +10,7 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { formatMonthDay } from '../../src/utils/localization';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - spacing.lg * 2 - 12) / 2;
@@ -29,7 +30,7 @@ export default function MarketplaceScreen() {
     
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const CATEGORIES = [
         { id: 'all', label: t('all_subjects'), icon: 'apps-outline' as const },
@@ -158,7 +159,7 @@ export default function MarketplaceScreen() {
         if (diffDays === 1) return t('yesterday');
         if (diffDays < 7) return t('day_ago').replace('{{count}}', String(diffDays));
         // Fallback to locale date
-        return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+        return formatMonthDay(date, language);
     };
 
     const renderItem = ({ item }: { item: any }) => (

@@ -16,11 +16,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
+import { useLanguage } from '../src/context/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function StoryUploadScreen() {
     const router = useRouter();
+    const { language } = useLanguage();
     const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
     const [caption, setCaption] = useState('');
     const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
@@ -33,6 +35,26 @@ export default function StoryUploadScreen() {
     const cameraScale = useRef(new Animated.Value(0.9)).current;
     const libraryScale = useRef(new Animated.Value(0.9)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
+    const copy = {
+        setupTitle: language === 'tr' ? 'Yeni An' : language === 'ka' ? 'ახალი მომენტი' : 'New Moment',
+        setupSub: language === 'tr'
+            ? 'Bir ani cek ya da sec ve arkadaslarinla paylas'
+            : language === 'ka'
+                ? 'გადაიღე ან აირჩიე მომენტი და გაუზიარე მეგობრებს'
+                : 'Capture or choose a moment to share to your friends',
+        discard: language === 'tr' ? 'Sil' : language === 'ka' ? 'გაუქმება' : 'Discard',
+        video: language === 'tr' ? 'Video' : language === 'ka' ? 'ვიდეო' : 'Video',
+        photo: language === 'tr' ? 'Foto' : language === 'ka' ? 'ფოტო' : 'Photo',
+        caption: language === 'tr' ? 'Aciklama ekle…' : language === 'ka' ? 'დაამატე აღწერა…' : 'Add a caption…',
+        uploading: language === 'tr' ? 'Yukleniyor…' : language === 'ka' ? 'იტვირთება…' : 'Uploading…',
+        share: language === 'tr' ? 'Ani Paylas' : language === 'ka' ? 'მომენტის გაზიარება' : 'Share Moment',
+        openCamera: language === 'tr' ? 'Kamerayi Ac' : language === 'ka' ? 'კამერის გახსნა' : 'Open Camera',
+        openCameraSub: language === 'tr' ? 'Foto cek ya da video kaydet' : language === 'ka' ? 'გადაიღე ფოტო ან ვიდეო' : 'Take a photo or record a video',
+        fromLibrary: language === 'tr' ? 'Kutuphane' : language === 'ka' ? 'გალერეიდან' : 'From Library',
+        fromLibrarySub: language === 'tr' ? 'Foto ya da video sec' : language === 'ka' ? 'აირჩიე ფოტო ან ვიდეო' : 'Choose a photo or video',
+        storiesHint: language === 'tr' ? 'Hikayeler 24 saat sonra kaybolur' : language === 'ka' ? 'სტორი 24 საათში ქრება' : 'Stories disappear after 24 hours',
+        previewLoading: language === 'tr' ? 'Onizleme yukleniyor…' : language === 'ka' ? 'გადახედვა იტვირთება…' : 'Loading preview…',
+    };
 
     useEffect(() => {
         // Entry animation
@@ -172,7 +194,7 @@ export default function StoryUploadScreen() {
                 {!isMediaReady && (
                     <View style={styles.mediaLoader}>
                         <ActivityIndicator size="large" color="white" />
-                        <Text style={styles.mediaLoaderText}>Loading preview…</Text>
+                        <Text style={styles.mediaLoaderText}>{copy.previewLoading}</Text>
                     </View>
                 )}
 
@@ -197,13 +219,13 @@ export default function StoryUploadScreen() {
                             <View style={styles.previewHeader}>
                                 <TouchableOpacity onPress={handleDiscard} style={styles.headerPill}>
                                     <Ionicons name="arrow-back" size={20} color="white" />
-                                    <Text style={styles.headerPillText}>Discard</Text>
+                                    <Text style={styles.headerPillText}>{copy.discard}</Text>
                                 </TouchableOpacity>
 
                                 <View style={styles.headerPill}>
                                     <View style={[styles.liveIndicator, { backgroundColor: media.type === 'video' ? '#EF4444' : '#22C55E' }]} />
                                     <Text style={styles.headerPillText}>
-                                        {media.type === 'video' ? 'Video' : 'Photo'}
+                                        {media.type === 'video' ? copy.video : copy.photo}
                                     </Text>
                                 </View>
 
@@ -217,7 +239,7 @@ export default function StoryUploadScreen() {
                                     </View>
                                     <TextInput
                                         style={styles.captionInput}
-                                        placeholder="Add a caption…"
+                                        placeholder={copy.caption}
                                         placeholderTextColor="rgba(255,255,255,0.45)"
                                         value={caption}
                                         onChangeText={setCaption}
@@ -244,12 +266,12 @@ export default function StoryUploadScreen() {
                                         {loading ? (
                                             <View style={styles.loadingRow}>
                                                 <ActivityIndicator color="white" size="small" />
-                                                <Text style={styles.shareBtnText}>Uploading…</Text>
+                                                <Text style={styles.shareBtnText}>{copy.uploading}</Text>
                                             </View>
                                         ) : (
                                             <View style={styles.loadingRow}>
                                                 <Ionicons name="paper-plane" size={20} color="white" />
-                                                <Text style={styles.shareBtnText}>Share Story</Text>
+                                                <Text style={styles.shareBtnText}>{copy.share}</Text>
                                             </View>
                                         )}
                                     </LinearGradient>
@@ -295,9 +317,9 @@ export default function StoryUploadScreen() {
                         </LinearGradient>
                     </Animated.View>
 
-                    <Text style={styles.heroTitle}>New Moment</Text>
+                    <Text style={styles.heroTitle}>{copy.setupTitle}</Text>
                     <Text style={styles.heroSub}>
-                        Capture or choose a moment{'\n'}to share to your friends
+                        {copy.setupSub}
                     </Text>
                 </Animated.View>
 
@@ -316,8 +338,8 @@ export default function StoryUploadScreen() {
                                     <Ionicons name="camera" size={28} color="#A855F7" />
                                 </View>
                                 <View style={styles.actionTextBlock}>
-                                    <Text style={styles.actionTitle}>Open Camera</Text>
-                                    <Text style={styles.actionDesc}>Take a photo or record a video</Text>
+                                    <Text style={styles.actionTitle}>{copy.openCamera}</Text>
+                                    <Text style={styles.actionDesc}>{copy.openCameraSub}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
                             </LinearGradient>
@@ -332,8 +354,8 @@ export default function StoryUploadScreen() {
                                     <Ionicons name="images" size={26} color="white" />
                                 </View>
                                 <View style={styles.actionTextBlock}>
-                                    <Text style={styles.actionTitle}>From Library</Text>
-                                    <Text style={[styles.actionDesc, { color: 'rgba(255,255,255,0.45)' }]}>Choose a photo or video</Text>
+                                    <Text style={styles.actionTitle}>{copy.fromLibrary}</Text>
+                                    <Text style={[styles.actionDesc, { color: 'rgba(255,255,255,0.45)' }]}>{copy.fromLibrarySub}</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
                             </View>
@@ -343,7 +365,7 @@ export default function StoryUploadScreen() {
                     {/* Hint */}
                     <View style={styles.hintRow}>
                         <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.3)" />
-                        <Text style={styles.hintText}>Stories disappear after 24 hours</Text>
+                        <Text style={styles.hintText}>{copy.storiesHint}</Text>
                     </View>
                 </View>
             </SafeAreaView>

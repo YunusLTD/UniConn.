@@ -25,6 +25,7 @@ import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
+import { getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings';
 
@@ -37,7 +38,7 @@ const TABS: { key: TabType, icon: string }[] = [
 
 export default function UserProfileScreen() {
     const { colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { id } = useLocalSearchParams();
     const { user: currentUser } = useAuth();
     const [profile, setProfile] = useState<any>(null);
@@ -516,14 +517,9 @@ export default function UserProfileScreen() {
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
                                     {profile.department}
                                     {profile?.show_year !== false && profile.year_of_study ? ' • ' : ''}
-                                    {profile?.show_year !== false && profile.year_of_study ? (() => {
-                                        const y = parseInt(profile.year_of_study);
-                                        if (profile.year_of_study === 'vats') return t('profile_vats');
-                                        if (profile.year_of_study === 'graduated') return t('profile_graduated');
-                                        if (y === 0) return t('profile_not_graduated');
-                                        let label = String(profile.year_of_study).slice(-2);
-                                        return `${t('profile_class_of')} ${label.startsWith("'") ? label : "'" + label}`;
-                                    })() : ''}
+                                    {profile?.show_year !== false && profile.year_of_study
+                                        ? getYearOfStudyLabel(String(profile.year_of_study), language, t)
+                                        : ''}
                                 </Text>
                             </View>
                         )}
@@ -550,15 +546,7 @@ export default function UserProfileScreen() {
                                     <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
                                         <Ionicons name="heart-outline" size={12} color={colors.gray500} />
                                         <Text style={[styles.detailText, { color: colors.gray500 }]}>
-                                            {(() => {
-                                                const s = profile.relationship_status.toLowerCase();
-                                                if (s === 'private') return t('rel_private');
-                                                if (s === 'single') return t('rel_single');
-                                                if (s === 'in a relationship') return t('rel_in_relationship');
-                                                if (s === 'married') return t('rel_married');
-                                                if (s === 'complicated') return t('rel_complicated');
-                                                return profile.relationship_status;
-                                            })()}
+                                            {getRelationshipStatusLabel(profile.relationship_status, language)}
                                         </Text>
                                     </View>
                                 )}

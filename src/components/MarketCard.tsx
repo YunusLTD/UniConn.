@@ -70,27 +70,11 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
 
     const sendReport = async (reason: string) => {
         try {
-            await submitReport({ target_type: 'marketplace', target_id: item.id, reason });
+            await submitReport({ target_type: 'marketplace_item', target_id: item.id, reason });
             hapticSuccess();
             setReportReasonVisible(false);
-            
-            Alert.alert(
-                'Reported',
-                'Thank you. We will review this item.',
-                [
-                    {
-                        text: 'Hide Item',
-                        style: 'destructive',
-                        onPress: () => {
-                            if (onDelete) onDelete(item.id);
-                        }
-                    },
-                    {
-                        text: 'Done',
-                        style: 'default',
-                    }
-                ]
-            );
+            if (onDelete) onDelete(item.id);
+            Alert.alert('Reported', 'Thank you. We will review this item.');
         } catch (e) {
             console.log('Report error', e);
         }

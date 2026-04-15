@@ -320,23 +320,11 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
             await submitReport({ target_type: 'post', target_id: post.id, reason });
             hapticSuccess();
             setReportReasonVisible(false);
+            if (onDelete) onDelete(post.id);
 
             Alert.alert(
                 'Reported',
-                'Thank you. We will review this post.',
-                [
-                    {
-                        text: 'Hide Post',
-                        style: 'destructive',
-                        onPress: () => {
-                            if (onDelete) onDelete(post.id);
-                        }
-                    },
-                    {
-                        text: 'Done',
-                        style: 'default',
-                    }
-                ]
+                'Thank you. We will review this post.'
             );
         } catch (e) {
             console.log('Report error', e);

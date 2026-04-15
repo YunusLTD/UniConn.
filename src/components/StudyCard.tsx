@@ -104,24 +104,8 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
         try {
             await submitReport({ target_type: 'study_question', target_id: question.id, reason });
             setReportReasonVisible(false);
-            
-            Alert.alert(
-                'Reported',
-                'Thank you. We will review this question.',
-                [
-                    {
-                        text: 'Hide Question',
-                        style: 'destructive',
-                        onPress: () => {
-                            if (onDelete) onDelete(question.id);
-                        }
-                    },
-                    {
-                        text: 'Done',
-                        style: 'default',
-                    }
-                ]
-            );
+            if (onDelete) onDelete(question.id);
+            Alert.alert('Reported', 'Thank you. We will review this question.');
         } catch (e) {
             console.log('Report error', e);
         }

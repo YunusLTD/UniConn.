@@ -4,6 +4,7 @@ import { OnboardingProvider, useOnboarding } from '../src/context/OnboardingCont
 import { NotificationProvider } from '../src/context/NotificationContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { ToastProvider } from '../src/context/ToastContext';
+import { DialogProvider } from '../src/context/DialogContext';
 import { LanguageProvider, useLanguage } from '../src/context/LanguageContext';
 import { useEffect, useRef } from 'react';
 import { StatusBar } from 'react-native';
@@ -183,9 +184,11 @@ export default function RootLayout() {
                     <OnboardingProvider>
                         <AuthProvider>
                             <NotificationProvider>
-                                <ToastProvider>
-                                    <RootLayoutNav fontsLoaded={fontsLoaded} />
-                                </ToastProvider>
+                                <DialogProvider>
+                                    <ToastProvider>
+                                        <RootLayoutNav fontsLoaded={fontsLoaded} />
+                                    </ToastProvider>
+                                </DialogProvider>
                             </NotificationProvider>
                         </AuthProvider>
                     </OnboardingProvider>

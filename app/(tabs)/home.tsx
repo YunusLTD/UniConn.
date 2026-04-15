@@ -18,11 +18,14 @@ import { useAuth } from '../../src/context/AuthContext';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function HomeScreen() {
     const router = useRouter();
     const { user: currentUser } = useAuth();
     const { colors } = useTheme();
+    const { t, language } = useLanguage();
+    const momentSharedText = language === 'tr' ? 'An paylasildi' : language === 'ka' ? 'მომენტი გაზიარდა' : 'Moment shared';
     const [posts, setPosts] = useState<any[]>([]);
     const [stories, setStories] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -210,7 +213,7 @@ export default function HomeScreen() {
             case 'event': return <EventCard event={item} onDelete={handleItemDelete} />;
             case 'poll': return <PollCard poll={item} onDelete={handleItemDelete} />;
             case 'job': return <JobCard job={item} onDelete={handleItemDelete} />;
-            case 'market': return <MarketCard item={item} />;
+            case 'market': return <MarketCard item={item} onDelete={handleItemDelete} />;
             default: return <PostCard post={item} onDelete={handleItemDelete} />;
         }
     };
@@ -256,7 +259,7 @@ export default function HomeScreen() {
                         return (
                             <StoryCircle
                                 id={item.id}
-                                title={item.user?.name || 'Friend'}
+                                title={item.user?.name || t('friends')}
                                 image_url={item.user?.avatar_url}
                                 isUnread={item.all_viewed === false}
                                 isAdmin={item.is_admin}
@@ -307,15 +310,15 @@ export default function HomeScreen() {
                     ) : (
                         <View style={styles.emptyContainer}>
                             <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.gray300} style={{ marginBottom: spacing.md }} />
-                            <Text style={[styles.emptyTitle, { color: colors.black }]}>Be the first to speak!</Text>
+                            <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('empty_feed')}</Text>
                             <Text style={[styles.emptyBody, { color: colors.gray600 }]}>
-                                Start the conversation on your campus. Share a thought, ask a question, or post a meme.
+                                {t('share_with_campus')}
                             </Text>
                             <TouchableOpacity
                                 style={[styles.exploreBtn, { backgroundColor: colors.black }]}
                                 onPress={() => router.push('/create-post')}
                             >
-                                <Text style={[styles.exploreBtnText, { color: colors.white }]}>Start your first post</Text>
+                                <Text style={[styles.exploreBtnText, { color: colors.white }]}>{t('new_post')}</Text>
                             </TouchableOpacity>
                         </View>
                     )
@@ -334,7 +337,7 @@ export default function HomeScreen() {
                 <Animated.View style={[styles.successToast, { transform: [{ translateY: toastAnim }] }]}>
                     <View style={[styles.toastContent, { backgroundColor: colors.success }]}>
                         <Ionicons name="checkmark-circle" size={20} color="white" />
-                        <Text style={styles.toastText}>Moment shared successfully</Text>
+                        <Text style={styles.toastText}>{momentSharedText}</Text>
                     </View>
                 </Animated.View>
             )}
