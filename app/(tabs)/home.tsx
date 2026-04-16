@@ -25,7 +25,7 @@ export default function HomeScreen() {
     const { user: currentUser } = useAuth();
     const { colors } = useTheme();
     const { t, language } = useLanguage();
-    const momentSharedText = language === 'tr' ? 'An paylasildi' : language === 'ka' ? 'მომენტი გაზიარდა' : 'Moment shared';
+    const momentSharedText = language === 'tr' ? 'An paylaşıldı' : language === 'ka' ? 'მომენტი გაზიარდა' : 'Moment shared';
     const [posts, setPosts] = useState<any[]>([]);
     const [stories, setStories] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);

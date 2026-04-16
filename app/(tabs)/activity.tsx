@@ -11,7 +11,7 @@ import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { markAllAsRead, getNotifications, markAsRead } from '../../src/api/notifications';
 import { useCallback } from 'react';
 import { useLanguage } from '../../src/context/LanguageContext';
-import { buildLocalizedNotificationMessage } from '../../src/utils/localization';
+import { buildLocalizedNotificationMessage, buildLocalizedNotificationTitle } from '../../src/utils/localization';
 
 function timeAgoLocalized(dateStr: string, t: any) {
     const d = new Date(dateStr);
@@ -183,7 +183,7 @@ export default function ActivityScreen() {
                                     { color: colors.gray600 },
                                     isUnread && { fontFamily: fonts.semibold, color: colors.text }
                                 ]}>
-                                    {item.title}
+                                    {buildLocalizedNotificationTitle(item, language) || item.title}
                                 </Text>
                                 <Text style={[styles.body, { color: colors.gray500 }]} numberOfLines={2}>
                                     {buildLocalizedNotificationMessage(item, language)}

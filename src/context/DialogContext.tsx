@@ -68,7 +68,7 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
         tr: 'Bir seyler ters gitti. Tekrar dene.',
         ka: 'რაღაც შეცდა. თავიდან სცადე.',
     },
-    'Delete Account': { en: 'Delete Account', tr: 'Hesabi Sil', ka: 'ანგარიშის წაშლა' },
+    'Delete Account': { en: 'Delete Account', tr: 'Hesabı Sil', ka: 'ანგარიშის წაშლა' },
     'Are you absolutely sure? This cannot be undone.': {
         en: 'Are you absolutely sure? This cannot be undone.',
         tr: 'Emin misin? Bu islem geri alinamaz.',
@@ -77,7 +77,7 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     'Delete Post': { en: 'Delete Post', tr: 'Gonderiyi Sil', ka: 'პოსტის წაშლა' },
     'Remove this post permanently?': {
         en: 'Remove this post permanently?',
-        tr: 'Bu gonderi kalici olarak silinsin mi?',
+        tr: 'Bu gönderi kalıcı olarak silinsin mi?',
         ka: 'ეს პოსტი სამუდამოდ წაიშალოს?',
     },
     'Delete Item': { en: 'Delete Item', tr: 'Ilani Sil', ka: 'განცხადების წაშლა' },
@@ -117,7 +117,7 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     'Failed to delete event.': { en: 'Failed to delete event.', tr: 'Etkinlik silinemedi.', ka: 'ღონისძიების წაშლა ვერ მოხერხდა.' },
     Error: { en: 'Error', tr: 'Hata', ka: 'შეცდომა' },
     Success: { en: 'Success', tr: 'Basarili', ka: 'წარმატება' },
-    'Link Copied': { en: 'Link Copied', tr: 'Baglanti Kopyalandi', ka: 'ბმული დაკოპირდა' },
+    'Link Copied': { en: 'Link Copied', tr: 'Bağlantı Kopyalandı', ka: 'ბმული დაკოპირდა' },
     'The question link has been copied to your clipboard.': {
         en: 'The question link has been copied to your clipboard.',
         tr: 'Soru baglantisi panoya kopyalandi.',
@@ -155,7 +155,7 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     },
     'Failed to submit report. Please try again.': {
         en: 'Failed to submit report. Please try again.',
-        tr: 'Bildirim gonderilemedi. Tekrar dene.',
+        tr: 'Bildirim gönderilemedi. Tekrar dene.',
         ka: 'გასაჩივრება ვერ გაიგზავნა. თავიდან სცადე.',
     },
     'Failed to load community details': {
@@ -205,7 +205,7 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     },
     'Item listed successfully!': {
         en: 'Item listed successfully!',
-        tr: 'Ilan basariyla paylasildi!',
+        tr: 'İlan başarıyla paylaşıldı!',
         ka: 'განცხადება წარმატებით დაემატა!',
     },
     'Failed to list item': {
@@ -250,12 +250,12 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     },
     'Friend request sent successfully!': {
         en: 'Friend request sent successfully!',
-        tr: 'Arkadaslik istegi gonderildi!',
+        tr: 'Arkadaşlık isteği gönderildi!',
         ka: 'მეგობრობის მოთხოვნა გაიგზავნა!',
     },
     'Failed to send friend request': {
         en: 'Failed to send friend request',
-        tr: 'Arkadaslik istegi gonderilemedi',
+        tr: 'Arkadaşlık isteği gönderilemedi',
         ka: 'მეგობრობის მოთხოვნა ვერ გაიგზავნა',
     },
     'Interested?': {
@@ -280,12 +280,12 @@ const legacyTranslations: Record<string, Record<Language, string>> = {
     },
     'Your profile has been shared.': {
         en: 'Your profile has been shared.',
-        tr: 'Profilin paylasildi.',
+        tr: 'Profilin paylaşıldı.',
         ka: 'შენი პროფილი გაზიარდა.',
     },
     'Thank you. We will review this post.': {
         en: 'Thank you. We will review this post.',
-        tr: 'Tesekkurler. Bu gonderiyi inceleyecegiz.',
+        tr: 'Teşekkürler. Bu gönderiyi inceleyeceğiz.',
         ka: 'გმადლობ. ამ პოსტს გადავამოწმებთ.',
     },
     'Thank you. We will review this item.': {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, SafeAreaView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, SafeAreaView, TouchableOpacity } from 'react-native';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from './ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +53,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             {children}
             {visible && (
                 <View style={styles.absoluteWrap} pointerEvents="box-none">
-                    <SafeAreaView pointerEvents="box-none">
+                    <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
                         <Animated.View
                             style={[
                                 styles.toast,
@@ -67,10 +67,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             <TouchableOpacity onPress={hideToast} activeOpacity={0.9} style={styles.content}>
                                 <View style={[styles.indicator, { backgroundColor: typeColor(options.type, colors) }]} />
                                 <View style={styles.textWrap}>
-                                    {options.title && <Text style={[styles.title, { color: colors.text }]}>{options.title}</Text>}
-                                    <Text style={[styles.message, { color: colors.gray500 }]}>{options.message}</Text>
+                                    {options.title && <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>{options.title}</Text>}
+                                    <Text numberOfLines={2} style={[styles.message, { color: colors.gray500 }]}>{options.message}</Text>
                                 </View>
-                                <Ionicons name="close" size={18} color={colors.gray400} />
+                                <Ionicons name="close" size={16} color={colors.gray400} />
                             </TouchableOpacity>
                         </Animated.View>
                     </SafeAreaView>
@@ -102,39 +102,50 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 9999,
+        paddingBottom: spacing.md,
+        alignItems: 'center',
+    },
+    safeArea: {
+        width: '100%',
+        alignItems: 'center',
     },
     toast: {
-        marginHorizontal: spacing.lg,
-        borderRadius: 16,
+        width: '80%',
+        maxWidth: 560,
+        borderRadius: 999,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 10,
-        borderWidth: 0.5,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 12,
+        borderWidth: 1,
     },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        gap: 12,
+        paddingVertical: 11,
+        paddingLeft: 12,
+        paddingRight: 12,
+        gap: 9,
+        minHeight: 54,
     },
     indicator: {
-        width: 4,
-        height: '100%',
-        borderRadius: 2,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
     },
     textWrap: {
         flex: 1,
+        justifyContent: 'center',
     },
     title: {
         fontFamily: fonts.bold,
-        fontSize: 14,
-        marginBottom: 2,
+        fontSize: 13,
+        marginBottom: 1,
     },
     message: {
         fontFamily: fonts.regular,
-        fontSize: 13,
-        lineHeight: 18,
+        fontSize: 11,
+        lineHeight: 14,
     },
 });

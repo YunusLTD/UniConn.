@@ -38,14 +38,14 @@ export default function StoryUploadScreen() {
     const copy = {
         setupTitle: language === 'tr' ? 'Yeni An' : language === 'ka' ? 'ახალი მომენტი' : 'New Moment',
         setupSub: language === 'tr'
-            ? 'Bir ani cek ya da sec ve arkadaslarinla paylas'
+            ? 'Bir anı çek ya da seç ve arkadaşlarınla paylaş'
             : language === 'ka'
                 ? 'გადაიღე ან აირჩიე მომენტი და გაუზიარე მეგობრებს'
                 : 'Capture or choose a moment to share to your friends',
         discard: language === 'tr' ? 'Sil' : language === 'ka' ? 'გაუქმება' : 'Discard',
         video: language === 'tr' ? 'Video' : language === 'ka' ? 'ვიდეო' : 'Video',
         photo: language === 'tr' ? 'Foto' : language === 'ka' ? 'ფოტო' : 'Photo',
-        caption: language === 'tr' ? 'Aciklama ekle…' : language === 'ka' ? 'დაამატე აღწერა…' : 'Add a caption…',
+        caption: language === 'tr' ? 'Açıklama ekle…' : language === 'ka' ? 'დაამატე აღწერა…' : 'Add a caption…',
         uploading: language === 'tr' ? 'Yukleniyor…' : language === 'ka' ? 'იტვირთება…' : 'Uploading…',
         share: language === 'tr' ? 'Ani Paylas' : language === 'ka' ? 'მომენტის გაზიარება' : 'Share Moment',
         openCamera: language === 'tr' ? 'Kamerayi Ac' : language === 'ka' ? 'კამერის გახსნა' : 'Open Camera',

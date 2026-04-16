@@ -15,8 +15,6 @@ import PostCard from '../../src/components/PostCard';
 import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
 import MarketCard from '../../src/components/MarketCard';
-import SkeletonLoader from '../../src/components/SkeletonLoader';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import ActionModal from '../../src/components/ActionModal';
 import { useToast } from '../../src/context/ToastContext';
 import ShadowLoader from '../../src/components/ShadowLoader';
@@ -25,7 +23,7 @@ import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
-import { getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
+import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings';
 
@@ -47,7 +45,6 @@ export default function UserProfileScreen() {
     const [content, setContent] = useState<any[]>([]);
     const [contentLoading, setContentLoading] = useState(false);
     const [friendStatus, setFriendStatus] = useState<string>('none');
-    const [friendshipId, setFriendshipId] = useState<string | null>(null);
     const [friendCount, setFriendCount] = useState<number | null>(null);
     const [postsCount, setPostsCount] = useState<number | null>(null);
     const [sendingRequest, setSendingRequest] = useState(false);
@@ -126,31 +123,18 @@ export default function UserProfileScreen() {
         if (!profile?.id) return;
         try {
             const shareUrl = `https://uni-platform.app/user/${profile.id}`;
+            const shareTitle = t('share_profile_title')
+                .replace('{{name}}', profile.name || t('user_fallback'));
+            const shareMessage = t('share_profile_message')
+                .replace('{{name}}', profile.name || t('user_fallback'))
+                .replace('{{url}}', shareUrl);
             await Share.share({
-                title: `Check out ${profile.name}'s profile on Uni!`,
-                message: `Check out ${profile.name}'s student profile on Uni Hub: ${shareUrl}`,
+                title: shareTitle,
+                message: shareMessage,
             });
         } catch (error) {
             console.error('Share error:', error);
         }
-    };
-
-    const loadFriendData = async (targetId: string) => {
-        if (!currentUser || currentUser.id === targetId) return;
-        try {
-            const statusRes = await getFriendshipStatus(targetId);
-            if (statusRes?.data) {
-                setFriendStatus(statusRes.data.status || 'none');
-                setFriendshipId(statusRes.data.id || null);
-            }
-        } catch (e) { /* ignore */ }
-    };
-
-    const loadCount = async (targetId: string) => {
-        try {
-            const countRes = await getFriendsCount(targetId);
-            if (countRes?.data) setFriendCount(countRes.data.count || 0);
-        } catch (e) { /* ignore */ }
     };
 
     useEffect(() => { loadProfileData(); }, [id]);
@@ -211,15 +195,15 @@ export default function UserProfileScreen() {
             setFriendStatus('none');
             if (!isPending) setFriendCount(prev => Math.max(0, (prev || 0) - 1));
             showToast({
-                title: isPending ? 'Request Cancelled' : 'Friend Removed',
+                title: isPending ? t('request_cancelled_title') : t('friend_removed_title'),
                 message: isPending
-                    ? 'Your connection request has been withdrawn.'
-                    : `You are no longer friends with ${profile?.name}.`,
+                    ? t('request_cancelled_message')
+                    : t('friend_removed_message').replace('{{name}}', profile?.name || t('user_fallback')),
                 type: 'info'
             });
         } catch (e) {
             console.log('Removal error', e);
-            Alert.alert('Error', 'Failed to update connection. Please try again.');
+            Alert.alert(t('error'), t('connection_update_failed'));
         } finally {
             setSendingRequest(false);
         }
@@ -227,10 +211,10 @@ export default function UserProfileScreen() {
 
     const handleFriendRemoval = () => {
         const isPending = friendStatus === 'pending';
-        setActionTitle(isPending ? 'Manage Request' : 'Manage Friendship');
+        setActionTitle(isPending ? t('manage_request_title') : t('manage_friendship_title'));
         setActionOptions([
             {
-                label: isPending ? 'Cancel Sent Request' : 'Unfriend Student',
+                label: isPending ? t('cancel_sent_request') : t('unfriend_student'),
                 icon: 'close-circle-outline',
                 destructive: true,
                 onPress: () => confirmRemoval(isPending)
@@ -252,7 +236,7 @@ export default function UserProfileScreen() {
             const res = await sendFriendRequest(profile?.id || (id as string));
             if (res?.status === 'success') {
                 setFriendStatus('pending');
-                showToast({ title: 'Request Sent', message: 'Connection request sent successfully!', type: 'success' });
+                showToast({ title: t('request_sent_title'), message: t('connection_request_sent_body'), type: 'success' });
             }
         } catch (e) {
             console.log('Friend request error', e);
@@ -268,11 +252,11 @@ export default function UserProfileScreen() {
 
         if (friendStatus !== 'accepted' && !isPlatform) {
             Alert.alert(
-                'Friends Only',
-                'You can only message your friends. Send a connection request first!',
+                t('friends_only_title'),
+                t('friends_only_body'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Connect', onPress: handleFriendAction }
+                    { text: t('cancel_label'), style: 'cancel' },
+                    { text: t('connect_label'), onPress: handleFriendAction }
                 ]
             );
             return;
@@ -292,17 +276,17 @@ export default function UserProfileScreen() {
     };
 
     const handleProfileOptions = () => {
-        setActionTitle('Profile Options');
+        setActionTitle(t('profile_options_title'));
         const isBlocked = profile?.is_blocked_by_me;
         setActionOptions([
             {
-                label: isBlocked ? 'Unblock User' : 'Block User',
+                label: isBlocked ? t('unblock_user_option') : t('block_user_option'),
                 icon: isBlocked ? 'lock-open-outline' : 'ban-outline',
                 destructive: !isBlocked,
                 onPress: isBlocked ? confirmUnblock : confirmBlock
             },
             {
-                label: 'Report Student',
+                label: t('report_student_option'),
                 icon: 'flag-outline',
                 destructive: true,
                 onPress: handleReportUser
@@ -314,13 +298,13 @@ export default function UserProfileScreen() {
     const handleReportUser = () => {
         setShowActionModal(false);
         setTimeout(() => {
-            setActionTitle('Report Reason');
+            setActionTitle(t('why_reporting_title'));
             setActionOptions([
-                { label: 'Harassment', icon: 'hand-left-outline', onPress: () => confirmReport('Harassment') },
-                { label: 'Spam or Scam', icon: 'mail-outline', onPress: () => confirmReport('Spam or Scam') },
-                { label: 'Impersonation', icon: 'person-outline', onPress: () => confirmReport('Impersonation') },
-                { label: 'Inappropriate Content', icon: 'image-outline', onPress: () => confirmReport('Inappropriate Content') },
-                { label: 'Other', icon: 'help-circle-outline', onPress: () => confirmReport('Other') },
+                { label: t('harassment_option'), icon: 'hand-left-outline', onPress: () => confirmReport('Harassment') },
+                { label: t('spam_or_scam_option'), icon: 'mail-outline', onPress: () => confirmReport('Spam or Scam') },
+                { label: t('impersonation_option'), icon: 'person-outline', onPress: () => confirmReport('Impersonation') },
+                { label: t('inappropriate_content_option'), icon: 'image-outline', onPress: () => confirmReport('Inappropriate Content') },
+                { label: t('other'), icon: 'help-circle-outline', onPress: () => confirmReport('Other') },
             ]);
             setShowActionModal(true);
         }, 300);
@@ -336,34 +320,34 @@ export default function UserProfileScreen() {
                 reason: reason
             });
             showToast({
-                title: 'Report Submitted',
-                message: 'Thank you for helping keep our community safe. Our team will review this report.',
+                title: t('report_submitted_title'),
+                message: t('report_submitted_message'),
                 type: 'success'
             });
         } catch (e) {
             console.log('Report error', e);
-            Alert.alert('Error', 'Failed to submit report. Please try again.');
+            Alert.alert(t('error'), t('report_submit_failed'));
         }
     };
 
     const confirmBlock = () => {
         Alert.alert(
-            'Block User',
-            `Are you sure you want to block ${profile?.name}? They won't be able to message you or see your content.`,
+            t('block_user_title'),
+            t('block_user_confirm').replace('{{name}}', profile?.name || t('user_fallback')),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Block', style: 'destructive', onPress: performBlock }
+                { text: t('cancel_label'), style: 'cancel' },
+                { text: t('block_user_confirm_action'), style: 'destructive', onPress: performBlock }
             ]
         );
     };
 
     const confirmUnblock = () => {
         Alert.alert(
-            'Unblock User',
-            `Are you sure you want to unblock ${profile?.name}?`,
+            t('unblock_user_title'),
+            t('unblock_user_confirm').replace('{{name}}', profile?.name || t('user_fallback')),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Unblock', style: 'default', onPress: performUnblock }
+                { text: t('cancel_label'), style: 'cancel' },
+                { text: t('unblock_label'), style: 'default', onPress: performUnblock }
             ]
         );
     };
@@ -372,9 +356,13 @@ export default function UserProfileScreen() {
         try {
             await blockUser(profile?.id || id);
             setProfile((prev: any) => ({ ...prev, is_blocked_by_me: true }));
-            showToast({ title: 'User Blocked', message: `${profile?.name} has been blocked.`, type: 'info' });
+            showToast({
+                title: t('user_blocked'),
+                message: t('user_blocked_message').replace('{{name}}', profile?.name || t('user_fallback')),
+                type: 'info'
+            });
         } catch (e) {
-            Alert.alert('Error', 'Could not block user. Try again.');
+            Alert.alert(t('error'), t('block_user_failed'));
         }
     };
 
@@ -382,9 +370,13 @@ export default function UserProfileScreen() {
         try {
             await unblockUser(profile?.id || id);
             setProfile((prev: any) => ({ ...prev, is_blocked_by_me: false }));
-            showToast({ title: 'User Unblocked', message: `${profile?.name} has been unblocked.`, type: 'success' });
+            showToast({
+                title: t('user_unblocked_title'),
+                message: t('user_unblocked_message').replace('{{name}}', profile?.name || t('user_fallback')),
+                type: 'success'
+            });
         } catch (e) {
-            Alert.alert('Error', 'Could not unblock user. Try again.');
+            Alert.alert(t('error'), t('unblock_user_failed'));
         }
     };
 
@@ -405,14 +397,6 @@ export default function UserProfileScreen() {
     );
 
     const initial = profile?.name?.[0]?.toUpperCase() || '?';
-
-    const showScoreContext = () => {
-        showToast({
-            title: "UniScore & Reputation",
-            message: "UniScore reflects your campus impact. Earn points by sharing resources, organizing events, and engaging with peers.",
-            type: 'info'
-        });
-    };
 
     return (
         <View style={[styles.container, { backgroundColor: profileBackground }]}>
@@ -477,16 +461,16 @@ export default function UserProfileScreen() {
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{friendCount ?? 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends_label')}</Text>
                             </View>
-                            <TouchableOpacity style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={showScoreContext} activeOpacity={0.7}>
+                            <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>Uniscore</Text>
-                            </TouchableOpacity>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('uniscore_label')}</Text>
+                            </View>
                         </View>
                     </View>
 
                     <View style={styles.bioSection}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.displayName, { color: colors.black }]}>{profile?.name || 'User Name'}</Text>
+                            <Text style={[styles.displayName, { color: colors.black }]}>{profile?.name || t('user_fallback')}</Text>
                             {profile?.show_rank !== false && profile?.campus_rank && (
                                 <TouchableOpacity style={[styles.campusRankBadge, { backgroundColor: isDark ? '#3D1B21' : '#FFEBF0' }]} onPress={() => setShowRankModal(true)}>
                                     <Text style={styles.campusRankText}>#{profile.campus_rank}</Text>
@@ -497,7 +481,7 @@ export default function UserProfileScreen() {
                             )}
                             {isSelf && (
                                 <View style={[styles.selfBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
-                                    <Text style={[styles.selfBadgeText, { color: colors.gray600 }]}>YOU</Text>
+                                    <Text style={[styles.selfBadgeText, { color: colors.gray600 }]}>{t('you_badge').toUpperCase()}</Text>
                                 </View>
                             )}
                         </View>
@@ -515,7 +499,7 @@ export default function UserProfileScreen() {
                             <View style={[styles.metaRow, { marginTop: 2 }]}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile.department}
+                                    {getDepartmentLabel(profile.department, t)}
                                     {profile?.show_year !== false && profile.year_of_study ? ' • ' : ''}
                                     {profile?.show_year !== false && profile.year_of_study
                                         ? getYearOfStudyLabel(String(profile.year_of_study), language, t)
@@ -722,8 +706,9 @@ export default function UserProfileScreen() {
                             <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
                             <Text style={{ fontFamily: fonts.bold, fontSize: 32, color: '#E11D48', marginBottom: spacing.md }}>#{profile?.campus_rank}</Text>
                             <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.gray600, textAlign: 'center', lineHeight: 20 }}>
-                                {profile?.name}'s Pioneer Rank represents their early adoption status at {profile?.universities?.name || 'their university'}.
-                                The lower the number, the earlier they joined the community. Because this is unique to their campus, they hold a permanent piece of history!
+                                {t('campus_rank_other_body')
+                                    .replace('{{name}}', profile?.name || t('user_fallback'))
+                                    .replace('{{university}}', profile?.universities?.name || t('campus_rank_university_fallback'))}
                             </Text>
                         </View>
                     </View>

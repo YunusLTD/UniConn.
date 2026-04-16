@@ -42,6 +42,24 @@ const notificationTemplates = {
         comment_reply: '{{name}} replied to your comment',
         comment: '{{name}} commented on your post',
         anonymous_comment: '{{name}} replied to your post',
+        friend_request: '{{name}} sent you a friend request',
+        friend_accepted: '{{name}} accepted your friend request',
+        poll_vote: '{{name}} voted in your poll: {{target}}',
+        event_interest: '{{name}} is interested in your event: {{target}}',
+        event_rsvp_going: '{{name}} is going to your event: {{target}}',
+        event_rsvp_interested: '{{name}} is interested in your event: {{target}}',
+        study_answer: 'Someone answered your question: "{{target}}"',
+        community_request: '{{name}} requested to join {{target}}.',
+        community_approval: 'You have been accepted into {{target}}. You can now see posts and enter the chat.',
+        community_decline: 'Your request to join {{target}} was declined by the community admin.',
+        post: '{{name}} added a new post: "{{target}}"',
+        post_mention: '{{name}} mentioned you in a post: "{{target}}"',
+        comment_mention: '{{name}} mentioned you in a comment: "{{target}}"',
+        message_mention: '{{name}} mentioned you in a message.',
+        community_poll: '{{name}} posted a new poll: "{{target}}"',
+        community_event: '{{name}} posted a new event: "{{target}}"',
+        community_marketplace_item: '{{name}} posted a new marketplace item: "{{target}}"',
+        community_job: '{{name}} posted a new job: "{{target}}"',
     },
     tr: {
         post_upvote: '{{name}} gönderine oy verdi',
@@ -49,6 +67,24 @@ const notificationTemplates = {
         comment_reply: '{{name}} yorumuna yanıt verdi',
         comment: '{{name}} gönderine yorum yaptı',
         anonymous_comment: '{{name}} gönderine yanıt verdi',
+        friend_request: '{{name}} sana arkadaşlık isteği gönderdi',
+        friend_accepted: '{{name}} arkadaşlık isteğini kabul etti',
+        poll_vote: '{{name}} anketinde oy kullandı: {{target}}',
+        event_interest: '{{name}} etkinliğinle ilgileniyor: {{target}}',
+        event_rsvp_going: '{{name}} etkinliğine katılıyor: {{target}}',
+        event_rsvp_interested: '{{name}} etkinliğinle ilgileniyor: {{target}}',
+        study_answer: 'Birisi sorunu yanıtladı: "{{target}}"',
+        community_request: '{{name}} {{target}} topluluğuna katılmak istedi.',
+        community_approval: '{{target}} topluluğuna kabul edildin. Artık gönderileri görebilir ve sohbete girebilirsin.',
+        community_decline: '{{target}} topluluğuna katılma isteğin yönetici tarafından reddedildi.',
+        post: '{{name}} yeni bir gönderi paylaştı: "{{target}}"',
+        post_mention: '{{name}} bir gönderide senden bahsetti: "{{target}}"',
+        comment_mention: '{{name}} bir yorumda senden bahsetti: "{{target}}"',
+        message_mention: '{{name}} bir mesajda senden bahsetti.',
+        community_poll: '{{name}} yeni bir anket paylaştı: "{{target}}"',
+        community_event: '{{name}} yeni bir etkinlik paylaştı: "{{target}}"',
+        community_marketplace_item: '{{name}} yeni bir pazar ilanı paylaştı: "{{target}}"',
+        community_job: '{{name}} yeni bir iş ilanı paylaştı: "{{target}}"',
     },
     ka: {
         post_upvote: '{{name}} შენს პოსტს ხმა მისცა',
@@ -56,8 +92,106 @@ const notificationTemplates = {
         comment_reply: '{{name}} შენს კომენტარს უპასუხა',
         comment: '{{name}} შენს პოსტზე დააკომენტარა',
         anonymous_comment: '{{name}} შენს პოსტს უპასუხა',
+        friend_request: '{{name}}-მა მეგობრობის მოთხოვნა გამოგიგზავნა',
+        friend_accepted: '{{name}}-მა მეგობრობის მოთხოვნა დაგიდასტურა',
+        poll_vote: '{{name}}-მა შენს გამოკითხვაში მისცა ხმა: {{target}}',
+        event_interest: '{{name}} დაინტერესებულია შენი ღონისძიებით: {{target}}',
+        event_rsvp_going: '{{name}} მოდის შენს ღონისძიებაზე: {{target}}',
+        event_rsvp_interested: '{{name}} დაინტერესებულია შენი ღონისძიებით: {{target}}',
+        study_answer: 'ვიღაცამ უპასუხა შენს კითხვას: "{{target}}"',
+        community_request: '{{name}}-მა მოითხოვა {{target}}-ში გაწევრიანება.',
+        community_approval: '{{target}}-ში მიგიღეს. ახლა უკვე შეგიძლია პოსტების ნახვა და ჩატში შესვლა.',
+        community_decline: '{{target}}-ში გაწევრიანების მოთხოვნა ადმინისტრატორმა უარყო.',
+        post: '{{name}}-მა ახალი პოსტი გააზიარა: "{{target}}"',
+        post_mention: '{{name}}-მა პოსტში მოგნიშნა: "{{target}}"',
+        comment_mention: '{{name}}-მა კომენტარში მოგნიშნა: "{{target}}"',
+        message_mention: '{{name}}-მა შეტყობინებაში მოგნიშნა.',
+        community_poll: '{{name}}-მა ახალი გამოკითხვა გააზიარა: "{{target}}"',
+        community_event: '{{name}}-მა ახალი ღონისძიება გააზიარა: "{{target}}"',
+        community_marketplace_item: '{{name}}-მა ახალი მარკეტის განცხადება გააზიარა: "{{target}}"',
+        community_job: '{{name}}-მა ახალი ვაკანსია გააზიარა: "{{target}}"',
     },
 };
+
+const notificationTitleTemplates = {
+    en: {
+        message_from: 'Message from {{name}}',
+        new_in: 'New in {{name}}',
+    },
+    tr: {
+        message_from: '{{name}} tarafından mesaj',
+        new_in: '{{name}} içinde yeni',
+    },
+    ka: {
+        message_from: 'შეტყობინება {{name}}-ისგან',
+        new_in: 'ახალი {{name}}-ში',
+    },
+};
+
+function trimWrappedTarget(value: string) {
+    return value.replace(/^["']|["'.]$/g, '').trim();
+}
+
+function replaceTokens(template: string, values: Record<string, string>) {
+    return Object.entries(values).reduce((acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value), template);
+}
+
+function parseNotificationParts(notification: any) {
+    const message = String(notification?.message || '').trim();
+    const type = notification?.type;
+
+    if (!message) return { raw: '' };
+
+    const mentionMatch = message.match(/^(.*?) mentioned you in a (post|comment|message)(?::\s*"?(.*?)"?)?\.?$/i);
+    if (mentionMatch) {
+        return {
+            raw: message,
+            actor: mentionMatch[1]?.trim(),
+            target: trimWrappedTarget(mentionMatch[3] || ''),
+            mentionType: mentionMatch[2]?.toLowerCase(),
+        };
+    }
+
+    const eventRsvpMatch = message.match(/^(.*?) is (going|interested) to your event: (.*)$/i);
+    if (eventRsvpMatch) {
+        return {
+            raw: message,
+            actor: eventRsvpMatch[1]?.trim(),
+            status: eventRsvpMatch[2]?.toLowerCase(),
+            target: trimWrappedTarget(eventRsvpMatch[3] || ''),
+        };
+    }
+
+    const actorTargetMatch = message.match(/^(.*?) (upvoted your|replied to your comment|commented on your|replied to your post|sent you a friend request|accepted your friend request|voted in your poll:|is interested in your event:|requested to join|posted a new [^:]+:|added a new post:)\s*(.*)$/i);
+    if (actorTargetMatch) {
+        return {
+            raw: message,
+            actor: actorTargetMatch[1]?.trim(),
+            target: trimWrappedTarget(actorTargetMatch[3] || ''),
+        };
+    }
+
+    const studyMatch = message.match(/^Someone answered your question:\s*"?(.*?)"?$/i);
+    if (studyMatch) {
+        return { raw: message, target: trimWrappedTarget(studyMatch[1] || '') };
+    }
+
+    const approvalMatch = message.match(/^You have been accepted into (.*)\. You can now see posts and enter the chat\.$/i);
+    if (approvalMatch) {
+        return { raw: message, target: trimWrappedTarget(approvalMatch[1] || '') };
+    }
+
+    const declineMatch = message.match(/^Your request to join (.*) was declined by the community admin\.$/i);
+    if (declineMatch) {
+        return { raw: message, target: trimWrappedTarget(declineMatch[1] || '') };
+    }
+
+    if (type === 'message' && message === '📷 Sent a photo') {
+        return { raw: message, photoOnly: true };
+    }
+
+    return { raw: message };
+}
 
 export function formatMonthDay(dateLike: string | Date, language: Language) {
     const date = new Date(dateLike);
@@ -90,12 +224,35 @@ export function getRelationshipStatusLabel(value: string | null | undefined, lan
 function getYearLabel(level: number, language: Language) {
     switch (language) {
         case 'tr':
-            return `${level}. Yil`;
+            return `${level}. Yıl`;
         case 'ka':
             return `${level} კურსი`;
         default:
             return `Year ${level}`;
     }
+}
+
+const departmentTranslationMap: Record<string, TranslationKey> = {
+    math: 'subject_math',
+    mathematics: 'subject_math',
+    science: 'subject_science',
+    english: 'subject_english',
+    history: 'subject_history',
+    physics: 'subject_physics',
+    cs: 'subject_cs',
+    'computer science': 'subject_cs',
+    business: 'subject_business',
+    arts: 'subject_arts',
+    art: 'subject_arts',
+    other: 'subject_other',
+};
+
+export function getDepartmentLabel(value: string | null | undefined, t: Translator) {
+    if (!value) return '';
+
+    const normalized = value.trim().toLowerCase();
+    const key = departmentTranslationMap[normalized];
+    return key ? t(key) : value;
 }
 
 export function getYearOfStudyLabel(value: string | null | undefined, language: Language, t: Translator) {
@@ -134,13 +291,56 @@ export function buildYearOptions(language: Language, t: Translator) {
 }
 
 export function buildLocalizedNotificationMessage(notification: any, language: Language) {
-    const template = notificationTemplates[language][notification?.type as keyof typeof notificationTemplates.en];
-    if (!template || !notification?.message) return notification?.message || '';
+    const type = notification?.type as keyof typeof notificationTemplates.en;
+    const template = notificationTemplates[language][type];
+    const parts = parseNotificationParts(notification);
+    if (!template) {
+        if (parts.photoOnly) {
+            return language === 'tr' ? '📷 Bir foto gönderdi' : language === 'ka' ? '📷 ფოტო გამოგზავნა' : '📷 Sent a photo';
+        }
+        return parts.raw || '';
+    }
 
-    const actorMatch = String(notification.message).match(/^(.*?) (upvoted your|replied to your|commented on your)/i);
-    const actorName = actorMatch?.[1]?.trim();
-    if (!actorName) return notification.message;
+    if (type === 'event_rsvp') {
+        const statusKey = parts.status === 'going' ? 'event_rsvp_going' : 'event_rsvp_interested';
+        const statusTemplate = notificationTemplates[language][statusKey as keyof typeof notificationTemplates.en];
+        if (statusTemplate && parts.actor && parts.target) {
+            return replaceTokens(statusTemplate, { name: parts.actor, target: parts.target });
+        }
+    }
 
-    return template.replace('{{name}}', actorName);
+    if (type === 'message_mention' && parts.actor) {
+        return replaceTokens(template, { name: parts.actor, target: parts.target || '' });
+    }
+
+    if ((type === 'community_approval' || type === 'community_decline' || type === 'study_answer') && parts.target) {
+        return replaceTokens(template, { target: parts.target, name: parts.actor || '' });
+    }
+
+    if (parts.actor) {
+        return replaceTokens(template, { name: parts.actor, target: parts.target || '' });
+    }
+
+    if (parts.target) {
+        return replaceTokens(template, { target: parts.target, name: '' });
+    }
+
+    return parts.raw || '';
 }
 
+export function buildLocalizedNotificationTitle(notification: any, language: Language) {
+    const title = String(notification?.title || '').trim();
+    if (!title) return '';
+
+    if (title.startsWith('Message from ')) {
+        const name = title.replace('Message from ', '').trim();
+        return replaceTokens(notificationTitleTemplates[language].message_from, { name });
+    }
+
+    if (title.startsWith('New in ')) {
+        const name = title.replace('New in ', '').trim();
+        return replaceTokens(notificationTitleTemplates[language].new_in, { name });
+    }
+
+    return title;
+}

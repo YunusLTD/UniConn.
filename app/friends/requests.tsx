@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../../src/constants/theme';
@@ -35,6 +35,7 @@ export default function FriendRequestsScreen() {
         try {
             await respondToFriendRequest(requestId, action);
             setRequests(prev => prev.filter(r => r.id !== requestId));
+            DeviceEventEmitter.emit('friendRequestsUpdated');
         } catch (e) {
             console.error('Failed to respond to request');
         } finally {

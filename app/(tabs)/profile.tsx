@@ -60,7 +60,6 @@ export default function ProfileScreen() {
     const [viewerVisible, setViewerVisible] = useState(false);
     const [fetchingStory, setFetchingStory] = useState(false);
     const [showRankModal, setShowRankModal] = useState(false);
-    const [showUniScoreModal, setShowUniScoreModal] = useState(false);
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const router = useRouter();
@@ -157,7 +156,7 @@ export default function ProfileScreen() {
         const reason = await prompt({
             title: t('delete_account_label'),
             message: language === 'tr'
-                ? 'Hesabini neden sildigini yaz.'
+                ? 'Hesabını neden sildiğini yaz.'
                 : language === 'ka'
                     ? 'მოკლედ დაწერე, რატომ შლი ანგარიშს.'
                     : 'Tell us why you are deleting your account.',
@@ -243,14 +242,10 @@ export default function ProfileScreen() {
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.friends_count || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends')}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                                onPress={() => setShowUniScoreModal(true)}
-                                activeOpacity={0.7}
-                            >
+                            <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('uniscore_label')}</Text>
-                            </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
 
@@ -335,7 +330,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     )}
 
-                    <FriendRequestBanner />
+                    <FriendRequestBanner variant="inline" />
 
                     {/* Action Buttons */}
                     <View style={[styles.actionRow, language === 'ka' && styles.actionRowStacked]}>
@@ -537,7 +532,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRankModal(false)}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>Campus Pioneer Rank</Text>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('campus_rank_label')}</Text>
                             <TouchableOpacity onPress={() => setShowRankModal(false)}>
                                 <Ionicons name="close" size={24} color={colors.black} />
                             </TouchableOpacity>
@@ -546,38 +541,13 @@ export default function ProfileScreen() {
                             <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
                             <Text style={[styles.statNumber, { fontSize: 32, color: '#E11D48', marginBottom: spacing.md }]}>#{profile?.campus_rank}</Text>
                             <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
-                                Your Pioneer Rank represents your early adoption status at {profile?.universities?.name || 'your university'}. 
-                                The lower the number, the earlier you joined the community. Because this is unique to your campus, you hold a permanent piece of history!
+                                {t('campus_rank_self_body')
+                                    .replace('{{university}}', profile?.universities?.name || t('campus_rank_self_university_fallback'))}
                             </Text>
                         </View>
                     </View>
                 </TouchableOpacity>
             </Modal>
-
-            {/* UniScore Modal */}
-            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('uniscore_title')}</Text>
-                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-                            <Ionicons name="sparkles" size={44} color="#00A3FF" style={{ marginBottom: spacing.sm }} />
-                            <Text style={[styles.statNumber, { fontSize: 32, color: '#00A3FF', marginBottom: spacing.md }]}>
-                                {profile?.user_score || 0}
-                            </Text>
-                            <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
-                                {t('uniscore_body')}
-                            </Text>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
-
-
 
             <ProfileQRModal
                 visible={showQRModal}

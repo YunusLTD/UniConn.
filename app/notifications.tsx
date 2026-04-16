@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../src/context/ThemeContext';
 import { useLanguage } from '../src/context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { buildLocalizedNotificationMessage, buildLocalizedNotificationTitle } from '../src/utils/localization';
 
 function timeAgo(dateStr: string) {
     const d = new Date(dateStr);
@@ -44,7 +45,7 @@ const NOTIF_ICONS: Record<string, string> = {
 
 export default function NotificationsScreen() {
     const { colors, isDark } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -137,9 +138,9 @@ export default function NotificationsScreen() {
                             </View>
                             <View style={styles.info}>
                                 <Text style={[styles.title, !item.read && styles.titleUnread]} numberOfLines={1}>
-                                    {item.title.startsWith('New in ') ? `${t('New in ')}${item.title.replace('New in ', '')}` : (t(item.title as any) || item.title)}
+                                    {buildLocalizedNotificationTitle(item, language) || (item.title.startsWith('New in ') ? `${t('New in ')}${item.title.replace('New in ', '')}` : (t(item.title as any) || item.title))}
                                 </Text>
-                                <Text style={styles.body} numberOfLines={2}>{item.message}</Text>
+                                <Text style={styles.body} numberOfLines={2}>{buildLocalizedNotificationMessage(item, language)}</Text>
                                 <Text style={styles.time}>{(() => {
                                     const d = new Date(item.created_at);
                                     const now = new Date();
