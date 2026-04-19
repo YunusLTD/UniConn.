@@ -43,3 +43,7 @@ export const unlikeStory = async (storyId: string) => {
 export const deleteStory = async (storyId: string) => {
     return await apiFetch(`/stories/${storyId}`, { method: 'DELETE' });
 };
+
+export const getStoryById = async (storyId: string) => {
+    return await apiFetch(`/stories/${storyId}`);
+};

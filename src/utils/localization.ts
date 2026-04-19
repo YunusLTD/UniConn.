@@ -117,14 +117,32 @@ const notificationTitleTemplates = {
     en: {
         message_from: 'Message from {{name}}',
         new_in: 'New in {{name}}',
+        new_upvote: 'New Upvote',
+        new_comment: 'New Comment',
+        new_reply: 'New Reply',
+        new_friend_request: 'New Friend Request',
+        friend_request_accepted: 'Friend Request Accepted',
+        you_were_mentioned: 'You were mentioned',
     },
     tr: {
         message_from: '{{name}} tarafından mesaj',
         new_in: '{{name}} içinde yeni',
+        new_upvote: 'Yeni Oy',
+        new_comment: 'Yeni Yorum',
+        new_reply: 'Yeni Yanıt',
+        new_friend_request: 'Yeni Arkadaşlık İsteği',
+        friend_request_accepted: 'Arkadaşlık İsteği Kabul Edildi',
+        you_were_mentioned: 'Senden bahsedildi',
     },
     ka: {
         message_from: 'შეტყობინება {{name}}-ისგან',
         new_in: 'ახალი {{name}}-ში',
+        new_upvote: 'ახალი ხმა',
+        new_comment: 'ახალი კომენტარი',
+        new_reply: 'ახალი პასუხი',
+        new_friend_request: 'ახალი მეგობრობის მოთხოვნა',
+        friend_request_accepted: 'მეგობრობის მოთხოვნა დადასტურდა',
+        you_were_mentioned: 'თქვენ მოგნიშნეს',
     },
 };
 
@@ -388,6 +406,13 @@ export function buildLocalizedNotificationTitle(notification: any, language: Lan
         const name = title.replace('New in ', '').trim();
         return replaceTokens(notificationTitleTemplates[language].new_in, { name });
     }
+
+    if (title === 'New Upvote') return notificationTitleTemplates[language].new_upvote;
+    if (title === 'New Comment') return notificationTitleTemplates[language].new_comment;
+    if (title === 'New Reply') return notificationTitleTemplates[language].new_reply;
+    if (title === 'New Friend Request') return notificationTitleTemplates[language].new_friend_request;
+    if (title === 'Friend Request Accepted') return notificationTitleTemplates[language].friend_request_accepted;
+    if (title === 'You were mentioned') return notificationTitleTemplates[language].you_were_mentioned;
 
     return title;
 }

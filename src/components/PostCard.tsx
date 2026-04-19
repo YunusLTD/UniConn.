@@ -359,9 +359,16 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
 
     if (isOwner) {
         actionOptions.unshift(
-            { label: t('edit_post_option'), icon: 'create-outline', onPress: handleEdit },
             { label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true }
         );
+        
+        // 3-hour limit for editing posts
+        const canEdit = new Date().getTime() - new Date(post.created_at).getTime() < 3 * 60 * 60 * 1000;
+        if (canEdit) {
+            actionOptions.unshift(
+                { label: t('edit_post_option'), icon: 'create-outline', onPress: handleEdit }
+            );
+        }
     }
 
     const reportOptions: ActionOption[] = [

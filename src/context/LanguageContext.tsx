@@ -1083,6 +1083,7 @@ const translations = {
         just_now: 'Hemen şimdi',
         minute_ago: '{{count}} dk önce',
         hour_ago: '{{count}} sa önce',
+        day_ago: '{{count}} gün önce',
         yesterday: 'Dün',
         share: 'Paylaş',
         launch: 'Başlat',

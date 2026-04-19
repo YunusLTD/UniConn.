@@ -34,7 +34,7 @@ export default function StoryUploadScreen() {
     const [textColorIndex, setTextColorIndex] = useState(0);
     
     const [caption, setCaption] = useState('');
-    const [mentions, setMentions] = useState<{ id: string, username: string }[]>([]);
+    const [mentions, setMentions] = useState<{ id: string, username: string, avatar: string }[]>([]);
     const [showMentionModal, setShowMentionModal] = useState(false);
     const [friends, setFriends] = useState<any[]>([]);
     const [friendsLoading, setFriendsLoading] = useState(false);
@@ -154,6 +154,11 @@ export default function StoryUploadScreen() {
                 finalMediaUrl = 'text_story'; // Sentinel value
             }
 
+            if (mentions.length > 0) {
+                const mentionsData = JSON.stringify(mentions.map(m => ({ u: m.username, a: m.avatar, id: m.id })));
+                finalContent += `__MENTIONS__${mentionsData}`;
+            }
+
             await createStory({
                 media_url: finalMediaUrl,
                 media_type: finalMediaType,
@@ -209,9 +214,10 @@ export default function StoryUploadScreen() {
         const user = friendInfo.friend || friendInfo.user;
         const validUsername = user?.username || user?.name || 'User';
         const validId = user?.id;
+        const validAvatar = user?.avatar_url || '';
 
         if (validId && !mentions.find(m => m.id === validId)) {
-            setMentions(prev => [...prev, { id: validId, username: validUsername }]);
+            setMentions(prev => [...prev, { id: validId, username: validUsername, avatar: validAvatar }]);
         }
         setShowMentionModal(false);
     };

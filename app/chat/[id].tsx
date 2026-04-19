@@ -18,6 +18,7 @@ import { useLanguage } from '../../src/context/LanguageContext';
 // ActionModal replaced with inline contextual popup
 import { getCommunityMembers } from '../../src/api/communities';
 import SharedPostCard from '../../src/components/SharedPostCard';
+import SharedStoryCard from '../../src/components/SharedStoryCard';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: boolean) => void }) => {
@@ -208,23 +209,38 @@ const MessageItem = React.memo(({
 
                     {(() => {
                         const postLinkMatch = item.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
+                        const storyLinkMatch = item.content?.match(/https:\/\/uni-platform.app\/story\/([0-9a-fA-F-]{36})/);
+                        
                         if (postLinkMatch) {
                             const postId = postLinkMatch[1];
                             return <SharedPostCard postId={postId} isMine={isMine} />;
                         }
+                        // Story card disabled for now
+                        /*
+                        if (storyLinkMatch) {
+                            const storyId = storyLinkMatch[1];
+                            return <SharedStoryCard storyId={storyId} isMine={isMine} />;
+                        }
+                        */
                         return null;
                     })()}
 
                     {(() => {
                         if (!item.content) return null;
                         const hasPostShare = item.content.includes('https://uni-platform.app/post/');
-                        const isAutoShare = hasPostShare && item.content.startsWith('Check out this post:');
+                        const hasStoryShare = item.content.includes('https://uni-platform.app/story/');
+                        
+                        const isAutoShare = (hasPostShare && item.content.startsWith('Check out this post:')) || 
+                                           (hasStoryShare && item.content.startsWith('Check out this story:'));
 
                         if (isAutoShare) return null;
 
                         let displayContent = item.content;
                         if (hasPostShare) {
                             displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
+                        }
+                        if (hasStoryShare) {
+                            displayContent = displayContent.replace(/https:\/\/uni-platform.app\/story\/([0-9a-fA-F-]{36})/, '').trim();
                         }
 
                         if (!displayContent) return null;
@@ -980,10 +996,18 @@ export default function ChatScreen() {
 
                                         {(() => {
                                             const postLinkMatch = showingActions.content?.match(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/);
+                                            const storyLinkMatch = showingActions.content?.match(/https:\/\/uni-platform.app\/story\/([0-9a-fA-F-]{36})/);
+                                            
                                             if (postLinkMatch) {
                                                 const postId = postLinkMatch[1];
                                                 return <SharedPostCard postId={postId} isMine={actIsMine} />;
                                             }
+                                            /*
+                                            if (storyLinkMatch) {
+                                                const storyId = storyLinkMatch[1];
+                                                return <SharedStoryCard storyId={storyId} isMine={actIsMine} />;
+                                            }
+                                            */
                                             return null;
                                         })()}
 
@@ -991,13 +1015,19 @@ export default function ChatScreen() {
                                         {(() => {
                                             if (!showingActions.content) return null;
                                             const hasPostShare = showingActions.content.includes('https://uni-platform.app/post/');
-                                            const isAutoShare = hasPostShare && showingActions.content.startsWith('Check out this post:');
+                                            const hasStoryShare = showingActions.content.includes('https://uni-platform.app/story/');
+                                            
+                                            const isAutoShare = (hasPostShare && showingActions.content.startsWith('Check out this post:')) ||
+                                                                (hasStoryShare && showingActions.content.startsWith('Check out this story:'));
                                             
                                             if (isAutoShare) return null;
                                             
                                             let displayContent = showingActions.content;
                                             if (hasPostShare) {
                                                 displayContent = displayContent.replace(/https:\/\/uni-platform.app\/post\/([0-9a-fA-F-]{36})/, '').trim();
+                                            }
+                                            if (hasStoryShare) {
+                                                displayContent = displayContent.replace(/https:\/\/uni-platform.app\/story\/([0-9a-fA-F-]{36})/, '').trim();
                                             }
                                             
                                             if (!displayContent) return null;

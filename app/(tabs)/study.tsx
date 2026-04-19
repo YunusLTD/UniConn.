@@ -110,7 +110,12 @@ export default function StudyScreen() {
                 <FlatList
                     data={questions}
                     keyExtractor={item => item.id}
-                    renderItem={({ item }) => <StudyCard question={item} />}
+                    renderItem={({ item }) => (
+                        <StudyCard 
+                            question={item} 
+                            onDelete={(id) => setQuestions(prev => prev.filter(q => q.id !== id))} 
+                        />
+                    )}
                     refreshing={refreshing}
                     onRefresh={handleRefresh}
                     onEndReached={handleLoadMore}
