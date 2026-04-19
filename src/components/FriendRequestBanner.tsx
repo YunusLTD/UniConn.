@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { getFriendRequests } from '../api/friends';
 
 type FriendRequestBannerProps = {
-    variant?: 'default' | 'inline';
+    variant?: 'default' | 'inline' | 'feed';
 };
 
 export default function FriendRequestBanner({ variant = 'default' }: FriendRequestBannerProps) {
@@ -18,9 +18,15 @@ export default function FriendRequestBanner({ variant = 'default' }: FriendReque
     const router = useRouter();
     const slideAnim = React.useRef(new Animated.Value(-100)).current;
     const isInline = variant === 'inline';
+    const isFeed = variant === 'feed';
     const inlineTitle = requests.length === 1
         ? t('new_friend_request')
         : `${requests.length} ${t('friend_requests')}`;
+    const bannerTitle = isInline || isFeed
+        ? inlineTitle
+        : requests.length === 1
+            ? t('new_friend_request')
+            : t('friend_requests_count').replace('{{count}}', String(requests.length));
 
     const fetchRequests = async () => {
         try {
@@ -57,16 +63,16 @@ export default function FriendRequestBanner({ variant = 'default' }: FriendReque
         <Animated.View
             style={[
                 styles.container,
-                isInline ? styles.containerInline : styles.containerDefault,
-                { transform: [{ translateY: slideAnim }], backgroundColor: isInline ? 'transparent' : colors.background }
+                isFeed ? styles.containerFeed : isInline ? styles.containerInline : styles.containerDefault,
+                { transform: [{ translateY: slideAnim }], backgroundColor: isInline || isFeed ? 'transparent' : colors.background }
             ]}
         >
             <TouchableOpacity 
                 style={[
                     styles.content,
-                    isInline ? styles.contentInline : styles.contentDefault,
+                    isFeed ? styles.contentFeed : isInline ? styles.contentInline : styles.contentDefault,
                     {
-                        backgroundColor: colors.surface,
+                        backgroundColor: isFeed ? colors.background : colors.surface,
                         borderColor: colors.border,
                         shadowColor: '#000'
                     }
@@ -80,15 +86,15 @@ export default function FriendRequestBanner({ variant = 'default' }: FriendReque
                             key={req.id}
                             style={[
                                 styles.avatarBack,
-                                isInline ? styles.avatarBackInline : styles.avatarBackDefault,
-                                { marginLeft: i === 0 ? 0 : (isInline ? -10 : -12), zIndex: 10 - i, borderColor: colors.surface, backgroundColor: colors.background }
+                                isFeed ? styles.avatarBackFeed : isInline ? styles.avatarBackInline : styles.avatarBackDefault,
+                                { marginLeft: i === 0 ? 0 : (isInline || isFeed ? -10 : -12), zIndex: 10 - i, borderColor: isFeed ? colors.background : colors.surface, backgroundColor: colors.background }
                             ]}
                         >
                             {req.profiles?.avatar_url ? (
                                 <Image source={{ uri: req.profiles.avatar_url }} style={styles.avatar} />
                             ) : (
                                 <View style={[styles.avatar, styles.placeholder, { backgroundColor: colors.background }]}>
-                                    <Text style={[styles.placeholderText, isInline && styles.placeholderTextInline, { color: colors.gray500, fontFamily: fonts.bold }]}>
+                                    <Text style={[styles.placeholderText, (isInline || isFeed) && styles.placeholderTextInline, { color: colors.gray500, fontFamily: fonts.bold }]}>
                                         {req.profiles?.name?.[0]?.toUpperCase() || '?'}
                                     </Text>
                                 </View>
@@ -98,15 +104,11 @@ export default function FriendRequestBanner({ variant = 'default' }: FriendReque
                 </View>
                 
                 <View style={styles.textContainer}>
-                    <Text style={[styles.title, isInline && styles.titleInline, { color: colors.black, fontFamily: fonts.bold }]}>
-                        {isInline
-                            ? inlineTitle
-                            : requests.length === 1
-                                ? t('new_friend_request')
-                                : t('friend_requests_count').replace('{{count}}', String(requests.length))}
+                    <Text style={[styles.title, (isInline || isFeed) && styles.titleInline, isFeed && styles.titleFeed, { color: colors.black, fontFamily: fonts.bold }]}>
+                        {bannerTitle}
                     </Text>
-                    {!isInline && (
-                        <Text style={[styles.subtitle, isInline && styles.subtitleInline, { color: colors.gray500, fontFamily: fonts.regular }]} numberOfLines={2}>
+                    {!isInline && !isFeed && (
+                        <Text style={[styles.subtitle, { color: colors.gray500, fontFamily: fonts.regular }]} numberOfLines={2}>
                             {requests.length === 1 
                                 ? t('friend_request_banner_single').replace('{{name}}', requests[0].profiles?.name || t('user_fallback'))
                                 : t('friend_request_banner_multiple')}
@@ -114,9 +116,9 @@ export default function FriendRequestBanner({ variant = 'default' }: FriendReque
                     )}
                 </View>
  
-                <View style={[styles.action, isInline && styles.actionInline, { backgroundColor: isInline ? colors.black : colors.background }]}>
-                    <Text style={[styles.actionText, isInline && styles.actionTextInline, { color: isInline ? colors.white : colors.black, fontFamily: fonts.bold }]}>{t('view_all')}</Text>
-                    <Ionicons name="chevron-forward" size={isInline ? 14 : 16} color={isInline ? colors.white : colors.black} />
+                <View style={[styles.action, isInline && styles.actionInline, isFeed && styles.actionFeed, { backgroundColor: isInline ? colors.black : colors.background }]}>
+                    <Text style={[styles.actionText, (isInline || isFeed) && styles.actionTextInline, isFeed && styles.actionTextFeed, { color: isInline ? colors.white : colors.black, fontFamily: fonts.bold }]}>{t('view_all')}</Text>
+                    <Ionicons name="chevron-forward" size={isInline || isFeed ? 14 : 16} color={isInline ? colors.white : colors.black} />
                 </View>
             </TouchableOpacity>
         </Animated.View>
@@ -138,6 +140,11 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
         marginHorizontal: -4,
     },
+    containerFeed: {
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.xs,
+    },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -157,6 +164,17 @@ const styles = StyleSheet.create({
         paddingLeft: 12,
         paddingRight: 10,
         minHeight: 50,
+    },
+    contentFeed: {
+        borderRadius: radii.full,
+        paddingVertical: 8,
+        paddingLeft: 10,
+        paddingRight: 8,
+        minHeight: 42,
+        borderWidth: 0.5,
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        elevation: 0,
     },
     avatarStack: {
         flexDirection: 'row',
@@ -178,6 +196,11 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
+    },
+    avatarBackFeed: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
     },
     avatar: {
         width: '100%',
@@ -203,6 +226,10 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 16,
     },
+    titleFeed: {
+        fontSize: 12,
+        letterSpacing: 0.2,
+    },
     subtitle: {
         fontSize: 12,
         marginTop: 2,
@@ -224,10 +251,19 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         marginLeft: 10,
     },
+    actionFeed: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginLeft: 8,
+    },
     actionText: {
         fontSize: 12,
     },
     actionTextInline: {
         fontSize: 11,
+    },
+    actionTextFeed: {
+        fontSize: 10,
+        letterSpacing: 0.3,
     },
 });

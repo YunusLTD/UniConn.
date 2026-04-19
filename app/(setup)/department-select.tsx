@@ -3,19 +3,21 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } fr
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radii } from '../../src/constants/theme';
+import { useLanguage, type TranslationKey } from '../../src/context/LanguageContext';
 
-const DEPARTMENTS = [
-    { id: 'cs', name: 'Computer Science', category: 'Engineering & Technology', icon: 'desktop-outline' },
-    { id: 'bus', name: 'Business', category: 'Management & Economics', icon: 'cash-outline' },
-    { id: 'law', name: 'Law', category: 'Legal Studies & Jurisprudence', icon: 'library-outline' },
-    { id: 'med', name: 'Medicine', category: 'Health Sciences', icon: 'medical-outline' },
-    { id: 'art', name: 'Art', category: 'Design & Creative Studies', icon: 'color-palette-outline' },
-    { id: 'eng', name: 'Engineering', category: 'Applied Sciences', icon: 'hardware-chip-outline' },
+const DEPARTMENTS: Array<{ id: string; value: string; nameKey: TranslationKey; categoryKey: TranslationKey; icon: string }> = [
+    { id: 'cs', value: 'Computer Science', nameKey: 'setup_dept_cs', categoryKey: 'setup_dept_cat_engineering_technology', icon: 'desktop-outline' },
+    { id: 'bus', value: 'Business', nameKey: 'setup_dept_business', categoryKey: 'setup_dept_cat_management_economics', icon: 'cash-outline' },
+    { id: 'law', value: 'Law', nameKey: 'setup_dept_law', categoryKey: 'setup_dept_cat_legal_studies', icon: 'library-outline' },
+    { id: 'med', value: 'Medicine', nameKey: 'setup_dept_medicine', categoryKey: 'setup_dept_cat_health_sciences', icon: 'medical-outline' },
+    { id: 'art', value: 'Art', nameKey: 'setup_dept_art', categoryKey: 'setup_dept_cat_design_creative', icon: 'color-palette-outline' },
+    { id: 'eng', value: 'Engineering', nameKey: 'setup_dept_engineering', categoryKey: 'setup_dept_cat_applied_sciences', icon: 'hardware-chip-outline' },
 ];
 
 export default function DepartmentSelectScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const { t } = useLanguage();
 
     const handleSelect = (departmentName: string) => {
         router.push({
@@ -34,8 +36,8 @@ export default function DepartmentSelectScreen() {
                     <Ionicons name="arrow-back" size={24} color={colors.black} />
                 </TouchableOpacity>
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.title}>Select Department</Text>
-                    <Text style={styles.subtitle}>Choose the primary field of your studies</Text>
+                    <Text style={styles.title}>{t('select_department')}</Text>
+                    <Text style={styles.subtitle}>{t('setup_select_department_subtitle')}</Text>
                 </View>
             </View>
 
@@ -45,11 +47,11 @@ export default function DepartmentSelectScreen() {
                         key={dept.id}
                         style={styles.card}
                         activeOpacity={0.7}
-                        onPress={() => handleSelect(dept.name)}
+                        onPress={() => handleSelect(dept.value)}
                     >
                         <View style={styles.info}>
-                            <Text style={styles.deptName}>{dept.name}</Text>
-                            <Text style={styles.deptCategory}>{dept.category}</Text>
+                            <Text style={styles.deptName}>{t(dept.nameKey)}</Text>
+                            <Text style={styles.deptCategory}>{t(dept.categoryKey)}</Text>
                         </View>
                         <Ionicons name={dept.icon as any} size={24} color="#64748B" />
                     </TouchableOpacity>

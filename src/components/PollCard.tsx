@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
+import { formatTimeAgo } from '../utils/localization';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,7 +17,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function PollCard({ poll, showDelete = false, onDelete }: { poll: any, showDelete?: boolean, onDelete?: (id: string) => void }) {
     const { colors } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { user } = useAuth();
     const router = useRouter();
     const [selected, setSelected] = useState<string | null>(poll?.voted_option);
@@ -27,20 +28,6 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const isOwner = user?.id === poll?.created_by;
     const initial = poll?.profiles?.name?.[0]?.toUpperCase() || '?';
-    const timeAgo = (dateStr: string) => {
-        const now = new Date();
-        const diff = now.getTime() - new Date(dateStr).getTime();
-        if (diff < 0) return t('just_now');
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return t('just_now');
-        if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
-        const days = Math.floor(hrs / 24);
-        if (days === 1) return t('yesterday');
-        if (days < 7) return t('day_ago').replace('{{count}}', String(days));
-        return new Date(dateStr).toLocaleDateString();
-    };
 
     // Sync from props on mount or change
     React.useEffect(() => {
@@ -193,7 +180,7 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                                     <Text style={[styles.name, { color: colors.black }]}>{poll?.profiles?.name || t('anonymous_user')}</Text>
                                 </TouchableOpacity>
                                 <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(poll.created_at)}</Text>
+                                <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(poll.created_at, t, language, true)}</Text>
                             </View>
                             <View style={styles.typeTag}>
                                 <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('poll_badge')}</Text>

@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import EventCard from './EventCard';
+import { useLanguage } from '../context/LanguageContext';
+import { localeByLanguage } from '../utils/localization';
 
 export default function EventCalendar({ events, onDateSelect }: { events: any[], onDateSelect?: (date: Date) => void }) {
+    const { language } = useLanguage();
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -44,7 +47,7 @@ export default function EventCalendar({ events, onDateSelect }: { events: any[],
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.monthText}>
-                    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    {currentMonth.toLocaleString(localeByLanguage[language], { month: 'long', year: 'numeric' })}
                 </Text>
                 <View style={styles.nav}>
                     <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
@@ -87,7 +90,7 @@ export default function EventCalendar({ events, onDateSelect }: { events: any[],
 
             <View style={styles.eventsSection}>
                 <Text style={styles.eventsTitle}>
-                    Events on {selectedDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    Events on {selectedDate.toLocaleDateString(localeByLanguage[language], { month: 'short', day: 'numeric' })}
                 </Text>
                 {eventsOnSelectedDay.length > 0 ? (
                     eventsOnSelectedDay.map(e => <EventCard key={e.id} event={e} />)

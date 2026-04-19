@@ -90,8 +90,8 @@ export default function LoginScreen() {
                             <View style={styles.inputGroup}>
                                 <Text style={[styles.label, { color: colors.black }]}>{t('email')}</Text>
                                 <TextInput
-                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: isDark ? '#000000' : colors.black, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}
-                                    placeholder="name@gmail.com"
+                                    style={[styles.input, { borderColor: colors.border || colors.gray200, color: colors.text, backgroundColor: isDark ? colors.elevated : colors.gray50 }]}
+                                    placeholder="example@gmail.com"
                                     placeholderTextColor={colors.gray400}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
@@ -102,9 +102,9 @@ export default function LoginScreen() {
 
                             <View style={styles.inputGroup}>
                                 <Text style={[styles.label, { color: colors.black }]}>{t('password')}</Text>
-                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? '#F5F5F5' : colors.gray50 }]}>
+                                <View style={[styles.passwordWrap, { borderColor: colors.border || colors.gray200, backgroundColor: isDark ? colors.elevated : colors.gray50 }]}>
                                     <TextInput
-                                        style={[styles.passwordInput, { color: isDark ? '#000000' : colors.black }]}
+                                        style={[styles.passwordInput, { color: colors.text }]}
                                         placeholder="••••••••"
                                         placeholderTextColor={colors.gray400}
                                         secureTextEntry={!showPassword}

@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
+import { formatTimeAgo } from '../utils/localization';
 
 import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
 
@@ -19,21 +20,7 @@ const GRID_GAP = 2;
 const STAT_SWIPE_DISTANCE = 14;
 const STAT_SWIPE_DURATION = 180;
 
-function timeAgo(dateStr: string, t?: (key: any) => string) {
-    const now = new Date();
-    const diff = now.getTime() - new Date(dateStr).getTime();
-    if (diff < 0) return t ? t('notif_now') : 'now';
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t ? t('notif_now') : 'now';
-    if (mins < 60) return `${mins}${t ? t('time_m') : 'm'}`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}${t ? t('time_h') : 'h'}`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}${t ? t('time_d') : 'd'}`;
-    return new Date(dateStr).toLocaleDateString();
-}
-
-// ─── MediaGrid ───
+// MediaGrid
 const MediaGrid = ({ media, types, onImagePress, hideNavigation, router, postId }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string }) => {
     const count = media.length;
     if (count === 0) return null;
@@ -229,7 +216,7 @@ const AnimatedStatNumber = ({ value, style }: { value: number; style: any }) => 
 function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const renderContentWithMentions = (content: string) => {
         if (!content) return null;
@@ -480,7 +467,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                                     </View>
                                 )}
                                 <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: themeColors.gray400 }]}>{timeAgo(post.created_at, t)}</Text>
+                                <Text style={[styles.time, { color: themeColors.gray400 }]}>{formatTimeAgo(post.created_at, t, language, true)}</Text>
                                 {isEdited && (
                                     <>
                                         <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>

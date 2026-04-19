@@ -9,6 +9,7 @@ import { sendFriendRequest, getFriendshipStatus } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { getDepartmentLabel } from '../../src/utils/localization';
 
 type ExploreTab = 'communities' | 'students';
 
@@ -161,7 +162,7 @@ export default function CommunitiesScreen() {
                         <Text style={[styles.cardName, { color: colors.black }]} numberOfLines={1}>{item.name}</Text>
                         {item.username && <Text style={[styles.usernameText, { color: colors.gray500 }]}>@{item.username}</Text>}
                         <Text style={[styles.universityText, { color: colors.gray400 }]} numberOfLines={1}>
-                            {item.department ? `${item.department} • ` : ''}
+                            {item.department ? `${getDepartmentLabel(item.department, t)} • ` : ''}
                             {item.universities?.name || 'Academic Institution'}
                         </Text>
                     </View>

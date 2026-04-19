@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, DeviceEventEmitter, Alert } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
@@ -25,7 +25,7 @@ import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { useDialog } from '../../src/context/DialogContext';
-import { getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
+import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 
@@ -62,6 +62,7 @@ export default function ProfileScreen() {
     const [showRankModal, setShowRankModal] = useState(false);
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
+    const [showUniScoreModal, setShowUniScoreModal] = useState(false);
     const router = useRouter();
     const profileBackground = isDark ? colors.surface : colors.background;
 
@@ -69,6 +70,10 @@ export default function ProfileScreen() {
         if (mode === 'light') return t('theme_light');
         if (mode === 'dark') return t('theme_dark');
         return t('theme_system');
+    };
+
+    const handleUniScorePress = () => {
+        setShowUniScoreModal(true);
     };
 
     const loadProfileData = async () => {
@@ -126,6 +131,7 @@ export default function ProfileScreen() {
     );
 
     useEffect(() => { loadTabContent(activeTab); }, [activeTab]);
+
 
     useEffect(() => {
         const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data) => {
@@ -242,12 +248,17 @@ export default function ProfileScreen() {
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.friends_count || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends')}</Text>
                             </TouchableOpacity>
-                            <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <TouchableOpacity
+                                style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                onPress={handleUniScorePress}
+                                activeOpacity={0.8}
+                            >
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('uniscore_label')}</Text>
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
+
 
                     {/* Name & bio */}
                     <View style={styles.bioSection}>
@@ -273,7 +284,7 @@ export default function ProfileScreen() {
                             <View style={[styles.metaRow, { marginTop: 2 }]}>
                                 <Ionicons name="school-outline" size={13} color={colors.gray500} />
                                 <Text style={[styles.metaText, { color: colors.gray500 }]}>
-                                    {profile.department}
+                                    {getDepartmentLabel(profile.department, t)}
                                     {profile?.show_year !== false && profile.year_of_study ? ' • ' : ''}
                                     {profile?.show_year !== false && profile.year_of_study
                                         ? getYearOfStudyLabel(String(profile.year_of_study), language, t)
@@ -542,7 +553,7 @@ export default function ProfileScreen() {
                             <Text style={[styles.statNumber, { fontSize: 32, color: '#E11D48', marginBottom: spacing.md }]}>#{profile?.campus_rank}</Text>
                             <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
                                 {t('campus_rank_self_body')
-                                    .replace('{{university}}', profile?.universities?.name || t('campus_rank_self_university_fallback'))}
+                                    .replace('{{university}}', t('campus_rank_university_generic'))}
                             </Text>
                         </View>
                     </View>
@@ -624,6 +635,38 @@ export default function ProfileScreen() {
                     </View>
                 </TouchableOpacity>
             </Modal>
+
+            {/* UniScore Explanation Modal */}
+            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('uniscore_label')}</Text>
+                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.black} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                            <LinearGradient
+                                colors={['#A154F2', '#3B82F6']}
+                                style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
+                            >
+                                <Ionicons name="flash" size={32} color="#FFFFFF" />
+                            </LinearGradient>
+                            <Text style={[styles.modalTitle, { fontSize: 24, marginBottom: spacing.sm }]}>{profile?.user_score || 0}</Text>
+                            <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
+                                {t('uniscore_body')}
+                            </Text>
+                        </View>
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%' }]} 
+                            onPress={() => setShowUniScoreModal(false)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -670,6 +713,22 @@ const styles = StyleSheet.create({
     },
     statNumber: { fontFamily: fonts.bold, fontSize: 16 },
     statLabel: { fontFamily: fonts.medium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
+    uniScoreHintPill: {
+        marginTop: 10,
+        borderRadius: radii.full,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    uniScoreHintText: {
+        flex: 1,
+        fontFamily: fonts.regular,
+        fontSize: 12,
+        lineHeight: 16,
+    },
 
     bioSection: { marginTop: 18 },
     displayName: { fontFamily: fonts.bold, fontSize: 15 },

@@ -83,12 +83,12 @@ export default function ActivityScreen() {
     useFocusEffect(
         useCallback(() => {
             let mounted = true;
-            
+
             // Load fresh notifications when entering the tab
             loadData();
-            
-            return () => { 
-                mounted = false; 
+
+            return () => {
+                mounted = false;
                 // Mark everything as read silently in the background ONLY when leaving the screen
                 markAllAsRead().then(() => {
                     refreshUnreadCount();
@@ -159,7 +159,7 @@ export default function ActivityScreen() {
                     return (
                         <TouchableOpacity
                             style={[
-                                styles.card, 
+                                styles.card,
                                 { backgroundColor: colors.surface, borderBottomColor: colors.border },
                                 isUnread && { backgroundColor: colors.gray50 }
                             ]}
@@ -167,7 +167,7 @@ export default function ActivityScreen() {
                             activeOpacity={0.7}
                         >
                             <View style={[
-                                styles.iconBlock, 
+                                styles.iconBlock,
                                 { backgroundColor: colors.gray100 },
                                 isUnread && { backgroundColor: colors.gray200 }
                             ]}>
@@ -179,7 +179,7 @@ export default function ActivityScreen() {
                             </View>
                             <View style={styles.info}>
                                 <Text style={[
-                                    styles.title, 
+                                    styles.title,
                                     { color: colors.gray600 },
                                     isUnread && { fontFamily: fonts.semibold, color: colors.text }
                                 ]}>

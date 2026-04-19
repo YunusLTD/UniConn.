@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { deleteEvent, toggleEventInterest } from '../api/events';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '../context/LanguageContext';
+import { formatTimeAgo, localeByLanguage } from '../utils/localization';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -30,30 +31,14 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
     const initial = event?.profiles?.name?.[0]?.toUpperCase() || '?';
 
     const eventDate = new Date(event.start_time);
-    const formattedDate = eventDate.toLocaleDateString('en-US', {
+    const formattedDate = eventDate.toLocaleDateString(localeByLanguage[language] || 'en-US', {
         weekday: 'short', month: 'short', day: 'numeric',
     });
-    const formattedTime = eventDate.toLocaleTimeString('en-US', {
+    const formattedTime = eventDate.toLocaleTimeString(localeByLanguage[language] || 'en-US', {
         hour: '2-digit', minute: '2-digit',
     });
- 
     const endTime = event.end_time ? new Date(event.end_time) : null;
     const isPassed = endTime ? (endTime < new Date()) : (eventDate < new Date());
-
-    const timeAgo = (dateStr: string) => {
-        const now = new Date();
-        const diff = now.getTime() - new Date(dateStr).getTime();
-        if (diff < 0) return te('just_now', 'just now');
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return te('just_now', 'just now');
-        if (mins < 60) return te('minute_ago', '{{count}}m ago').replace('{{count}}', String(mins));
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return te('hour_ago', '{{count}}h ago').replace('{{count}}', String(hrs));
-        const days = Math.floor(hrs / 24);
-        if (days === 1) return te('yesterday', 'yesterday');
-        if (days < 7) return te('day_ago', '{{count}} days ago').replace('{{count}}', String(days));
-        return new Date(dateStr).toLocaleDateString();
-    };
 
     const handleInterest = async () => {
         if (loading) return;
@@ -125,10 +110,10 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                                     <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || te('anonymous_user', 'Anonymous')}</Text>
                                 </TouchableOpacity>
                                 <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: colors.gray400 }]}>{timeAgo(event.created_at)}</Text>
+                                <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(event.created_at, t, language, true)}</Text>
                             </View>
                             <View style={styles.typeTag}>
-                                <Text style={[styles.typeTagText, { color: colors.primary }]}>EVENT</Text>
+                                <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('event_badge')}</Text>
                                 {event.communities?.name && (
                                     <>
                                         <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
@@ -159,7 +144,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
 
                         <View style={[styles.eventDetailsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <View style={[styles.dateBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                <Text style={[styles.dateMonth, { color: colors.danger }]}>{eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
+                                <Text style={[styles.dateMonth, { color: colors.danger }]}>{eventDate.toLocaleDateString(localeByLanguage[language], { month: 'short' }).toUpperCase()}</Text>
                                 <Text style={[styles.dateDay, { color: colors.black }]}>{eventDate.getDate()}</Text>
                             </View>
                             <View style={styles.metaCol}>

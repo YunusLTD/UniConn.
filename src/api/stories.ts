@@ -39,3 +39,7 @@ export const likeStory = async (storyId: string) => {
 export const unlikeStory = async (storyId: string) => {
     return await apiFetch(`/stories/${storyId}/like`, { method: 'DELETE' });
 };
+
+export const deleteStory = async (storyId: string) => {
+    return await apiFetch(`/stories/${storyId}`, { method: 'DELETE' });
+};

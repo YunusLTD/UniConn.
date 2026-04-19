@@ -13,6 +13,9 @@ type User = {
         name?: string;
         status?: string;
         university_id?: string;
+        department?: string;
+        year_of_study?: string;
+        student_id_url?: string;
         username?: string;
         avatar_url?: string;
         ban_reason?: string;

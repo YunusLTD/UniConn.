@@ -127,6 +127,10 @@ export default function HomeScreen() {
             }, 3000);
         });
 
+        const storyDelSub = DeviceEventEmitter.addListener('storyDeleted', () => {
+            loadStories();
+        });
+
         const profileSub = DeviceEventEmitter.addListener('profileUpdated', (updates) => {
             if (!currentUser) return;
             setPosts(prev => prev.map(p => {
@@ -284,8 +288,8 @@ export default function HomeScreen() {
                 renderItem={renderItem}
                 ListHeaderComponent={
                     <>
-                        <FriendRequestBanner />
                         {renderStoriesHeader()}
+                        <FriendRequestBanner variant="feed" />
                     </>
                 }
                 refreshing={refreshing}

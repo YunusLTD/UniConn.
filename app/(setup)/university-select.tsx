@@ -5,12 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radii } from '../../src/constants/theme';
 import { listUniversities } from '../../src/api/universities';
 import { University } from '../../src/types/models';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function UniversitySelectScreen() {
     const [universities, setUniversities] = useState<University[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const { t } = useLanguage();
 
     useEffect(() => {
         fetchUniversities();
@@ -41,14 +43,14 @@ export default function UniversitySelectScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Select University</Text>
+                <Text style={styles.title}>{t('setup_select_university')}</Text>
             </View>
 
             <View style={styles.searchContainer}>
                 <Ionicons name="search" size={20} color={colors.gray400} style={styles.searchIcon} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search for your university"
+                    placeholder={t('setup_search_university_placeholder')}
                     placeholderTextColor={colors.gray400}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -77,15 +79,15 @@ export default function UniversitySelectScreen() {
                             <View style={styles.info}>
                                 <Text style={styles.uniName}>{item.name}</Text>
                                 {/* We don't have location in DB for MVP, using placeholder from mockup */}
-                                <Text style={styles.uniLocation}>Tbilisi, Georgia</Text>
+                                <Text style={styles.uniLocation}>{t('setup_university_location_placeholder')}</Text>
                             </View>
                         </TouchableOpacity>
                     )}
                     ListFooterComponent={
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>Can't find your university? </Text>
+                            <Text style={styles.footerText}>{t('setup_cant_find_university')}</Text>
                             <TouchableOpacity>
-                                <Text style={styles.footerLink}>Ask to add it</Text>
+                                <Text style={styles.footerLink}>{t('setup_ask_add_university')}</Text>
                             </TouchableOpacity>
                         </View>
                     }

@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, Alert } fr
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
+import { formatMonthDay } from '../utils/localization';
 
 export default function ResourceVault({ communityId }: { communityId: string }) {
+    const { language } = useLanguage();
     const [resources, setResources] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -38,7 +41,7 @@ export default function ResourceVault({ communityId }: { communityId: string }) 
             </View>
             <View style={styles.content}>
                 <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.meta}>Shared by {item.profiles?.name || 'Student'} • {new Date(item.created_at).toLocaleDateString()}</Text>
+                <Text style={styles.meta}>Shared by {item.profiles?.name || 'Student'} • {formatMonthDay(item.created_at, language)}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
         </TouchableOpacity>

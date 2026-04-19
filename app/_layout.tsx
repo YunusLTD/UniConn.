@@ -51,6 +51,12 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
         if (token && user) {
             const status = user?.profile?.status || 'approved';
             const hasUniversity = !!user?.profile?.university_id;
+            const hasSubmittedVerificationDocs = !!(
+                user?.profile?.student_id_url &&
+                user?.profile?.university_id &&
+                user?.profile?.department &&
+                user?.profile?.year_of_study
+            );
 
             if (status === 'banned') {
                 if (segments[0] !== 'banned') {
@@ -59,7 +65,7 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
                 return;
             }
 
-            if (status === 'pending' || status === 'rejected') {
+            if ((status === 'pending' || status === 'rejected' || status === 'pending_verification') && hasSubmittedVerificationDocs) {
                 if (segments[segments.length - 1] !== 'verification-pending') {
                     router.replace('/(auth)/verification-pending');
                 }
@@ -178,8 +184,8 @@ export default function RootLayout() {
     });
 
     return (
-        <SafeAreaProvider>
-            <ThemeProvider>
+        <ThemeProvider>
+            <SafeAreaProvider>
                 <LanguageProvider>
                     <OnboardingProvider>
                         <AuthProvider>
@@ -193,7 +199,7 @@ export default function RootLayout() {
                         </AuthProvider>
                     </OnboardingProvider>
                 </LanguageProvider>
-            </ThemeProvider>
-        </SafeAreaProvider>
+            </SafeAreaProvider>
+        </ThemeProvider>
     );
 }

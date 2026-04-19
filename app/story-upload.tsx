@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity, Image, Alert,
     ActivityIndicator, SafeAreaView, Dimensions, TextInput,
     KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback,
-    Animated, ScrollView, DeviceEventEmitter
+    Animated, ScrollView, DeviceEventEmitter, FlatList, Modal
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { spacing, fonts, radii } from '../src/constants/theme';
@@ -12,19 +12,32 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { uploadMultipleMedia } from '../src/api/upload';
 import { createStory } from '../src/api/stories';
+import { getFriendsList } from '../src/api/friends';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from '../src/context/LanguageContext';
+import { useTheme } from '../src/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function StoryUploadScreen() {
     const router = useRouter();
-    const { language } = useLanguage();
+    const { colors, isDark } = useTheme();
+    const { language, t } = useLanguage();
+    
     const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+    const [mode, setMode] = useState<'media' | 'text'>('media');
+    const [textStatus, setTextStatus] = useState('');
+    const [bgIndex, setBgIndex] = useState(0);
+    const [textColorIndex, setTextColorIndex] = useState(0);
+    
     const [caption, setCaption] = useState('');
+    const [mentions, setMentions] = useState<{ id: string, username: string }[]>([]);
+    const [showMentionModal, setShowMentionModal] = useState(false);
+    const [friends, setFriends] = useState<any[]>([]);
+    const [friendsLoading, setFriendsLoading] = useState(false);
     const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
     const [loading, setLoading] = useState(false);
     const [isMediaReady, setIsMediaReady] = useState(false);
@@ -35,6 +48,9 @@ export default function StoryUploadScreen() {
     const cameraScale = useRef(new Animated.Value(0.9)).current;
     const libraryScale = useRef(new Animated.Value(0.9)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
+    const PRESET_BGS = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#000000', '#6366F1'];
+    const PRESET_TEXT = ['#FFFFFF', '#000000', '#FEF3C7', '#BAE6FD', '#D1FAE5', '#FBCFE8', '#DDD6FE', '#F3F4F6'];
+
     const copy = {
         setupTitle: language === 'tr' ? 'Yeni An' : language === 'ka' ? 'ახალი მომენტი' : 'New Moment',
         setupSub: language === 'tr'
@@ -116,24 +132,38 @@ export default function StoryUploadScreen() {
     };
 
     const handleUpload = async () => {
-        if (!media) return;
+        if (mode === 'media' && !media) return;
+        if (mode === 'text' && !textStatus.trim()) return;
+
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setLoading(true);
         try {
-            const uploadRes = await uploadMultipleMedia([{ uri: media.uri, type: media.type }]);
-            const media_url = uploadRes[0].url;
-            const media_type = uploadRes[0].type;
+            let finalMediaUrl = '';
+            let finalMediaType = 'text';
+            let finalContent = mode === 'text' ? textStatus.trim() : caption.trim();
+
+            if (mode === 'media' && media) {
+                const uploadRes = await uploadMultipleMedia([{ uri: media.uri, type: media.type }]);
+                finalMediaUrl = uploadRes[0].url;
+                finalMediaType = uploadRes[0].type;
+            } else {
+                // For text stories, we can encode the theme in the content
+                // using a prefix that the feed can parse
+                const themeData = JSON.stringify({ bg: PRESET_BGS[bgIndex], color: PRESET_TEXT[textColorIndex] });
+                finalContent = `__JSON_STORY__${themeData}__${textStatus.trim()}`;
+                finalMediaUrl = 'text_story'; // Sentinel value
+            }
 
             await createStory({
-                media_url,
-                media_type,
-                content: caption.trim(),
+                media_url: finalMediaUrl,
+                media_type: finalMediaType,
+                content: finalContent,
                 latitude: location?.latitude,
                 longitude: location?.longitude,
             });
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            
+
             // Emit event and close immediately
             DeviceEventEmitter.emit('storyPosted');
             router.back();
@@ -148,137 +178,267 @@ export default function StoryUploadScreen() {
     const handleDiscard = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setMedia(null);
+        setMode('media');
+        setTextStatus('');
         setCaption('');
+        setMentions([]);
         setIsMediaReady(false);
+        setShowMentionModal(false);
     };
 
-    // ─── PREVIEW SCREEN ────────────────────────────────────────
-    if (media) {
+    const handleMention = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowMentionModal(true);
+        if (friends.length === 0) {
+            setFriendsLoading(true);
+            try {
+                const res = await getFriendsList();
+                if (res?.data) {
+                    setFriends(res.data);
+                }
+            } catch (e) {
+                console.log('Failed to fetch friends', e);
+            } finally {
+                setFriendsLoading(false);
+            }
+        }
+    };
+
+    const selectMention = (friendInfo: any) => {
+        // friendInfo could be friend or user depending on relationship direction from getFriendsList
+        const user = friendInfo.friend || friendInfo.user;
+        const validUsername = user?.username || user?.name || 'User';
+        const validId = user?.id;
+
+        if (validId && !mentions.find(m => m.id === validId)) {
+            setMentions(prev => [...prev, { id: validId, username: validUsername }]);
+        }
+        setShowMentionModal(false);
+    };
+
+    const removeMention = (id: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setMentions(prev => prev.filter(m => m.id !== id));
+    };
+
+    const cycleBg = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setBgIndex((prev) => (prev + 1) % PRESET_BGS.length);
+    };
+
+    const cycleTextColor = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTextColorIndex((prev) => (prev + 1) % PRESET_TEXT.length);
+    };
+
+    // ─── PREVIEW / TEXT EDITOR ──────────────────────────────────
+    if (media || mode === 'text') {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, mode === 'text' && { backgroundColor: PRESET_BGS[bgIndex] }]}>
                 <StatusBar style="light" />
 
-                {/* Media */}
-                {/* Media with Native Zoom */}
-                <ScrollView
-                    style={styles.fullMedia}
-                    contentContainerStyle={{ width, height }}
-                    maximumZoomScale={3}
-                    minimumZoomScale={1}
-                    showsHorizontalScrollIndicator={false}
-                    showsVerticalScrollIndicator={false}
-                    centerContent={true}
-                    scrollEventThrottle={16}
-                >
-                    {media.type === 'video' ? (
-                        <Video
-                            source={{ uri: media.uri }}
-                            style={styles.fullMedia}
-                            resizeMode={ResizeMode.COVER}
-                            shouldPlay={isMediaReady}
-                            isLooping
-                            isMuted={false}
-                            onReadyForDisplay={() => setIsMediaReady(true)}
-                        />
-                    ) : (
-                        <Image
-                            source={{ uri: media.uri }}
-                            style={styles.fullMedia}
-                            resizeMode="cover"
-                            onLoad={() => setIsMediaReady(true)}
-                        />
-                    )}
-                </ScrollView>
+                {media && (
+                    <ScrollView
+                        style={styles.fullMedia}
+                        contentContainerStyle={{ width, height }}
+                        maximumZoomScale={3}
+                        minimumZoomScale={1}
+                        showsHorizontalScrollIndicator={false}
+                        showsVerticalScrollIndicator={false}
+                        centerContent={true}
+                        scrollEventThrottle={16}
+                    >
+                        {media.type === 'video' ? (
+                            <Video
+                                source={{ uri: media.uri }}
+                                style={styles.fullMedia}
+                                resizeMode={ResizeMode.COVER}
+                                shouldPlay={isMediaReady}
+                                isLooping
+                                isMuted={false}
+                                onReadyForDisplay={() => setIsMediaReady(true)}
+                            />
+                        ) : (
+                            <Image
+                                source={{ uri: media.uri }}
+                                style={styles.fullMedia}
+                                resizeMode="cover"
+                                onLoad={() => setIsMediaReady(true)}
+                            />
+                        )}
+                    </ScrollView>
+                )}
 
                 {/* Loading overlay for heavy media */}
-                {!isMediaReady && (
+                {media && !isMediaReady && (
                     <View style={styles.mediaLoader}>
                         <ActivityIndicator size="large" color="white" />
                         <Text style={styles.mediaLoaderText}>{copy.previewLoading}</Text>
                     </View>
                 )}
 
-                {/* Top + Bottom gradients */}
-                <LinearGradient
-                    colors={['rgba(0,0,0,0.65)', 'transparent']}
-                    style={styles.topGrad}
-                />
-                <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                    style={styles.bottomGrad}
-                />
+                {/* Top + Bottom gradients (Only for media) */}
+                {media && (
+                    <>
+                        <LinearGradient
+                            colors={['rgba(0,0,0,0.65)', 'transparent']}
+                            style={styles.topGrad}
+                        />
+                        <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.85)']}
+                            style={styles.bottomGrad}
+                        />
+                    </>
+                )}
 
                 {/* Overlay UI */}
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={StyleSheet.absoluteFillObject}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.keyboardView}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
                 >
                     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                         <SafeAreaView style={styles.overlayContainer}>
                             {/* Header */}
                             <View style={styles.previewHeader}>
-                                <TouchableOpacity onPress={handleDiscard} style={styles.headerPill}>
-                                    <Ionicons name="arrow-back" size={20} color="white" />
-                                    <Text style={styles.headerPillText}>{copy.discard}</Text>
+                                <TouchableOpacity onPress={handleDiscard} style={styles.iconButton}>
+                                    <Ionicons name="close" size={26} color="white" />
                                 </TouchableOpacity>
 
-                                <View style={styles.headerPill}>
-                                    <View style={[styles.liveIndicator, { backgroundColor: media.type === 'video' ? '#EF4444' : '#22C55E' }]} />
-                                    <Text style={styles.headerPillText}>
-                                        {media.type === 'video' ? copy.video : copy.photo}
-                                    </Text>
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <TouchableOpacity onPress={handleMention} style={styles.iconButton}>
+                                        <Ionicons name="at" size={24} color="white" />
+                                    </TouchableOpacity>
+                                    {mode === 'text' ? (
+                                        <>
+                                            <TouchableOpacity onPress={cycleBg} style={styles.iconButton}>
+                                                <Ionicons name="color-palette" size={24} color="white" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={cycleTextColor} style={styles.iconButton}>
+                                                <Text style={{ color: 'white', fontFamily: fonts.bold, fontSize: 20 }}>Aa</Text>
+                                            </TouchableOpacity>
+                                        </>
+                                    ) : (
+                                        <View style={styles.headerPill}>
+                                            <View style={[styles.liveIndicator, { backgroundColor: media.type === 'video' ? '#EF4444' : '#22C55E' }]} />
+                                            <Text style={styles.headerPillText}>
+                                                {media.type === 'video' ? copy.video : copy.photo}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
-
                             </View>
+
+                            {/* Mentions Display */}
+                            {mentions.length > 0 && (
+                                <View style={styles.mentionsRow}>
+                                    {mentions.map(m => (
+                                        <TouchableOpacity key={m.id} onPress={() => removeMention(m.id)} style={styles.mentionChip}>
+                                            <Text style={styles.mentionChipText}>@{m.username}</Text>
+                                            <Ionicons name="close-circle" size={14} color="rgba(255,255,255,0.6)" />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* Center Content for Text Mode */}
+                            {mode === 'text' && (
+                                <Animated.View style={[styles.textModeContainer, { opacity: fadeAnim }]}>
+                                    <TextInput
+                                        style={[styles.textStatusInput, { color: PRESET_TEXT[textColorIndex] }]}
+                                        placeholder="Type your story..."
+                                        placeholderTextColor="rgba(255,255,255,0.4)"
+                                        value={textStatus}
+                                        onChangeText={setTextStatus}
+                                        multiline
+                                        autoFocus
+                                        selectionColor={PRESET_TEXT[textColorIndex]}
+                                        keyboardAppearance="dark"
+                                    />
+                                </Animated.View>
+                            )}
 
                             {/* Footer */}
                             <View style={styles.previewFooter}>
-                                <View style={styles.captionRow}>
-                                    <View style={styles.inputPrefix}>
-                                        <Ionicons name="text-outline" size={20} color="rgba(255,255,255,0.6)" />
+                                {mode === 'media' && (
+                                    <View style={styles.captionRow}>
+                                        <View style={styles.inputPrefix}>
+                                            <Ionicons name="text-outline" size={20} color="rgba(255,255,255,0.6)" />
+                                        </View>
+                                        <TextInput
+                                            style={styles.captionInput}
+                                            placeholder={copy.caption}
+                                            placeholderTextColor="rgba(255,255,255,0.45)"
+                                            value={caption}
+                                            onChangeText={setCaption}
+                                            multiline
+                                            returnKeyType="done"
+                                            onSubmitEditing={() => Keyboard.dismiss()}
+                                            blurOnSubmit
+                                            textAlignVertical="center"
+                                        />
                                     </View>
-                                    <TextInput
-                                        style={styles.captionInput}
-                                        placeholder={copy.caption}
-                                        placeholderTextColor="rgba(255,255,255,0.45)"
-                                        value={caption}
-                                        onChangeText={setCaption}
-                                        multiline
-                                        returnKeyType="done"
-                                        onSubmitEditing={() => Keyboard.dismiss()}
-                                        blurOnSubmit
-                                        textAlignVertical="center"
-                                    />
-                                </View>
+                                )}
 
                                 <TouchableOpacity
-                                    style={styles.shareBtn}
+                                    style={[styles.shareBtn, loading && { opacity: 0.7 }]}
                                     onPress={handleUpload}
-                                    disabled={loading}
-                                    activeOpacity={0.85}
+                                    disabled={loading || (mode === 'text' && !textStatus.trim())}
+                                    activeOpacity={0.8}
                                 >
-                                    <LinearGradient
-                                        colors={loading ? ['#6B21A8', '#4C1D95'] : ['#A855F7', '#7C3AED']}
-                                        style={styles.shareBtnGradient}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                    >
-                                        {loading ? (
-                                            <View style={styles.loadingRow}>
-                                                <ActivityIndicator color="white" size="small" />
-                                                <Text style={styles.shareBtnText}>{copy.uploading}</Text>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.loadingRow}>
-                                                <Ionicons name="paper-plane" size={20} color="white" />
-                                                <Text style={styles.shareBtnText}>{copy.share}</Text>
-                                            </View>
-                                        )}
-                                    </LinearGradient>
+                                    {loading ? (
+                                        <View style={styles.loadingRow}>
+                                            <ActivityIndicator color="white" size="small" />
+                                            <Text style={styles.shareBtnText}>{copy.uploading}</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.loadingRow}>
+                                            <Ionicons name="paper-plane" size={18} color="white" />
+                                            <Text style={styles.shareBtnText}>{copy.share}</Text>
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             </View>
                         </SafeAreaView>
                     </TouchableWithoutFeedback>
+
+                    {/* Mention Modal */}
+                    <Modal visible={showMentionModal} transparent animationType="slide" onRequestClose={() => setShowMentionModal(false)}>
+                        <View style={styles.mentionModalOverlay}>
+                            <View style={styles.mentionSheet}>
+                                <View style={styles.sheetHandle} />
+                                <Text style={styles.sheetTitle}>Mention a friend</Text>
+                                <Ionicons 
+                                    name="close" 
+                                    size={24} 
+                                    color="white" 
+                                    style={styles.sheetCloseBtn} 
+                                    onPress={() => setShowMentionModal(false)}
+                                />
+                                
+                                {friendsLoading ? (
+                                    <ActivityIndicator size="small" color="#fff" style={{ marginTop: 20 }} />
+                                ) : friends.length === 0 ? (
+                                    <Text style={styles.noFriendsText}>No friends to mention yet.</Text>
+                                ) : (
+                                    <FlatList
+                                        data={friends}
+                                        keyExtractor={item => item.id}
+                                        style={{ maxHeight: height * 0.5 }}
+                                        renderItem={({ item }) => {
+                                            const user = item.friend || item.user;
+                                            return (
+                                                <TouchableOpacity style={styles.friendRow} onPress={() => selectMention(item)}>
+                                                    <Image source={{ uri: user?.avatar_url }} style={styles.friendAvatar} />
+                                                    <Text style={styles.friendName}>{user?.name} <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>@{user?.username}</Text></Text>
+                                                </TouchableOpacity>
+                                            );
+                                        }}
+                                    />
+                                )}
+                            </View>
+                        </View>
+                    </Modal>
                 </KeyboardAvoidingView>
             </View>
         );
@@ -286,86 +446,75 @@ export default function StoryUploadScreen() {
 
     // ─── INDEX / SETUP SCREEN ──────────────────────────────────
     return (
-        <View style={styles.container}>
-            <StatusBar style="light" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
             <LinearGradient
-                colors={['#1E1B4B', '#0F0A2E', '#000000']}
+                colors={isDark ? ['#0F0F1A', '#000000'] : ['#FFFFFF', '#F8FAFC']}
                 style={StyleSheet.absoluteFillObject}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
             />
 
             <SafeAreaView style={styles.setupSafe}>
-                {/* Close */}
+                {/* Header */}
                 <View style={styles.setupHeader}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.closeCircle} activeOpacity={0.7}>
-                        <Ionicons name="close" size={24} color="white" />
+                    <TouchableOpacity onPress={() => router.back()} style={[styles.closeCircle, { backgroundColor: colors.gray100 }]} activeOpacity={0.7}>
+                        <Ionicons name="close" size={24} color={colors.black} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Center Content */}
-                <Animated.View style={[styles.centerBlock, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                    {/* Pulsing Icon */}
-                    <Animated.View style={[styles.heroIconWrap, { transform: [{ scale: pulseAnim }] }]}>
+                {/* Center Content - Immersive Branding */}
+                <Animated.View style={[styles.brandBlock, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+                    <Animated.View style={[styles.heroBadge, { transform: [{ scale: pulseAnim }] }]}>
                         <LinearGradient
-                            colors={['#A855F7', '#6D28D9', '#4C1D95']}
-                            style={styles.heroIconGradient}
+                            colors={['#A154F2', '#9CA3AF', '#000000']}
+                            style={styles.heroBadgeGradient}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                         >
-                            <Ionicons name="sparkles" size={44} color="white" />
+                            <Ionicons name="flash" size={32} color="white" />
                         </LinearGradient>
                     </Animated.View>
-
-                    <Text style={styles.heroTitle}>{copy.setupTitle}</Text>
-                    <Text style={styles.heroSub}>
-                        {copy.setupSub}
-                    </Text>
+                    
+                    <Text style={[styles.heroTitle, { color: colors.black }]}>{copy.setupTitle}</Text>
+                    <Text style={[styles.heroSub, { color: colors.gray500 }]}>{copy.setupSub}</Text>
                 </Animated.View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionsBlock}>
-                    {/* Camera — Primary CTA */}
-                    <Animated.View style={[styles.actionCardWrap, { transform: [{ scale: cameraScale }] }]}>
-                        <TouchableOpacity onPress={takeMedia} activeOpacity={0.85} style={styles.actionCard}>
-                            <LinearGradient
-                                colors={['#A855F7', '#7C3AED']}
-                                style={styles.actionCardGradient}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
+                {/* Bottom Action Bar - Camera/Library Focus */}
+                <View style={styles.setupFooter}>
+                    <View style={styles.actionRowUnified}>
+                        {/* Library Shortcut */}
+                        <Animated.View style={{ transform: [{ scale: libraryScale }] }}>
+                            <TouchableOpacity onPress={pickMedia} activeOpacity={0.7} style={[styles.sideActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                <Ionicons name="images" size={26} color={colors.black} />
+                            </TouchableOpacity>
+                        </Animated.View>
+
+                        {/* Main Camera Shutter Button */}
+                        <Animated.View style={{ transform: [{ scale: cameraScale }] }}>
+                            <TouchableOpacity onPress={takeMedia} activeOpacity={0.8} style={[styles.shutterContainer, { borderColor: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)' }]}>
+                                <View style={styles.shutterOuter}>
+                                    <LinearGradient
+                                        colors={isDark ? ['#ffffff', '#f3f4f6'] : ['#1F2937', '#111827']}
+                                        style={styles.shutterInner}
+                                    />
+                                </View>
+                            </TouchableOpacity>
+                        </Animated.View>
+
+                        {/* Text Mode Toggle */}
+                        <Animated.View style={{ transform: [{ scale: libraryScale }] }}>
+                            <TouchableOpacity 
+                                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode('text'); }} 
+                                activeOpacity={0.7} 
+                                style={[styles.sideActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                             >
-                                <View style={styles.actionIconCircle}>
-                                    <Ionicons name="camera" size={28} color="#A855F7" />
-                                </View>
-                                <View style={styles.actionTextBlock}>
-                                    <Text style={styles.actionTitle}>{copy.openCamera}</Text>
-                                    <Text style={styles.actionDesc}>{copy.openCameraSub}</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    </Animated.View>
+                                <Ionicons name="text" size={26} color={colors.black} />
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </View>
 
-                    {/* Library — Secondary CTA */}
-                    <Animated.View style={[styles.actionCardWrap, { transform: [{ scale: libraryScale }] }]}>
-                        <TouchableOpacity onPress={pickMedia} activeOpacity={0.85} style={styles.actionCard}>
-                            <View style={styles.actionCardOutline}>
-                                <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-                                    <Ionicons name="images" size={26} color="white" />
-                                </View>
-                                <View style={styles.actionTextBlock}>
-                                    <Text style={styles.actionTitle}>{copy.fromLibrary}</Text>
-                                    <Text style={[styles.actionDesc, { color: 'rgba(255,255,255,0.45)' }]}>{copy.fromLibrarySub}</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
-                            </View>
-                        </TouchableOpacity>
-                    </Animated.View>
-
-                    {/* Hint */}
                     <View style={styles.hintRow}>
-                        <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.3)" />
-                        <Text style={styles.hintText}>{copy.storiesHint}</Text>
+                        <Ionicons name="time-outline" size={14} color={colors.gray400} />
+                        <Text style={[styles.hintText, { color: colors.gray400 }]}>{copy.storiesHint}</Text>
                     </View>
                 </View>
             </SafeAreaView>
@@ -382,7 +531,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
-        paddingTop: Platform.OS === 'android' ? 12 : 0,
+        paddingTop: Platform.OS === 'ios' ? 12 : 0,
     },
     closeCircle: {
         width: 40,
@@ -393,92 +542,90 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    centerBlock: {
+    brandBlock: {
         alignItems: 'center',
-        paddingHorizontal: 32,
+        paddingHorizontal: 54,
+        marginBottom: 40,
     },
-    heroIconWrap: { marginBottom: 28 },
-    heroIconGradient: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
+    heroBadge: {
+        marginBottom: 24,
+    },
+    heroBadgeGradient: {
+        width: 72,
+        height: 72,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#A855F7',
+        shadowColor: '#A154F2',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 12,
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
     },
     heroTitle: {
         color: 'white',
         fontFamily: fonts.bold,
-        fontSize: 34,
-        letterSpacing: -1,
-        marginBottom: 12,
+        fontSize: 32,
+        letterSpacing: -0.5,
+        marginBottom: 10,
     },
     heroSub: {
-        color: 'rgba(255,255,255,0.55)',
+        color: 'rgba(255,255,255,0.5)',
         fontFamily: fonts.medium,
-        fontSize: 17,
+        fontSize: 16,
         textAlign: 'center',
-        lineHeight: 26,
+        lineHeight: 24,
     },
 
-    actionsBlock: {
-        paddingHorizontal: spacing.lg,
+    setupFooter: {
+        paddingHorizontal: spacing.xl,
         paddingBottom: Platform.OS === 'android' ? 32 : 16,
-        gap: 12,
     },
-    actionCardWrap: {},
-    actionCard: { borderRadius: 22, overflow: 'hidden' },
-    actionCardGradient: {
+    actionRowUnified: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 18,
-        gap: 16,
+        justifyContent: 'center',
+        gap: 32,
+        marginBottom: 24,
     },
-    actionCardOutline: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 18,
-        gap: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-    },
-    actionIconCircle: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+    shutterContainer: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        borderWidth: 4,
+        borderColor: 'rgba(255,255,255,0.3)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    actionTextBlock: { flex: 1 },
-    actionTitle: {
-        color: 'white',
-        fontFamily: fonts.bold,
-        fontSize: 17,
-        marginBottom: 2,
+    shutterOuter: {
+        width: 74,
+        height: 74,
+        borderRadius: 37,
+        padding: 4,
     },
-    actionDesc: {
-        color: 'rgba(255,255,255,0.7)',
-        fontFamily: fonts.regular,
-        fontSize: 13,
+    shutterInner: {
+        flex: 1,
+        borderRadius: 35,
+    },
+    sideActionBtn: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
     },
     hintRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
-        paddingTop: 8,
     },
     hintText: {
-        color: 'rgba(255,255,255,0.3)',
+        color: 'rgba(255,255,255,0.4)',
         fontFamily: fonts.medium,
-        fontSize: 13,
+        fontSize: 12,
     },
 
     // ─── Preview ───────────────────────────
@@ -505,12 +652,17 @@ const styles = StyleSheet.create({
     overlayContainer: {
         flex: 1,
         justifyContent: 'space-between',
-        padding: spacing.xl,
+        paddingTop: Platform.OS === 'ios' ? 20 : 32,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 44,
+    },
+    keyboardView: {
+        flex: 1,
     },
     previewHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 20,
     },
     headerPill: {
         flexDirection: 'row',
@@ -520,6 +672,14 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         gap: 6,
+    },
+    iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerPillText: {
         color: 'white',
@@ -533,19 +693,20 @@ const styles = StyleSheet.create({
     },
 
     previewFooter: {
-        gap: 14,
-        marginBottom: Platform.OS === 'android' ? 16 : 0,
+        gap: 16,
+        paddingHorizontal: 20,
+        marginBottom: Platform.OS === 'ios' ? 0 : 20,
     },
     captionRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 18,
-        paddingHorizontal: 16,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        borderRadius: 22,
+        paddingHorizontal: 18,
         paddingVertical: 14,
-        gap: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        gap: 12,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     inputPrefix: {
         height: 24,
@@ -591,28 +752,113 @@ const styles = StyleSheet.create({
         fontSize: 15,
     },
     shareBtn: {
-        borderRadius: 28,
-        overflow: 'hidden',
-        shadowColor: '#A855F7',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.45,
-        shadowRadius: 12,
-        elevation: 10,
-    },
-    shareBtnGradient: {
-        height: 58,
-        borderRadius: 28,
+        backgroundColor: '#000000',
+        borderRadius: 26,
+        height: 48,
         justifyContent: 'center',
         alignItems: 'center',
+        paddingHorizontal: 24,
     },
     shareBtnText: {
         color: 'white',
         fontFamily: fonts.bold,
-        fontSize: 17,
+        fontSize: 15,
     },
     loadingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 8,
+    },
+    mentionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingHorizontal: 20,
+        marginTop: 10,
+    },
+    mentionChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    mentionChipText: {
+        color: 'white',
+        fontFamily: fonts.medium,
+        fontSize: 13,
+    },
+    mentionModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    mentionSheet: {
+        backgroundColor: 'rgba(20,20,20,0.98)',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    },
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 16,
+    },
+    sheetTitle: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 18,
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    sheetCloseBtn: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+    },
+    friendRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    friendAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        marginRight: 12,
+    },
+    friendName: {
+        flex: 1,
+        color: 'white',
+        fontFamily: fonts.medium,
+        fontSize: 16,
+    },
+    noFriendsText: {
+        color: 'rgba(255,255,255,0.5)',
+        fontFamily: fonts.medium,
+        textAlign: 'center',
+        marginTop: 20,
+    },
+    textModeContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 32,
+        width: '100%',
+    },
+    textStatusInput: {
+        fontFamily: fonts.bold,
+        fontSize: 36,
+        textAlign: 'center',
+        width: '100%',
+        paddingVertical: 20,
     },
 });

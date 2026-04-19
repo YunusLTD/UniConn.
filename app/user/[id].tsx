@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share, Alert, Modal } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -55,6 +55,7 @@ export default function UserProfileScreen() {
     const [storyEvent, setStoryEvent] = useState<any>(null);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [showRankModal, setShowRankModal] = useState(false);
+    const [showUniScoreModal, setShowUniScoreModal] = useState(false);
     const router = useRouter();
     const { showToast } = useToast();
     const [startingChat, setStartingChat] = useState(false);
@@ -63,6 +64,10 @@ export default function UserProfileScreen() {
 
     const isUUID = (str: string) => {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    };
+
+    const handleUniScorePress = () => {
+        setShowUniScoreModal(true);
     };
 
     const loadProfileData = async () => {
@@ -184,6 +189,7 @@ export default function UserProfileScreen() {
             commentCountSub.remove();
         };
     }, [currentUser, profile?.id, id, activeTab]);
+
 
 
 
@@ -461,12 +467,17 @@ export default function UserProfileScreen() {
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{friendCount ?? 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends_label')}</Text>
                             </View>
-                            <View style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <TouchableOpacity
+                                style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                onPress={handleUniScorePress}
+                                activeOpacity={0.8}
+                            >
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.user_score || 0}</Text>
                                 <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('uniscore_label')}</Text>
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
+
 
                     <View style={styles.bioSection}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -708,7 +719,7 @@ export default function UserProfileScreen() {
                             <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.gray600, textAlign: 'center', lineHeight: 20 }}>
                                 {t('campus_rank_other_body')
                                     .replace('{{name}}', profile?.name || t('user_fallback'))
-                                    .replace('{{university}}', profile?.universities?.name || t('campus_rank_university_fallback'))}
+                                    .replace('{{university}}', t('campus_rank_university_generic'))}
                             </Text>
                         </View>
                     </View>
@@ -721,6 +732,38 @@ export default function UserProfileScreen() {
                 initialUserIndex={0}
                 onClose={() => setViewerVisible(false)}
             />
+
+            {/* UniScore Explanation Modal */}
+            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
+                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
+                    <View style={{ backgroundColor: colors.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.black }}>{t('uniscore_label')}</Text>
+                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.black} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                            <LinearGradient
+                                colors={['#A154F2', '#3B82F6']}
+                                style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
+                            >
+                                <Ionicons name="flash" size={32} color="#FFFFFF" />
+                            </LinearGradient>
+                            <Text style={{ fontFamily: fonts.bold, fontSize: 24, color: colors.black, marginBottom: spacing.sm }}>{profile?.user_score || 0}</Text>
+                            <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: colors.gray600, textAlign: 'center', lineHeight: 22 }}>
+                                {t('uniscore_body')}
+                            </Text>
+                        </View>
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%' }]} 
+                            onPress={() => setShowUniScoreModal(false)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </View>
     );
 } const styles = StyleSheet.create({
@@ -780,6 +823,22 @@ export default function UserProfileScreen() {
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginTop: 2,
+    },
+    uniScoreHintPill: {
+        marginTop: 10,
+        borderRadius: radii.full,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    uniScoreHintText: {
+        flex: 1,
+        fontFamily: fonts.regular,
+        fontSize: 12,
+        lineHeight: 16,
     },
     bioSection: {
         marginTop: 18,

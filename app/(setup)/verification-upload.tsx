@@ -7,11 +7,13 @@ import { colors, fonts, spacing, radii } from '../../src/constants/theme';
 import { submitVerification } from '../../src/api/users';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiFetch } from '../../src/api/client';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function VerificationUploadScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { user, login, token, completeRegistrationSetup } = useAuth();
+    const { t } = useLanguage();
 
     const [yearOfStudy, setYearOfStudy] = useState('');
     const [imageUri, setImageUri] = useState<string | null>(null);
@@ -32,11 +34,11 @@ export default function VerificationUploadScreen() {
 
     const handleUploadAndSubmit = async () => {
         if (!yearOfStudy) {
-            Alert.alert('Missing Field', 'Please enter your year of study.');
+            Alert.alert(t('setup_missing_field_title'), t('setup_missing_year_msg'));
             return;
         }
         if (!imageUri) {
-            Alert.alert('Missing ID', 'Please upload your student ID.');
+            Alert.alert(t('setup_missing_id_title'), t('setup_missing_id_msg'));
             return;
         }
 
@@ -84,7 +86,7 @@ export default function VerificationUploadScreen() {
                 router.replace('/(tabs)/home');
             }
         } catch (error: any) {
-            Alert.alert('Submission Failed', error.message || 'Something went wrong.');
+            Alert.alert(t('setup_submission_failed_title'), error.message || t('setup_something_went_wrong'));
         } finally {
             setLoading(false);
         }
@@ -97,18 +99,18 @@ export default function VerificationUploadScreen() {
                     <Ionicons name="arrow-back" size={24} color={colors.black} />
                 </TouchableOpacity>
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.title}>Student Verification</Text>
-                    <Text style={styles.subtitle}>Upload your ID to verify your student status. Please **blur or cover** sensitive info (ID numbers, birth date). Only Photo, Name, and University must be visible.</Text>
+                    <Text style={styles.title}>{t('setup_verification_title')}</Text>
+                    <Text style={styles.subtitle}>{t('setup_verification_subtitle')}</Text>
                 </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Year of Study</Text>
+                    <Text style={styles.label}>{t('setup_year_of_study')}</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="e.g. Freshman, 1st Year, 2024"
+                        placeholder={t('setup_year_of_study_placeholder')}
                         placeholderTextColor={colors.gray400}
                         value={yearOfStudy}
                         onChangeText={setYearOfStudy}
@@ -116,8 +118,8 @@ export default function VerificationUploadScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Student ID Card</Text>
-                    <Text style={styles.hint}>Please ensure your name and university are clearly visible.</Text>
+                    <Text style={styles.label}>{t('setup_student_id_card')}</Text>
+                    <Text style={styles.hint}>{t('setup_student_id_hint')}</Text>
 
                     <TouchableOpacity style={styles.uploadArea} onPress={pickImage} activeOpacity={0.8}>
                         {imageUri ? (
@@ -125,7 +127,7 @@ export default function VerificationUploadScreen() {
                         ) : (
                             <View style={styles.uploadPlaceholder}>
                                 <Ionicons name="id-card-outline" size={48} color={colors.gray400} />
-                                <Text style={styles.uploadText}>Tap to upload photo</Text>
+                                <Text style={styles.uploadText}>{t('setup_tap_to_upload_photo')}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
@@ -140,7 +142,7 @@ export default function VerificationUploadScreen() {
                     {loading ? (
                         <ActivityIndicator color={colors.white} />
                     ) : (
-                        <Text style={styles.submitText}>Submit for Review</Text>
+                        <Text style={styles.submitText}>{t('setup_submit_for_review')}</Text>
                     )}
                 </TouchableOpacity>
             </ScrollView>

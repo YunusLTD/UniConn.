@@ -105,10 +105,10 @@ export default function TabLayout() {
         return (
             <View style={s.tabBarContainer}>
                 <View style={[s.tabBarShadow, { shadowColor: isDark ? '#000' : colors.gray400 }]} />
-                <View 
+                <View
                     style={[
-                        s.tabBar, 
-                        { 
+                        s.tabBar,
+                        {
                             backgroundColor: isDark ? 'rgba(28, 28, 30, 0.98)' : 'rgba(255, 255, 255, 0.96)',
                             borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
                         }

@@ -2,7 +2,7 @@ import { Language, TranslationKey } from '../context/LanguageContext';
 
 type Translator = (key: TranslationKey) => string;
 
-const localeByLanguage: Record<Language, string> = {
+export const localeByLanguage: Record<Language, string> = {
     en: 'en-US',
     tr: 'tr-TR',
     ka: 'ka-GE',
@@ -232,6 +232,18 @@ function getYearLabel(level: number, language: Language) {
     }
 }
 
+function normalizeDepartmentValue(value: string) {
+    return value
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/&/g, ' and ')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 const departmentTranslationMap: Record<string, TranslationKey> = {
     math: 'subject_math',
     mathematics: 'subject_math',
@@ -239,18 +251,53 @@ const departmentTranslationMap: Record<string, TranslationKey> = {
     english: 'subject_english',
     history: 'subject_history',
     physics: 'subject_physics',
+    law: 'subject_law',
+    hukuk: 'subject_law',
+    სამართალი: 'subject_law',
     cs: 'subject_cs',
     'computer science': 'subject_cs',
+    'bilgisayar bilimi': 'subject_cs',
+    'კომპიუტერული მეცნიერება': 'subject_cs',
     business: 'subject_business',
+    isletme: 'subject_business',
+    işletme: 'subject_business',
+    ბიზნესი: 'subject_business',
     arts: 'subject_arts',
     art: 'subject_arts',
+    sanat: 'subject_arts',
+    ხელოვნება: 'subject_arts',
+    engineering: 'subject_engineering',
+    muhendislik: 'subject_engineering',
+    mühendislik: 'subject_engineering',
+    ინჟინერია: 'subject_engineering',
+    medicine: 'subject_medicine_health',
+    'medicine and health': 'subject_medicine_health',
+    'medicine health': 'subject_medicine_health',
+    'tip ve saglik': 'subject_medicine_health',
+    'tıp ve sağlık': 'subject_medicine_health',
+    მედიცინა: 'subject_medicine_health',
+    'მედიცინა და ჯანმრთელობა': 'subject_medicine_health',
+    'social sciences': 'subject_social_sciences',
+    'sosyal bilimler': 'subject_social_sciences',
+    'სოციალური მეცნიერებები': 'subject_social_sciences',
+    'natural sciences': 'subject_natural_sciences',
+    'dogal bilimler': 'subject_natural_sciences',
+    'doğal bilimler': 'subject_natural_sciences',
+    'ბუნების მეცნიერებები': 'subject_natural_sciences',
+    economics: 'subject_economics',
+    ekonomi: 'subject_economics',
+    ეკონომიკა: 'subject_economics',
+    architecture: 'subject_architecture',
+    mimarlik: 'subject_architecture',
+    mimarlık: 'subject_architecture',
+    არქიტექტურა: 'subject_architecture',
     other: 'subject_other',
 };
 
 export function getDepartmentLabel(value: string | null | undefined, t: Translator) {
     if (!value) return '';
 
-    const normalized = value.trim().toLowerCase();
+    const normalized = normalizeDepartmentValue(value);
     const key = departmentTranslationMap[normalized];
     return key ? t(key) : value;
 }
@@ -343,4 +390,31 @@ export function buildLocalizedNotificationTitle(notification: any, language: Lan
     }
 
     return title;
+}
+
+export function formatTimeAgo(dateLike: string | Date, t: Translator, language: Language, short: boolean = false) {
+    const date = new Date(dateLike);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) return t('just_now' as any);
+
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffSecs < 30) return t('just_now' as any);
+
+    if (short) {
+        if (diffMins < 60) return `${diffMins}${t('time_m' as any)}`;
+        if (diffHrs < 24) return `${diffHrs}${t('time_h' as any)}`;
+        if (diffDays < 7) return `${diffDays}${t('time_d' as any)}`;
+    } else {
+        if (diffMins < 60) return t('minute_ago' as any).replace('{{count}}', String(diffMins));
+        if (diffHrs < 24) return t('hour_ago' as any).replace('{{count}}', String(diffHrs));
+        if (diffDays === 1) return t('yesterday' as any);
+        if (diffDays < 7) return t('day_ago' as any).replace('{{count}}', String(diffDays));
+    }
+
+    return formatMonthDay(date, language);
 }
