@@ -60,6 +60,11 @@ const notificationTemplates = {
         community_event: '{{name}} posted a new event: "{{target}}"',
         community_marketplace_item: '{{name}} posted a new marketplace item: "{{target}}"',
         community_job: '{{name}} posted a new job: "{{target}}"',
+        like: '{{name}} liked your post',
+        post_like: '{{name}} liked your post',
+        comment_like: '{{name}} liked your comment',
+        friend_accept: '{{name}} accepted your friend request',
+        system: '{{raw}}',
     },
     tr: {
         post_upvote: '{{name}} gönderine oy verdi',
@@ -85,6 +90,11 @@ const notificationTemplates = {
         community_event: '{{name}} yeni bir etkinlik paylaştı: "{{target}}"',
         community_marketplace_item: '{{name}} yeni bir pazar ilanı paylaştı: "{{target}}"',
         community_job: '{{name}} yeni bir iş ilanı paylaştı: "{{target}}"',
+        like: '{{name}} gönderini beğendi',
+        post_like: '{{name}} gönderini beğendi',
+        comment_like: '{{name}} yorumunu beğendi',
+        friend_accept: '{{name}} arkadaşlık isteğini kabul etti',
+        system: '{{raw}}',
     },
     ka: {
         post_upvote: '{{name}} შენს პოსტს ხმა მისცა',
@@ -110,6 +120,11 @@ const notificationTemplates = {
         community_event: '{{name}}-მა ახალი ღონისძიება გააზიარა: "{{target}}"',
         community_marketplace_item: '{{name}}-მა ახალი მარკეტის განცხადება გააზიარა: "{{target}}"',
         community_job: '{{name}}-მა ახალი ვაკანსია გააზიარა: "{{target}}"',
+        like: '{{name}}-ს მოეწონა შენი პოსტი',
+        post_like: '{{name}}-ს მოეწონა შენი პოსტი',
+        comment_like: '{{name}}-ს მოეწონა შენი კომენტარი',
+        friend_accept: '{{name}}-მა მეგობრობის მოთხოვნა დაგიდასტურა',
+        system: '{{raw}}',
     },
 };
 
@@ -123,6 +138,17 @@ const notificationTitleTemplates = {
         new_friend_request: 'New Friend Request',
         friend_request_accepted: 'Friend Request Accepted',
         you_were_mentioned: 'You were mentioned',
+        new_poll_vote: 'New Poll Vote',
+        new_join_request: 'New Join Request',
+        new_homework_answer: 'New Homework Help Answer!',
+        new_post_from_friend: 'New Post from Friend',
+        new_post: 'New Post',
+        new_event: 'New Event',
+        new_poll: 'New Poll',
+        new_listing: 'New Listing',
+        new_job: 'New Job',
+        new_question: 'New Question',
+        system_notification: 'System Notification',
     },
     tr: {
         message_from: '{{name}} tarafından mesaj',
@@ -133,6 +159,17 @@ const notificationTitleTemplates = {
         new_friend_request: 'Yeni Arkadaşlık İsteği',
         friend_request_accepted: 'Arkadaşlık İsteği Kabul Edildi',
         you_were_mentioned: 'Senden bahsedildi',
+        new_poll_vote: 'Yeni Anket Oyu',
+        new_join_request: 'Yeni Katılma İsteği',
+        new_homework_answer: 'Yeni Ödev Yardımı Cevabı!',
+        new_post_from_friend: 'Arkadaştan Yeni Gönderi',
+        new_post: 'Yeni Gönderi',
+        new_event: 'Yeni Etkinlik',
+        new_poll: 'Yeni Anket',
+        new_listing: 'Yeni İlan',
+        new_job: 'Yeni İş İlanı',
+        new_question: 'Yeni Soru',
+        system_notification: 'Sistem Bildirimi',
     },
     ka: {
         message_from: 'შეტყობინება {{name}}-ისგან',
@@ -143,6 +180,17 @@ const notificationTitleTemplates = {
         new_friend_request: 'ახალი მეგობრობის მოთხოვნა',
         friend_request_accepted: 'მეგობრობის მოთხოვნა დადასტურდა',
         you_were_mentioned: 'თქვენ მოგნიშნეს',
+        new_poll_vote: 'ახალი ხმა გამოკითხვაში',
+        new_join_request: 'ახალი მოთხოვნა გაწევრიანებაზე',
+        new_homework_answer: 'ახალი პასუხი დავალებაში',
+        new_post_from_friend: 'ახალი პოსტი მეგობრისგან',
+        new_post: 'ახალი პოსტი',
+        new_event: 'ახალი ღონისძიება',
+        new_poll: 'ახალი გამოკითხვა',
+        new_listing: 'ახალი განცხადება',
+        new_job: 'ახალი ვაკანსია',
+        new_question: 'ახალი კითხვა',
+        system_notification: 'სისტემური შეტყობინება',
     },
 };
 
@@ -180,7 +228,7 @@ function parseNotificationParts(notification: any) {
         };
     }
 
-    const actorTargetMatch = message.match(/^(.*?) (upvoted your|replied to your comment|commented on your|replied to your post|sent you a friend request|accepted your friend request|voted in your poll:|is interested in your event:|requested to join|posted a new [^:]+:|added a new post:)\s*(.*)$/i);
+    const actorTargetMatch = message.match(/^(.*?) (upvoted your|liked your|liked your comment|replied to your comment|commented on your|replied to your post|sent you a friend request|accepted your friend request|voted in your poll:|is interested in your event:|requested to join|posted a new [^:]+:|added a new post:)\s*(.*)$/i);
     if (actorTargetMatch) {
         return {
             raw: message,
@@ -413,6 +461,17 @@ export function buildLocalizedNotificationTitle(notification: any, language: Lan
     if (title === 'New Friend Request') return notificationTitleTemplates[language].new_friend_request;
     if (title === 'Friend Request Accepted') return notificationTitleTemplates[language].friend_request_accepted;
     if (title === 'You were mentioned') return notificationTitleTemplates[language].you_were_mentioned;
+    if (title === 'New Poll Vote') return notificationTitleTemplates[language].new_poll_vote;
+    if (title === 'New Join Request') return notificationTitleTemplates[language].new_join_request;
+    if (title === 'New Homework Help Answer!') return notificationTitleTemplates[language].new_homework_answer;
+    if (title === 'New Post from Friend') return notificationTitleTemplates[language].new_post_from_friend;
+    if (title === 'New Post') return notificationTitleTemplates[language].new_post;
+    if (title === 'New Event') return notificationTitleTemplates[language].new_event;
+    if (title === 'New Poll') return notificationTitleTemplates[language].new_poll;
+    if (title === 'New Listing') return notificationTitleTemplates[language].new_listing;
+    if (title === 'New Job') return notificationTitleTemplates[language].new_job;
+    if (title === 'New Question') return notificationTitleTemplates[language].new_question;
+    if (title === 'System Notification' || title === 'System Message' || title === 'System') return notificationTitleTemplates[language].system_notification;
 
     return title;
 }

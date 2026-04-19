@@ -11,22 +11,8 @@ import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import { markAllAsRead, getNotifications, markAsRead } from '../../src/api/notifications';
 import { useCallback } from 'react';
 import { useLanguage } from '../../src/context/LanguageContext';
-import { buildLocalizedNotificationMessage, buildLocalizedNotificationTitle } from '../../src/utils/localization';
+import { buildLocalizedNotificationMessage, buildLocalizedNotificationTitle, formatTimeAgo } from '../../src/utils/localization';
 
-function timeAgoLocalized(dateStr: string, t: any) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t('just_now');
-    if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
-    const days = Math.floor(hrs / 24);
-    if (days === 1) return t('yesterday');
-    if (days < 7) return t('day_ago').replace('{{count}}', String(days));
-    return d.toLocaleDateString();
-}
 
 const NOTIF_ICONS: Record<string, string> = {
     message: 'chatbubble-outline',
@@ -189,7 +175,7 @@ export default function ActivityScreen() {
                                     {buildLocalizedNotificationMessage(item, language)}
                                 </Text>
                                 <Text style={[styles.time, { color: colors.gray400 }]}>
-                                    {timeAgoLocalized(item.created_at, t)}
+                                    {formatTimeAgo(item.created_at, t, language)}
                                 </Text>
                             </View>
                         </TouchableOpacity>

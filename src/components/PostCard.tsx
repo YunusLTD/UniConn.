@@ -278,14 +278,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const [isVoting, setIsVoting] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
-    const isEdited = !!(
-        post.is_edited ||
-        (
-            post.updated_at &&
-            post.created_at &&
-            new Date(post.updated_at).getTime() > new Date(post.created_at).getTime()
-        )
-    );
+    const isEdited = !!post.is_edited;
 
     const handleMenu = () => {
         hapticLight();

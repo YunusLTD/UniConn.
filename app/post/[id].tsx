@@ -262,7 +262,7 @@ export default function PostScreen() {
                                             <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || t('unknown_user')}</Text>
                                         </TouchableOpacity>
                                         <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at, t)}</Text>
-                                        {item.updated_at && (new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 10000) && (
+                                        {!!item.is_edited && (
                                             <Text style={[styles.commentTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
                                         )}
                                     </View>
