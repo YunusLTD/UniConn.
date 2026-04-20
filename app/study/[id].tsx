@@ -95,9 +95,9 @@ export default function StudyDetailScreen() {
         try {
             const res = await createStudyAnswer(id as string, { content: answerText.trim() });
             if (res?.data) {
-                setAnswers(prev => [...prev, res.data]);
+                setAnswers(prev => [res.data, ...prev]);
                 setAnswerText('');
-                setTimeout(() => scrollViewRef.current?.scrollToEnd(), 100);
+                setTimeout(() => scrollViewRef.current?.scrollTo({ y: 0, animated: true }), 100);
             }
         } catch (e) {
             showToast({ title: t('error'), message: t('study_post_answer_failed'), type: 'error' });

@@ -37,14 +37,16 @@ export default function NotificationsScreen() {
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState<string>('all');
 
     const { refreshUnreadCount } = useNotifications();
 
-    const loadData = async () => {
+    const loadData = async (categoryParam?: string) => {
+        setLoading(true);
         try {
-            const res = await getNotifications();
+            const cat = categoryParam !== undefined ? categoryParam : (filter === 'all' ? undefined : filter);
+            const res = await getNotifications(cat);
             if (res?.data) {
-                // Show all notifications for now to ensure visibility
                 setNotifications(res.data);
             }
         } catch (e) {
@@ -57,8 +59,13 @@ export default function NotificationsScreen() {
     useFocusEffect(
         useCallback(() => {
             loadData();
-        }, [])
+        }, [filter])
     );
+
+    const handleSelectFilter = async (key: string) => {
+        setFilter(key);
+        await loadData(key === 'all' ? undefined : key);
+    };
 
     const handleMarkRead = async (notification: any) => {
         const { id, read, type, reference_id } = notification;
@@ -98,6 +105,23 @@ export default function NotificationsScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.filterRow}>
+                {[
+                    { key: 'all', label: t('notif_filter_all') },
+                    { key: 'activity', label: t('notif_filter_activity') },
+                    { key: 'messages', label: t('notif_filter_messages') },
+                    { key: 'pulse', label: t('notif_filter_pulse') },
+                ].map(f => (
+                    <TouchableOpacity
+                        key={f.key}
+                        style={[styles.filterPill, filter === f.key && styles.filterPillActive]}
+                        onPress={() => handleSelectFilter(f.key)}
+                    >
+                        <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
             <FlatList
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
@@ -205,4 +229,9 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: 40 },
     emptyTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.text, marginTop: 16 },
     emptySub: { fontFamily: fonts.regular, fontSize: 14, color: colors.gray500, marginTop: 4, textAlign: 'center' },
+    filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 12, gap: 8, backgroundColor: colors.surface },
+    filterPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+    filterPillActive: { backgroundColor: colors.black, borderColor: colors.black },
+    filterText: { fontFamily: fonts.regular, fontSize: 13, color: colors.gray600 },
+    filterTextActive: { color: colors.white, fontFamily: fonts.semibold },
 });

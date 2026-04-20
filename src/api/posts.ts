@@ -30,6 +30,18 @@ export const votePost = async (id: string, value: number) => {
     });
 };
 
+export const recordPostView = async (id: string) => {
+    return await apiFetch(`/posts/${id}/view`, {
+        method: 'POST',
+    });
+};
+
+export const repostPost = async (id: string) => {
+    return await apiFetch(`/posts/${id}/repost`, {
+        method: 'POST',
+    });
+};
+
 export const getComments = async (id: string) => {
     return await apiFetch(`/posts/${id}/comments`);
 };

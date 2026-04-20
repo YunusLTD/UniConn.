@@ -1,7 +1,8 @@
 import { apiFetch } from './client';
 
-export const getNotifications = async () => {
-    return await apiFetch('/notifications');
+export const getNotifications = async (category?: string) => {
+    const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+    return await apiFetch(`/notifications${qs}`);
 };
 
 export const getUnreadCount = async () => {

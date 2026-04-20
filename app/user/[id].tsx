@@ -23,6 +23,7 @@ import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
+import { POST_METRICS_CHANGED_EVENT, applyPostMetricsChange } from '../../src/utils/postMetrics';
 import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 
 type TabType = 'posts' | 'events' | 'polls' | 'listings';
@@ -172,10 +173,20 @@ export default function UserProfileScreen() {
         const voteSub = DeviceEventEmitter.addListener('postVoted', (data: any) => {
             setContent((prev: any[]) => prev.map(item => {
                 if (item.id === data.postId) {
-                    return { ...item, my_vote: data.myVote, vote_count: data.voteCount };
+                    return {
+                        ...item,
+                        my_vote: data.myVote,
+                        vote_count: data.voteCount,
+                        interaction_count: typeof data.interactionCount === 'number' ? data.interactionCount : item.interaction_count,
+                    };
                 }
                 return item;
             }));
+        });
+
+        const metricsSub = DeviceEventEmitter.addListener(POST_METRICS_CHANGED_EVENT, (data: any) => {
+            if (activeTab !== 'posts') return;
+            setContent((prev: any[]) => prev.map(item => applyPostMetricsChange(item, data)));
         });
 
         const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data: any) => {
@@ -186,6 +197,7 @@ export default function UserProfileScreen() {
         return () => {
             sub.remove();
             voteSub.remove();
+            metricsSub.remove();
             commentCountSub.remove();
         };
     }, [currentUser, profile?.id, id, activeTab]);

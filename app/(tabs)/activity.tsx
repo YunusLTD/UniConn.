@@ -44,18 +44,18 @@ export default function ActivityScreen() {
     const { t, language } = useLanguage();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState<string>('activity');
 
     const { refreshUnreadCount } = useNotifications();
 
-    const loadData = async () => {
+    const loadData = async (categoryParam?: string) => {
         try {
             setLoading(true);
-            const res = await getNotifications();
+            const cat = categoryParam !== undefined ? categoryParam : filter;
+            const res = await getNotifications(cat === 'all' ? undefined : cat);
             if (res?.data) {
-                // Filter out message notifications to avoid clutter (since we have a messages tab)
-                const filtered = res.data.filter((n: any) => n.type !== 'message');
-                setNotifications(filtered);
-                return filtered;
+                setNotifications(res.data);
+                return res.data;
             }
             return [];
         } catch (e) {
@@ -70,8 +70,8 @@ export default function ActivityScreen() {
         useCallback(() => {
             let mounted = true;
 
-            // Load fresh notifications when entering the tab
-            loadData();
+            // Load fresh notifications when entering the tab (respect current filter)
+            loadData(filter);
 
             return () => {
                 mounted = false;
@@ -84,6 +84,11 @@ export default function ActivityScreen() {
             };
         }, [])
     );
+
+    const handleSelectFilter = async (key: string) => {
+        setFilter(key);
+        await loadData(key === 'all' ? undefined : key);
+    };
 
     const handleMarkRead = async (notification: any) => {
         const { id, read, type, reference_id } = notification;
@@ -134,6 +139,22 @@ export default function ActivityScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ title: t('activity_header') }} />
+            <View style={styles.filterRow}>
+                {[
+                    { key: 'all', label: t('notif_filter_all') },
+                    { key: 'activity', label: t('notif_filter_activity') },
+                    { key: 'messages', label: t('notif_filter_messages') },
+                    { key: 'pulse', label: t('notif_filter_pulse') },
+                ].map(f => (
+                    <TouchableOpacity
+                        key={f.key}
+                        style={[styles.filterPill, filter === f.key && styles.filterPillActive]}
+                        onPress={() => handleSelectFilter(f.key)}
+                    >
+                        <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
             <FlatList
                 data={notifications}
                 keyExtractor={item => item.id.toString()}
@@ -229,6 +250,11 @@ const styles = StyleSheet.create({
     },
     emptyContainer: { alignItems: 'center', paddingTop: 120, paddingHorizontal: spacing.xl },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyTitle: { fontFamily: fonts.bold, fontSize: 20 },
-    emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4 },
+    emptyTitle: { fontFamily: fonts.bold, fontSize: 20, textAlign: 'center' },
+    emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4, textAlign: 'center' },
+    filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 12, gap: 8, backgroundColor: 'transparent' },
+    filterPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E5E7EB' },
+    filterPillActive: { backgroundColor: '#000000', borderColor: '#000000' },
+    filterText: { fontFamily: fonts.regular, fontSize: 13, color: '#6B7280' },
+    filterTextActive: { color: '#FFFFFF', fontFamily: fonts.semibold },
 });

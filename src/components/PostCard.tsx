@@ -1,24 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Share, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { votePost, deletePost } from '../api/posts';
+import { votePost, deletePost, repostPost } from '../api/posts';
 import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTimeAgo } from '../utils/localization';
-
 import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
+import { POST_METRICS_CHANGED_EVENT } from '../utils/postMetrics';
+import PostShareModal from './PostShareModal';
 
 const { width } = Dimensions.get('window');
 const GRID_GAP = 2;
 const STAT_SWIPE_DISTANCE = 14;
 const STAT_SWIPE_DURATION = 180;
+
+const formatMetricCount = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+    return String(value);
+};
 
 // MediaGrid
 const MediaGrid = ({ media, types, onImagePress, hideNavigation, router, postId }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string }) => {
@@ -240,11 +247,19 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const { user } = useAuth();
     const [myVote, setMyVote] = useState<number | null>(post.my_vote);
     const [voteCount, setVoteCount] = useState<number>(post.vote_count || 0);
+    const [repostCount, setRepostCount] = useState<number>(post.repost_count || 0);
+    const [viewCount, setViewCount] = useState<number>(post.view_count || 0);
+    const [interactionCount, setInteractionCount] = useState<number>(post.interaction_count || 0);
+    const [hasReposted, setHasReposted] = useState<boolean>(!!post.has_reposted);
 
     useEffect(() => {
         setMyVote(post.my_vote);
         setVoteCount(post.vote_count || 0);
-    }, [post.my_vote, post.vote_count]);
+        setRepostCount(post.repost_count || 0);
+        setViewCount(post.view_count || 0);
+        setInteractionCount(post.interaction_count || 0);
+        setHasReposted(!!post.has_reposted);
+    }, [post.my_vote, post.vote_count, post.repost_count, post.view_count, post.interaction_count, post.has_reposted]);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const [actionVisible, setActionVisible] = useState(false);
@@ -276,6 +291,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const isOwner = user?.id === post.user_id;
 
     const [isVoting, setIsVoting] = useState(false);
+    const [isReposting, setIsReposting] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
     const isEdited = !!post.is_edited;
@@ -376,9 +392,31 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
             if (data.postId === post.id) {
                 setMyVote(data.myVote);
                 setVoteCount(data.voteCount);
+                if (typeof data.interactionCount === 'number') {
+                    setInteractionCount(data.interactionCount);
+                }
             }
         });
-        return () => sub.remove();
+        const metricsSub = DeviceEventEmitter.addListener(POST_METRICS_CHANGED_EVENT, (data: any) => {
+            if (data.postId === post.id) {
+                if (typeof data.repost_count === 'number') {
+                    setRepostCount(data.repost_count);
+                }
+                if (typeof data.view_count === 'number') {
+                    setViewCount(data.view_count);
+                }
+                if (typeof data.interaction_count === 'number') {
+                    setInteractionCount(data.interaction_count);
+                }
+                if (typeof data.has_reposted === 'boolean') {
+                    setHasReposted(data.has_reposted);
+                }
+            }
+        });
+        return () => {
+            sub.remove();
+            metricsSub.remove();
+        };
     }, [post.id]);
 
     const handleVote = async (value: number) => {
@@ -389,14 +427,22 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
         const oldVote = myVote || 0;
         const newVote = oldVote === value ? 0 : value; // Toggle off if clicking current vote
         const countDiff = newVote - oldVote;
-        
         const newVoteCount = voteCount + countDiff;
+        let nextInteractionCount = interactionCount;
+        if (oldVote === 0 && newVote !== 0) nextInteractionCount += 1;
+        if (oldVote !== 0 && newVote === 0) nextInteractionCount = Math.max(0, nextInteractionCount - 1);
 
         setMyVote(newVote);
         setVoteCount(newVoteCount);
+        setInteractionCount(nextInteractionCount);
 
         const { DeviceEventEmitter } = require('react-native');
-        DeviceEventEmitter.emit('postVoted', { postId: post.id, myVote: newVote, voteCount: newVoteCount });
+        DeviceEventEmitter.emit('postVoted', {
+            postId: post.id,
+            myVote: newVote,
+            voteCount: newVoteCount,
+            interactionCount: nextInteractionCount,
+        });
 
         // Feedback
         hapticMedium();
@@ -409,14 +455,80 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
             // 3. Confirm with Server
             if (res.data) {
                 setMyVote(res.data.my_vote);
+                setVoteCount(res.data.vote_count ?? newVoteCount);
+                setInteractionCount(res.data.interaction_count ?? nextInteractionCount);
+                DeviceEventEmitter.emit('postVoted', {
+                    postId: post.id,
+                    myVote: res.data.my_vote,
+                    voteCount: res.data.vote_count ?? newVoteCount,
+                    interactionCount: res.data.interaction_count ?? nextInteractionCount,
+                });
             }
         } catch (e) {
             // 4. Rollback on Error
             setMyVote(oldVote);
-            setVoteCount(prev => prev - countDiff);
+            setVoteCount(voteCount);
+            setInteractionCount(interactionCount);
+            DeviceEventEmitter.emit('postVoted', {
+                postId: post.id,
+                myVote: oldVote === 0 ? null : oldVote,
+                voteCount,
+                interactionCount,
+            });
             console.error('Vote error', e);
         } finally {
             setIsVoting(false);
+        }
+    };
+
+    const handleRepost = async () => {
+        if (isReposting) return;
+        setIsReposting(true);
+
+        const nextHasReposted = !hasReposted;
+        const nextRepostCount = Math.max(0, repostCount + (nextHasReposted ? 1 : -1));
+        const nextInteractionCount = Math.max(0, interactionCount + (nextHasReposted ? 1 : -1));
+
+        setHasReposted(nextHasReposted);
+        setRepostCount(nextRepostCount);
+        setInteractionCount(nextInteractionCount);
+
+        const { DeviceEventEmitter } = require('react-native');
+        DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
+            postId: post.id,
+            repost_count: nextRepostCount,
+            interaction_count: nextInteractionCount,
+            has_reposted: nextHasReposted,
+        });
+
+        hapticLight();
+
+        try {
+            const res = await repostPost(post.id);
+            if (res.data) {
+                setHasReposted(!!res.data.has_reposted);
+                setRepostCount(res.data.repost_count ?? nextRepostCount);
+                setInteractionCount(res.data.interaction_count ?? nextInteractionCount);
+                DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
+                    postId: post.id,
+                    repost_count: res.data.repost_count ?? nextRepostCount,
+                    interaction_count: res.data.interaction_count ?? nextInteractionCount,
+                    has_reposted: !!res.data.has_reposted,
+                });
+            }
+        } catch (e) {
+            setHasReposted(hasReposted);
+            setRepostCount(repostCount);
+            setInteractionCount(interactionCount);
+            DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
+                postId: post.id,
+                repost_count: repostCount,
+                interaction_count: interactionCount,
+                has_reposted: hasReposted,
+            });
+            console.error('Repost error', e);
+        } finally {
+            setIsReposting(false);
         }
     };
 
@@ -448,6 +560,15 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                 </View>
 
                 <View style={styles.rightCol}>
+                    {/* Repost indicator (shown for profile feed when backend flags reposted_by_user) */}
+                    {post.reposted_by_user && (
+                        <View style={styles.repostedRow} pointerEvents="none">
+                            <Ionicons name="repeat" size={12} color={themeColors.gray500} />
+                            <Text style={[styles.repostedText, { color: themeColors.gray500 }]}> 
+                                {(t('reposted_label') || 'Reposted')} · {formatTimeAgo(post.reposted_at || post._display_time || post.created_at, t, language, true)}
+                            </Text>
+                        </View>
+                    )}
                     {/* Author info */}
                     <View style={styles.authorRow}>
                         <View style={{ flex: 1 }}>
@@ -495,11 +616,13 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                         disabled={hideNavigation}
                     >
                         {post.content ? (
-                            <Text style={[styles.content, { color: themeColors.black }]}>
+                            <Text style={[styles.content, { color: themeColors.black }, hideNavigation && styles.contentSmall]}> 
                                 {renderContentWithMentions(post.content)}
                             </Text>
                         ) : null}
                     </TouchableOpacity>
+
+                    {/* view count displayed in header; removed from card to avoid duplication */}
 
                     {/* Media */}
                     {media.length > 0 && (
@@ -507,6 +630,8 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                             <MediaGrid media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} />
                         </View>
                     )}
+
+                    {/* metrics are shown in post header; hide here to avoid duplication */}
 
                     {/* Actions */}
                     <View style={styles.actions}>
@@ -555,7 +680,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                         </View>
 
                         <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/post/${post.id}`)} hitSlop={6} disabled={hideNavigation}>
-                            <Ionicons name="chatbubble-outline" size={18} color={themeColors.gray500} />
+                            <Ionicons name="chatbubble-outline" size={16} color={themeColors.gray500} />
                             {commentCount > 0 && (
                                 <AnimatedStatNumber
                                     value={commentCount}
@@ -564,8 +689,28 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
                             )}
                         </TouchableOpacity>
 
+                        <TouchableOpacity style={styles.actionBtn} hitSlop={6} onPress={handleRepost} disabled={isReposting}>
+                            <View style={styles.actionImageContainer}>
+                                <Image
+                                    source={{ uri: 'https://img.icons8.com/?size=100&id=qQuXyol28a94&format=png&color=000000' }}
+                                    style={[styles.actionImage, { tintColor: hasReposted ? themeColors.blue : themeColors.gray500 }]}
+                                />
+                            </View>
+                            {repostCount > 0 && (
+                                <AnimatedStatNumber
+                                    value={repostCount}
+                                    style={[styles.actionCount, { color: hasReposted ? themeColors.blue : themeColors.gray500 }]}
+                                />
+                            )}
+                        </TouchableOpacity>
+
                         <TouchableOpacity style={styles.actionBtn} hitSlop={6} onPress={handleShare}>
-                            <Ionicons name="paper-plane-outline" size={18} color={themeColors.gray500} />
+                            <View style={styles.actionImageContainer}>
+                                <Image
+                                    source={{ uri: 'https://img.icons8.com/?size=100&id=hUfhD6Fe5WgZ&format=png&color=000000' }}
+                                    style={[styles.actionImage, { tintColor: themeColors.gray500, width: 22, height: 22 }]}
+                                />
+                            </View>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -646,14 +791,15 @@ export default React.memo(PostCard, (prevProps, nextProps) => {
            prevProps.post.is_edited === nextProps.post.is_edited &&
            prevProps.post.my_vote === nextProps.post.my_vote &&
            prevProps.post.vote_count === nextProps.post.vote_count &&
+           prevProps.post.view_count === nextProps.post.view_count &&
+           prevProps.post.repost_count === nextProps.post.repost_count &&
+           prevProps.post.interaction_count === nextProps.post.interaction_count &&
+           prevProps.post.has_reposted === nextProps.post.has_reposted &&
            prevProps.post.comments?.[0]?.count === nextProps.post.comments?.[0]?.count &&
            prevProps.post.profiles?.name === nextProps.post.profiles?.name &&
            prevProps.post.profiles?.avatar_url === nextProps.post.profiles?.avatar_url &&
            prevProps.hideNavigation === nextProps.hideNavigation;
 });
-
-// Add import
-import PostShareModal from './PostShareModal';
 
 const styles = StyleSheet.create({
     card: {
@@ -728,10 +874,40 @@ const styles = StyleSheet.create({
         lineHeight: 21,
         marginTop: 6,
     },
+    contentSmall: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    repostedRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 6,
+    },
+    repostedText: {
+        fontFamily: fonts.medium,
+        fontSize: 12,
+    },
+    
     mediaContainer: {
         marginTop: 10,
         borderRadius: radii.md,
         overflow: 'hidden',
+    },
+    metricsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        marginTop: 12,
+    },
+    metricItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    metricText: {
+        fontFamily: fonts.medium,
+        fontSize: 12,
     },
     gridRow: {
         flexDirection: 'row',
@@ -775,7 +951,7 @@ const styles = StyleSheet.create({
     actions: {
         flexDirection: 'row',
         marginTop: 12,
-        gap: 24,
+        gap: 20,
         alignItems: 'center',
     },
     voteContainer: {
@@ -794,6 +970,17 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
     },
+    actionImage: {
+        width: 20,
+        height: 20,
+        resizeMode: 'contain',
+    },
+    actionImageContainer: {
+        width: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     voteCountText: {
         fontFamily: fonts.bold,
         fontSize: 13,
@@ -803,7 +990,7 @@ const styles = StyleSheet.create({
     actionBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 4,
         paddingVertical: 6,
     },
     actionCount: {

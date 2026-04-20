@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image as RNImage, Alert, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { useLocalSearchParams, Stack, useRouter, useNavigation } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
-import { getPost, getComments, addComment, deleteComment } from '../../src/api/posts';
+import { getPost, getComments, addComment, deleteComment, recordPostView } from '../../src/api/posts';
 import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../../src/components/PostCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
@@ -16,6 +16,7 @@ import {
     applyPostCommentCountChange,
     getCommentTotalFromResponse,
 } from '../../src/utils/postCommentCount';
+import { applyPostMetricsChange, POST_METRICS_CHANGED_EVENT } from '../../src/utils/postMetrics';
 
 function timeAgo(dateStr: string, t: (key: any) => string) {
     const d = new Date(dateStr);
@@ -30,6 +31,13 @@ function timeAgo(dateStr: string, t: (key: any) => string) {
     if (days < 7) return t('day_ago').replace('{{count}}', String(days));
     return d.toLocaleDateString();
 }
+
+const formatMetricCount = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+    return String(value);
+};
+
 
 export default function PostScreen() {
     const { colors, isDark } = useTheme();
@@ -63,6 +71,18 @@ export default function PostScreen() {
             if (postRes?.data) {
                 setPost(applyPostCommentCountChange(postRes.data, { postId: postRes.data.id, count: totalComments }));
                 loadMembers(postRes.data.community_id);
+
+                if (user?.id) {
+                    const viewRes = await recordPostView(postId);
+                    if (viewRes?.data) {
+                        const metricsPayload = {
+                            postId,
+                            view_count: viewRes.data.view_count,
+                        };
+                        setPost((prev: any) => prev ? applyPostMetricsChange(prev, metricsPayload) : prev);
+                        DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, metricsPayload);
+                    }
+                }
             }
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
         } catch (e) {
@@ -85,7 +105,24 @@ export default function PostScreen() {
         }
     };
 
-    useEffect(() => { loadData(); }, [id]);
+    useEffect(() => { loadData(); }, [id, user?.id]);
+
+    // view count is shown just under the post text in PostCard for post detail view
+    const navigation = useNavigation();
+
+    useEffect(() => {
+        if (!post) return;
+        const count = Number(post.view_count || 0);
+        const countLabel = count === 1 ? `${count} view` : `${formatMetricCount(count)} views`;
+        navigation.setOptions({
+            headerTitle: () => (
+                <View style={{ flexDirection: 'column' }}>
+                    <Text style={{ fontFamily: fonts.semibold, fontSize: 16, color: colors.black }}>{t('post_header')}</Text>
+                    <Text style={{ color: colors.gray500, fontFamily: fonts.medium, fontSize: 12, marginTop: 2 }}>{countLabel}</Text>
+                </View>
+            ),
+        });
+    }, [navigation, post, colors]);
 
     const buildCommentList = (flatComments: any[]) => {
         const map = new Map();
@@ -100,6 +137,14 @@ export default function PostScreen() {
                 roots.push(map.get(c.id));
             }
         });
+
+        // Sort children and roots so newest comments appear first
+        for (const node of map.values()) {
+            if (node.children && node.children.length) {
+                node.children.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            }
+        }
+        roots.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
         const flattenTree = (nodes: any[], depth = 0): any[] => {
             const result: any[] = [];
@@ -146,8 +191,19 @@ export default function PostScreen() {
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
             const nextCount = getCommentTotalFromResponse(commentRes);
             const payload = { postId, count: nextCount };
-            setPost((prev: any) => prev ? applyPostCommentCountChange(prev, payload) : prev);
+            const nextInteractionCount = Number(post?.interaction_count || 0) + 1;
+            setPost((prev: any) => {
+                if (!prev) return prev;
+                return applyPostMetricsChange(
+                    applyPostCommentCountChange(prev, payload),
+                    { postId, interaction_count: nextInteractionCount }
+                );
+            });
             DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, payload);
+            DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
+                postId,
+                interaction_count: nextInteractionCount,
+            });
         } catch (e) {
             console.log('Error adding comment', e);
             alert(t('failed_to_post_comment'));
@@ -178,8 +234,19 @@ export default function PostScreen() {
                         if (commentRes?.data) setComments(buildCommentList(commentRes.data));
                         const nextCount = getCommentTotalFromResponse(commentRes);
                         const payload = { postId, count: nextCount };
-                        setPost((prev: any) => prev ? applyPostCommentCountChange(prev, payload) : prev);
+                        const nextInteractionCount = Math.max(0, Number(post?.interaction_count || 0) - 1);
+                        setPost((prev: any) => {
+                            if (!prev) return prev;
+                            return applyPostMetricsChange(
+                                applyPostCommentCountChange(prev, payload),
+                                { postId, interaction_count: nextInteractionCount }
+                            );
+                        });
                         DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, payload);
+                        DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
+                            postId,
+                            interaction_count: nextInteractionCount,
+                        });
                     } catch (e) {
                         Alert.alert(t('error'), t('failed_to_delete_comment'));
                     }

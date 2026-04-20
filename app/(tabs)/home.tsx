@@ -18,6 +18,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import StoryViewer from '../../src/components/StoryViewer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
+import { POST_METRICS_CHANGED_EVENT, applyPostMetricsChange } from '../../src/utils/postMetrics';
 import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function HomeScreen() {
@@ -144,10 +145,19 @@ export default function HomeScreen() {
         const voteSub = DeviceEventEmitter.addListener('postVoted', (data) => {
             setPosts(prev => prev.map(p => {
                 if (p.id === data.postId) {
-                    return { ...p, my_vote: data.myVote, vote_count: data.voteCount };
+                    return {
+                        ...p,
+                        my_vote: data.myVote,
+                        vote_count: data.voteCount,
+                        interaction_count: typeof data.interactionCount === 'number' ? data.interactionCount : p.interaction_count,
+                    };
                 }
                 return p;
             }));
+        });
+
+        const metricsSub = DeviceEventEmitter.addListener(POST_METRICS_CHANGED_EVENT, (data) => {
+            setPosts(prev => prev.map(p => applyPostMetricsChange(p, data)));
         });
 
         const updateSub = DeviceEventEmitter.addListener('postUpdated', (data) => {
@@ -187,6 +197,7 @@ export default function HomeScreen() {
             storySub.remove();
             profileSub.remove();
             voteSub.remove();
+            metricsSub.remove();
             updateSub.remove();
             commentCountSub.remove();
         }
