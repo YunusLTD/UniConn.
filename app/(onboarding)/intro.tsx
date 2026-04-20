@@ -6,33 +6,37 @@ import { useTheme } from '../../src/context/ThemeContext';
 import { useOnboarding } from '../../src/context/OnboardingContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../src/context/LanguageContext';
+import LanguageDropdown from '../../src/components/LanguageDropdown';
 
 const SLIDES = [
     {
         id: '1',
         icon: 'people-outline',
-        title: 'Build Your Campus Circle',
-        description: 'Connect with students in your school, follow communities, and stay in sync with your people.',
+        titleKey: 'onboarding_slide1_headline',
+        descriptionKey: 'onboarding_slide1_body',
     },
     {
         id: '2',
         icon: 'calendar-clear-outline',
-        title: 'Discover What Is Happening',
-        description: 'Find events, workshops, and campus moments in one place so you never miss out.',
+        titleKey: 'onboarding_slide2_headline',
+        descriptionKey: 'onboarding_slide2_body',
     },
     {
         id: '3',
         icon: 'rocket-outline',
-        title: 'Thrive With UniConn',
-        description: 'Study together, discover opportunities, and buy or sell essentials inside your student hub.',
+        titleKey: 'onboarding_slide3_headline',
+        descriptionKey: 'onboarding_slide3_body',
     },
 ] as const;
 
 export default function IntroScreen() {
     const { colors } = useTheme();
+    const { t, language } = useLanguage();
     const router = useRouter();
     const { completeOnboarding } = useOnboarding();
     const [activeIndex, setActiveIndex] = useState(0);
+    const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
     const handleNext = async () => {
         if (activeIndex === SLIDES.length - 1) {
@@ -47,19 +51,29 @@ export default function IntroScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.white }]}>
-            <View style={styles.header}>
-                <View style={[styles.logoWrap, { borderColor: colors.gray200 }]}>
-                    <Image source={require('../../assets/favicon.png')} style={styles.logoImage} resizeMode="contain" />
-                </View>
-                <Text style={[styles.brandText, { color: colors.black }]}>uniconn</Text>
+            <View style={styles.topHeader}>
+                <View style={styles.flex1} />
+                <TouchableOpacity 
+                    style={styles.headerItem} 
+                    hitSlop={8}
+                    onPress={() => setShowLanguagePicker(true)}
+                >
+                    <Ionicons name="globe-outline" size={20} color={colors.gray500} />
+                    <Text style={[styles.headerText, { color: colors.gray500 }]}>{language.toUpperCase()}</Text>
+                </TouchableOpacity>
+
+                <LanguageDropdown 
+                    visible={showLanguagePicker} 
+                    onClose={() => setShowLanguagePicker(false)} 
+                />
             </View>
 
             <View style={styles.content}>
                 <View style={[styles.iconCircle, { backgroundColor: colors.gray100 }]}>
                     <Ionicons name={slide.icon} size={38} color={colors.black} />
                 </View>
-                <Text style={[styles.title, { color: colors.black }]}>{slide.title}</Text>
-                <Text style={[styles.description, { color: colors.gray500 }]}>{slide.description}</Text>
+                <Text style={[styles.title, { color: colors.black }]}>{t(slide.titleKey as any)}</Text>
+                <Text style={[styles.description, { color: colors.gray500 }]}>{t(slide.descriptionKey as any)}</Text>
             </View>
 
             <View style={styles.footer}>
@@ -78,7 +92,7 @@ export default function IntroScreen() {
 
                 <TouchableOpacity style={[styles.button, { backgroundColor: colors.black }]} onPress={handleNext} activeOpacity={0.8}>
                     <Text style={[styles.buttonText, { color: colors.white }]}>
-                        {activeIndex === SLIDES.length - 1 ? 'Get Started' : 'Continue'}
+                        {activeIndex === SLIDES.length - 1 ? t('onboarding_get_started') : t('onboarding_continue')}
                     </Text>
                 </TouchableOpacity>
 
@@ -90,7 +104,7 @@ export default function IntroScreen() {
                             router.replace('/(auth)/login');
                         }}
                     >
-                        <Text style={[styles.skipText, { color: colors.gray400 }]}>Skip</Text>
+                        <Text style={[styles.skipText, { color: colors.gray400 }]}>{t('onboarding_skip')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -103,27 +117,23 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: spacing.xl,
     },
-    header: {
-        marginTop: spacing.xxl,
+    topHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingTop: spacing.md,
     },
-    logoWrap: {
-        width: 64,
-        height: 64,
-        borderRadius: 20,
-        borderWidth: 1,
-        justifyContent: 'center',
+    flex1: {
+        flex: 1,
+    },
+    headerItem: {
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: 4,
     },
-    logoImage: {
-        width: 40,
-        height: 40,
-    },
-    brandText: {
-        marginTop: spacing.sm,
-        fontFamily: fonts.bold,
-        fontSize: 18,
-        letterSpacing: 0.3,
+    headerText: {
+        fontFamily: fonts.semibold,
+        fontSize: 14,
     },
     content: {
         flex: 1,
@@ -187,3 +197,4 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
+
