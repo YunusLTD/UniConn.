@@ -254,6 +254,31 @@ const translations = {
         request_sent_title: 'Request Sent',
         request_sent_body: 'This community is private. An admin will review your request.',
         pulse_title: 'The Pulse',
+        mentioned_in_moment: 'Mentioned in this moment',
+        report_story: 'Report Story',
+        report_this_story: 'Report this Story',
+        hours_left: '{{count}}h left',
+        view_full_profile: 'View Full Profile',
+        mentioned_who: 'Mentioned {{name}}',
+        me_label: 'Me',
+        moment_shared: 'Moment shared',
+        status_new_title: 'New Moment',
+        status_new_subtitle: 'Capture or choose a moment to share to your friends',
+        status_discard: 'Discard',
+        status_caption_placeholder: 'Add a caption…',
+        status_uploading: 'Uploading…',
+        status_share_cta: 'Share Moment',
+        status_open_camera: 'Open Camera',
+        status_open_camera_sub: 'Take a photo or record a video',
+        status_from_library: 'From Library',
+        status_from_library_sub: 'Choose a photo or video',
+        status_expiry_hint: 'Stories disappear after 24 hours',
+        status_preview_loading: 'Loading preview…',
+        status_mention_title: 'Mention a friend',
+        status_mention_empty: 'No friends to mention yet.',
+        status_text_placeholder: 'Type your story...',
+        status_permission_needed: 'Permission Needed',
+        status_camera_access_denied: 'Camera access is required to capture moments.',
         pulse_rules_title: 'Pulse Rules',
         pulse_rules_body: 'No bullying, no names, no harassment. Keep the campus safe.',
         pulse_empty_title: 'The Pulse is empty',
@@ -847,7 +872,32 @@ const translations = {
         leave_community_body: 'Topluluktan ayrılmak istediğine emin misin?',
         request_sent_title: 'İstek gönderildi',
         request_sent_body: 'Bu topluluk gizlidir. Bir yönetici isteğini inceleyecek.',
-        pulse_title: 'Pulse',
+        pulse_title: 'Nabız',
+        mentioned_in_moment: 'Bu hikayede bahsedilenler',
+        report_story: 'Hikayeyi Bildir',
+        report_this_story: 'Bu Hikayeyi Bildir',
+        hours_left: '{{count}} sa kaldı',
+        view_full_profile: 'Profilin Tamamını Gör',
+        mentioned_who: '{{name}} etiketlendi',
+        me_label: 'Ben',
+        moment_shared: 'An paylaşıldı',
+        status_new_title: 'Yeni An',
+        status_new_subtitle: 'Bir anı çek ya da seç ve arkadaşlarınla paylaş',
+        status_discard: 'Sil',
+        status_caption_placeholder: 'Açıklama ekle…',
+        status_uploading: 'Yükleniyor…',
+        status_share_cta: 'Anı Paylaş',
+        status_open_camera: 'Kamerayı Aç',
+        status_open_camera_sub: 'Foto çek ya da video kaydet',
+        status_from_library: 'Kütüphane',
+        status_from_library_sub: 'Foto ya da video seç',
+        status_expiry_hint: 'Hikayeler 24 saat sonra kaybolur',
+        status_preview_loading: 'Önizleme yükleniyor…',
+        status_mention_title: 'Arkadaşını etiketle',
+        status_mention_empty: 'Henüz etiketlenecek arkadaş yok.',
+        status_text_placeholder: 'Hikayeni yaz...',
+        status_permission_needed: 'İzin Gerekli',
+        status_camera_access_denied: 'Anıları yakalamak için kamera erişimi gereklidir.',
         pulse_rules_title: 'Pulse Kuralları',
         pulse_rules_body: 'Zorbalık yok, isim yok, taciz yok. Kampüsü güvenli tut.',
         pulse_empty_title: 'Pulse boş',
@@ -1476,7 +1526,32 @@ const translations = {
         leave_community_body: 'დარწმუნებული ხარ, რომ გინდა დატოვო თემი?',
         request_sent_title: 'მოთხოვნა გაგზავნილია',
         request_sent_body: 'ეს თემი დახურულია. ადმინი განიხილავს.',
-        pulse_title: 'Pulse',
+        pulse_title: 'პულსი',
+        mentioned_in_moment: 'მონიშნულია ამ მომენტში',
+        report_story: 'სთორის გასაჩივრება',
+        report_this_story: 'ამ სთორის გასაჩივრება',
+        hours_left: 'დარჩა {{count}} სთ',
+        view_full_profile: 'სრული პროფილის ნახვა',
+        mentioned_who: 'მონიშნულია {{name}}',
+        me_label: 'მე',
+        moment_shared: 'მომენტი გაზიარდა',
+        status_new_title: 'ახალი მომენტი',
+        status_new_subtitle: 'გადაიღე ან აირჩიე მომენტი და გაუზიარე მეგობრებს',
+        status_discard: 'გაუქმება',
+        status_caption_placeholder: 'დაამატე აღწერა…',
+        status_uploading: 'იტვირთება…',
+        status_share_cta: 'მომენტის გაზიარება',
+        status_open_camera: 'კამერის გახსნა',
+        status_open_camera_sub: 'გადაიღე ფოტო ან ვიდეო',
+        status_from_library: 'გალერეიდან',
+        status_from_library_sub: 'აირჩიე ფოტო ან ვიდეო',
+        status_expiry_hint: 'სტორი 24 საათში ქრება',
+        status_preview_loading: 'გადახედვა იტვირთება…',
+        status_mention_title: 'მონიშნე მეგობარი',
+        status_mention_empty: 'მეგობრები არ არის.',
+        status_text_placeholder: 'დაწერე შენი ისტორია...',
+        status_permission_needed: 'საჭიროა ნებართვა',
+        status_camera_access_denied: 'მოსამენტად საჭიროა კამერაზე წვდომა.',
         pulse_rules_title: 'Pulse წესები',
         pulse_rules_body: 'არავითარი ბულინგი, სახელები და შევიწროება. დაიცავი კამპუსი.',
         pulse_empty_title: 'Pulse ცარიელია',
@@ -1906,7 +1981,7 @@ export type TranslationKey = keyof typeof translations['en'];
 type LanguageContextType = {
     language: Language;
     setLanguage: (lang: Language) => void;
-    t: (key: keyof typeof translations['en']) => string;
+    t: (key: keyof typeof translations['en'], params?: Record<string, any>) => string;
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -1929,8 +2004,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await AsyncStorage.setItem('user_language', lang);
     };
 
-    const t = (key: keyof typeof translations['en']): string => {
-        return translations[language][key] || translations['en'][key] || key;
+    const t = (key: keyof typeof translations['en'], params?: Record<string, any>): string => {
+        let text = translations[language][key] || translations['en'][key] || key;
+        if (params) {
+            Object.keys(params).forEach(paramKey => {
+                text = text.replace(`{{${paramKey}}}`, String(params[paramKey]));
+            });
+        }
+        return text;
     };
 
     return (

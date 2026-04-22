@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
+import { useLanguage } from '../context/LanguageContext';
 
 interface StoryCircleProps {
     id: string;
@@ -29,6 +30,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
     isMe = false 
 }) => {
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const initial = title ? title[0].toUpperCase() : '?';
 
     return (
@@ -83,7 +85,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
             </View>
             <View style={styles.titleContainer}>
                 <Text style={[styles.title, { color: colors.gray500 }, isMe && { fontFamily: fonts.semibold, color: colors.black }]} numberOfLines={1}>
-                    {isMe ? 'Me' : title}
+                    {isMe ? t('me_label') : title}
                 </Text>
                 {isAdmin && <MaterialCommunityIcons name="check-decagram" size={12} color="#00A3FF" style={styles.badge} />}
             </View>

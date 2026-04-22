@@ -152,7 +152,7 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
                         <Text style={[styles.sellerName, { color: colors.gray400 }]}>{item.profiles?.name || t('user_fallback')}</Text>
                     </TouchableOpacity>
                     <View style={[styles.actionBtn, { backgroundColor: colors.black }, item.listing_type === 'request' && { backgroundColor: colors.blue }]}>
-                        <Text style={[styles.actionText, { color: colors.white }]}>{item.listing_type === 'request' ? t('help_source') : t('view_item')}</Text>
+                        <Text style={[styles.actionText, { color: colors.white }]}>{t('view_item')}</Text>
                     </View>
                 </View>
             </View>

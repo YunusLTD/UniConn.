@@ -12,6 +12,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRouter } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
@@ -58,6 +59,7 @@ interface StoryViewerProps {
 
 const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = [], initialUserIndex = 0, onClose }) => {
     const { user: currentUser } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const [currentUserIndex, setCurrentUserIndex] = useState(initialUserIndex);
     const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
@@ -253,7 +255,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
             }, 1500);
         } catch (e) {
             console.log('Report error', e);
-            Alert.alert("Error", "Failed to submit report. Please try again.");
+            Alert.alert(t('error'), t('report_submit_failed'));
             setIsReporting(false);
         }
     };
@@ -396,14 +398,14 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                     <Text style={styles.locationName}>
-                                        {currentStory?.created_at ? `${Math.max(1, Math.floor((new Date(currentStory.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60)))}h left` : '24h left'}
+                                        {currentStory?.created_at ? t('hours_left', { count: Math.max(1, Math.floor((new Date(currentStory.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60))) }) : t('hours_left', { count: 24 })}
                                     </Text>
                                     <View style={[styles.mediaBadge, { backgroundColor: currentStory?.media_type === 'video' ? 'rgba(239, 68, 68, 0.4)' : currentStory?.media_url === 'text_story' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(255, 255, 255, 0.15)' }]}>
                                         {currentStory?.media_url !== 'text_story' && (
                                             <Ionicons name={currentStory?.media_type === 'video' ? 'videocam' : 'image'} size={8} color="white" />
                                         )}
                                         <Text style={[styles.mediaBadgeText, currentStory?.media_url === 'text_story' && { fontSize: 10 }]}>
-                                            {currentStory?.media_type === 'video' ? 'VIDEO' : currentStory?.media_url === 'text_story' ? 'Aa' : 'PHOTO'}
+                                            {currentStory?.media_type === 'video' ? t('video_label').toUpperCase() : currentStory?.media_url === 'text_story' ? 'Aa' : t('photo_label').toUpperCase()}
                                         </Text>
                                     </View>
                                 </View>
@@ -422,7 +424,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                     {/* Mentioned Users UI */}
                     {mentions.length > 0 && (
                         <View style={styles.mentionsRow}>
-                            <Text style={styles.mentionsLabel}>Mentioned in this moment</Text>
+                            <Text style={styles.mentionsLabel}>{t('mentioned_in_moment')}</Text>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                                 {mentions.map((m, i) => (
                                     <TouchableOpacity
@@ -499,12 +501,12 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                             {userCluster.user?.id === currentUser?.id ? (
                                 <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }]} onPress={confirmDelete}>
                                     <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                                    <Text style={[styles.menuText, { color: '#EF4444' }]}>Delete</Text>
+                                    <Text style={[styles.menuText, { color: '#EF4444' }]}>{t('delete_label')}</Text>
                                 </TouchableOpacity>
                             ) : (
                                 <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }]} onPress={handleReportStory}>
                                     <Ionicons name="flag-outline" size={20} color="#EF4444" />
-                                    <Text style={[styles.menuText, { color: '#EF4444' }]}>Report Story</Text>
+                                    <Text style={[styles.menuText, { color: '#EF4444' }]}>{t('report_story')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -522,32 +524,32 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                                     <View style={{ backgroundColor: '#10B981', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
                                         <Ionicons name="checkmark" size={36} color="white" />
                                     </View>
-                                    <Text style={[styles.shareTitle, { color: colors.black, marginBottom: 8 }]}>Report Submitted</Text>
+                                    <Text style={[styles.shareTitle, { color: colors.black, marginBottom: 8 }]}>{t('report_submitted_title')}</Text>
                                     <Text style={{ color: colors.gray500, fontFamily: fonts.medium, textAlign: 'center' }}>
-                                        Thank you. We'll review this story and take appropriate action.
+                                        {t('report_submitted_message')}
                                     </Text>
                                 </View>
                             ) : (
                                 <>
-                                    <Text style={[styles.shareTitle, { color: colors.black }]}>Report this Story</Text>
+                                    <Text style={[styles.shareTitle, { color: colors.black }]}>{t('report_this_story')}</Text>
                                     
                                     <TouchableOpacity style={styles.menuItem} onPress={() => sendReport("inappropriate")} disabled={isReporting}>
                                         <Ionicons name="alert-circle-outline" size={20} color={isReporting ? colors.gray300 : colors.black} />
-                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>Inappropriate Content</Text>
+                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>{t('inappropriate_content_option')}</Text>
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity style={styles.menuItem} onPress={() => sendReport("harassment")} disabled={isReporting}>
                                         <Ionicons name="hand-left-outline" size={20} color={isReporting ? colors.gray300 : colors.black} />
-                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>Harassment or Hate Speech</Text>
+                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>{t('harassment_option')}</Text>
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity style={styles.menuItem} onPress={() => sendReport("spam")} disabled={isReporting}>
                                         <Ionicons name="ban-outline" size={20} color={isReporting ? colors.gray300 : colors.black} />
-                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>Spam or Misleading</Text>
+                                        <Text style={[styles.menuText, { color: isReporting ? colors.gray300 : colors.black }]}>{t('spam_option')}</Text>
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity style={styles.menuItem} onPress={closeOverlays} disabled={isReporting}>
-                                        <Text style={[styles.menuText, { color: colors.gray400, textAlign: 'center', width: '100%', marginTop: 10 }]}>Cancel</Text>
+                                        <Text style={[styles.menuText, { color: colors.gray400, textAlign: 'center', width: '100%', marginTop: 10 }]}>{t('cancel_label')}</Text>
                                     </TouchableOpacity>
                                     
                                     {isReporting && (
@@ -567,7 +569,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                                 <View style={[styles.shareHandle, { backgroundColor: colors.gray200 }]} />
                                 <Image source={{ uri: selectedMention?.avatar }} style={styles.quickViewAvatar} />
                                 <Text style={[styles.quickViewName, { color: colors.black }]}>@{selectedMention?.username}</Text>
-                                <Text style={[styles.quickViewTagline, { color: colors.gray500 }]}>Tagged in this moment</Text>
+                                <Text style={[styles.quickViewTagline, { color: colors.gray500 }]}>{t('mentioned_in_moment')}</Text>
                                 <TouchableOpacity
                                     style={[styles.quickViewProfileBtn, { backgroundColor: colors.primary }]}
                                     onPress={() => {
@@ -579,7 +581,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
                                         }
                                     }}
                                 >
-                                    <Text style={[styles.quickViewProfileBtnText, { color: colors.white }]}>View Full Profile</Text>
+                                    <Text style={[styles.quickViewProfileBtnText, { color: colors.white }]}>{t('view_full_profile')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </Pressable>

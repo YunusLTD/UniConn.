@@ -13,7 +13,7 @@ import { useNotifications } from '../../src/context/NotificationContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { supabase } from '../../src/api/supabase';
-import ShadowLoader from '../../src/components/ShadowLoader';
+import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
 // ActionModal replaced with inline contextual popup
 import { getCommunityMembers } from '../../src/api/communities';
@@ -122,6 +122,7 @@ const MessageItem = React.memo(({
     setPreviewMedia,
     isHidden
 }: any) => {
+    const [isMediaLoadingLocal, setIsMediaLoadingLocal] = useState(false);
     const bubbleRef = useRef<View>(null);
     const isMine = item.sender_id === user?.id;
     const isReply = !!(item.reply_to && item.reply_to.id);
@@ -199,10 +200,19 @@ const MessageItem = React.memo(({
                             </TouchableOpacity>
                         ) : (
                             <TouchableOpacity onPress={() => setPreviewMedia({ uri: item.media_url_local || item.media_url, type: 'image' })} activeOpacity={0.9}>
-                                <Image
-                                    source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }}
-                                    style={styles.attachedMedia}
-                                />
+                                <View style={{ position: 'relative' }}>
+                                    <Image
+                                        source={{ uri: item.media_url_local || item.media_url, cache: 'force-cache' }}
+                                        style={styles.attachedMedia}
+                                        onLoadStart={() => setIsMediaLoadingLocal(true)}
+                                        onLoadEnd={() => setIsMediaLoadingLocal(false)}
+                                    />
+                                    {isMediaLoadingLocal && (
+                                        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Skeleton width={240} height={180} borderRadius={12} />
+                                        </View>
+                                    )}
+                                </View>
                             </TouchableOpacity>
                         )
                     )}
@@ -505,8 +515,8 @@ export default function ChatScreen() {
     const pickMedia = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.All,
-            allowsEditing: true,
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 0.9,
         });
 
         if (!result.canceled) {
@@ -797,10 +807,17 @@ export default function ChatScreen() {
             />
 
             {mediaUri && (
-                <View style={styles.mediaPreviewContainer}>
+                <View style={[styles.mediaPreviewContainer, ]}> 
                     <Image source={{ uri: mediaUri }} style={styles.mediaPreview} />
-                    <TouchableOpacity style={styles.removeMediaBtn} onPress={() => setMediaUri(null)}>
-                        <Ionicons name="close-circle" size={24} color={colors.white} />
+                    <TouchableOpacity
+                        style={[
+                            styles.removeMediaBtn,
+                            { right: 12, top: 10 }
+                        ]}
+                        onPress={() => setMediaUri(null)}
+                        hitSlop={8}
+                    >
+                        <Ionicons name="close-circle" size={24} color={isDark ? colors.white : colors.black} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -906,18 +923,33 @@ export default function ChatScreen() {
             <Modal visible={!!previewMedia} transparent={true} animationType="fade">
                 <View style={styles.modalBg}>
                     <TouchableOpacity 
-                        style={styles.closePreview} 
+                        style={[
+                            styles.closePreview,
+                            {
+                                padding: 8,
+                                borderRadius: 18,
+                                backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.9)',
+                                borderWidth: 1,
+                                borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray200,
+                                right: 20,
+                                top: 60,
+                                position: 'absolute',
+                                zIndex: 20,
+                            }
+                        ]}
                         onPress={() => {
                             setPreviewMedia(null);
                             setIsMediaLoading(false);
                         }}
                     >
-                        <Ionicons name="close" size={30} color="#FFFFFF" />
+                        <Ionicons name="close" size={22} color={isDark ? colors.white : colors.black} />
                     </TouchableOpacity>
                     
                     {isMediaLoading && (
                         <View style={StyleSheet.absoluteFill}>
-                            <ActivityIndicator size="large" color="#FFFFFF" style={{ flex: 1 }} />
+                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                <Skeleton width="90%" height="80%" borderRadius={12} />
+                            </View>
                         </View>
                     )}
 
@@ -1241,7 +1273,7 @@ const styles = StyleSheet.create({
     sendBtnDisabled: { backgroundColor: colors.gray200 },
     modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
     closePreview: { position: 'absolute', top: 60, right: 20, zIndex: 10 },
-    fullImage: { width: '100%', height: '80%' },
+    fullImage: { width: '100%', height: '100%' },
     swipeIndicator: {
         position: 'absolute',
         top: '50%',

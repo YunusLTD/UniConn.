@@ -51,26 +51,6 @@ export default function StoryUploadScreen() {
     const PRESET_BGS = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#000000', '#6366F1'];
     const PRESET_TEXT = ['#FFFFFF', '#000000', '#FEF3C7', '#BAE6FD', '#D1FAE5', '#FBCFE8', '#DDD6FE', '#F3F4F6'];
 
-    const copy = {
-        setupTitle: language === 'tr' ? 'Yeni An' : language === 'ka' ? 'ახალი მომენტი' : 'New Moment',
-        setupSub: language === 'tr'
-            ? 'Bir anı çek ya da seç ve arkadaşlarınla paylaş'
-            : language === 'ka'
-                ? 'გადაიღე ან აირჩიე მომენტი და გაუზიარე მეგობრებს'
-                : 'Capture or choose a moment to share to your friends',
-        discard: language === 'tr' ? 'Sil' : language === 'ka' ? 'გაუქმება' : 'Discard',
-        video: language === 'tr' ? 'Video' : language === 'ka' ? 'ვიდეო' : 'Video',
-        photo: language === 'tr' ? 'Foto' : language === 'ka' ? 'ფოტო' : 'Photo',
-        caption: language === 'tr' ? 'Açıklama ekle…' : language === 'ka' ? 'დაამატე აღწერა…' : 'Add a caption…',
-        uploading: language === 'tr' ? 'Yukleniyor…' : language === 'ka' ? 'იტვირთება…' : 'Uploading…',
-        share: language === 'tr' ? 'Ani Paylas' : language === 'ka' ? 'მომენტის გაზიარება' : 'Share Moment',
-        openCamera: language === 'tr' ? 'Kamerayi Ac' : language === 'ka' ? 'კამერის გახსნა' : 'Open Camera',
-        openCameraSub: language === 'tr' ? 'Foto cek ya da video kaydet' : language === 'ka' ? 'გადაიღე ფოტო ან ვიდეო' : 'Take a photo or record a video',
-        fromLibrary: language === 'tr' ? 'Kutuphane' : language === 'ka' ? 'გალერეიდან' : 'From Library',
-        fromLibrarySub: language === 'tr' ? 'Foto ya da video sec' : language === 'ka' ? 'აირჩიე ფოტო ან ვიდეო' : 'Choose a photo or video',
-        storiesHint: language === 'tr' ? 'Hikayeler 24 saat sonra kaybolur' : language === 'ka' ? 'სტორი 24 საათში ქრება' : 'Stories disappear after 24 hours',
-        previewLoading: language === 'tr' ? 'Onizleme yukleniyor…' : language === 'ka' ? 'გადახედვა იტვირთება…' : 'Loading preview…',
-    };
 
     useEffect(() => {
         // Entry animation
@@ -120,7 +100,9 @@ export default function StoryUploadScreen() {
     const takeMedia = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return Alert.alert('Permission Needed', 'Camera access is required to capture moments.');
+        if (status !== 'granted') {
+            return Alert.alert(t('status_permission_needed'), t('status_camera_access_denied'));
+        }
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images', 'videos'],
             allowsEditing: false,
@@ -174,7 +156,7 @@ export default function StoryUploadScreen() {
             router.back();
         } catch (e: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Upload Failed', e.message || 'Something went wrong. Try again.');
+            Alert.alert(t('error'), e.message || t('setup_something_went_wrong'));
         } finally {
             setLoading(false);
         }
@@ -212,7 +194,7 @@ export default function StoryUploadScreen() {
     const selectMention = (friendInfo: any) => {
         // friendInfo could be friend or user depending on relationship direction from getFriendsList
         const user = friendInfo.friend || friendInfo.user;
-        const validUsername = user?.username || user?.name || 'User';
+        const validUsername = user?.username || user?.name || t('user_fallback');
         const validId = user?.id;
         const validAvatar = user?.avatar_url || '';
 
@@ -279,7 +261,7 @@ export default function StoryUploadScreen() {
                 {media && !isMediaReady && (
                     <View style={styles.mediaLoader}>
                         <ActivityIndicator size="large" color="white" />
-                        <Text style={styles.mediaLoaderText}>{copy.previewLoading}</Text>
+                        <Text style={styles.mediaLoaderText}>{t('status_preview_loading')}</Text>
                     </View>
                 )}
 
@@ -328,7 +310,7 @@ export default function StoryUploadScreen() {
                                         <View style={styles.headerPill}>
                                             <View style={[styles.liveIndicator, { backgroundColor: media.type === 'video' ? '#EF4444' : '#22C55E' }]} />
                                             <Text style={styles.headerPillText}>
-                                                {media.type === 'video' ? copy.video : copy.photo}
+                                                {media.type === 'video' ? t('video_label') : t('photo_label')}
                                             </Text>
                                         </View>
                                     )}
@@ -352,7 +334,7 @@ export default function StoryUploadScreen() {
                                 <Animated.View style={[styles.textModeContainer, { opacity: fadeAnim }]}>
                                     <TextInput
                                         style={[styles.textStatusInput, { color: PRESET_TEXT[textColorIndex] }]}
-                                        placeholder="Type your story..."
+                                        placeholder={t('status_text_placeholder')}
                                         placeholderTextColor="rgba(255,255,255,0.4)"
                                         value={textStatus}
                                         onChangeText={setTextStatus}
@@ -373,7 +355,7 @@ export default function StoryUploadScreen() {
                                         </View>
                                         <TextInput
                                             style={styles.captionInput}
-                                            placeholder={copy.caption}
+                                            placeholder={t('status_caption_placeholder')}
                                             placeholderTextColor="rgba(255,255,255,0.45)"
                                             value={caption}
                                             onChangeText={setCaption}
@@ -395,12 +377,12 @@ export default function StoryUploadScreen() {
                                     {loading ? (
                                         <View style={styles.loadingRow}>
                                             <ActivityIndicator color="white" size="small" />
-                                            <Text style={styles.shareBtnText}>{copy.uploading}</Text>
+                                            <Text style={styles.shareBtnText}>{t('status_uploading')}</Text>
                                         </View>
                                     ) : (
                                         <View style={styles.loadingRow}>
                                             <Ionicons name="paper-plane" size={18} color="white" />
-                                            <Text style={styles.shareBtnText}>{copy.share}</Text>
+                                            <Text style={styles.shareBtnText}>{t('status_share_cta')}</Text>
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -413,7 +395,7 @@ export default function StoryUploadScreen() {
                         <View style={styles.mentionModalOverlay}>
                             <View style={styles.mentionSheet}>
                                 <View style={styles.sheetHandle} />
-                                <Text style={styles.sheetTitle}>Mention a friend</Text>
+                                <Text style={styles.sheetTitle}>{t('status_mention_title')}</Text>
                                 <Ionicons 
                                     name="close" 
                                     size={24} 
@@ -425,7 +407,7 @@ export default function StoryUploadScreen() {
                                 {friendsLoading ? (
                                     <ActivityIndicator size="small" color="#fff" style={{ marginTop: 20 }} />
                                 ) : friends.length === 0 ? (
-                                    <Text style={styles.noFriendsText}>No friends to mention yet.</Text>
+                                    <Text style={styles.noFriendsText}>{t('status_mention_empty')}</Text>
                                 ) : (
                                     <FlatList
                                         data={friends}
@@ -480,8 +462,8 @@ export default function StoryUploadScreen() {
                         </LinearGradient>
                     </Animated.View>
                     
-                    <Text style={[styles.heroTitle, { color: colors.black }]}>{copy.setupTitle}</Text>
-                    <Text style={[styles.heroSub, { color: colors.gray500 }]}>{copy.setupSub}</Text>
+                    <Text style={[styles.heroTitle, { color: colors.black }]}>{t('status_new_title')}</Text>
+                    <Text style={[styles.heroSub, { color: colors.gray500 }]}>{t('status_new_subtitle')}</Text>
                 </Animated.View>
 
                 {/* Bottom Action Bar - Camera/Library Focus */}
@@ -520,7 +502,7 @@ export default function StoryUploadScreen() {
 
                     <View style={styles.hintRow}>
                         <Ionicons name="time-outline" size={14} color={colors.gray400} />
-                        <Text style={[styles.hintText, { color: colors.gray400 }]}>{copy.storiesHint}</Text>
+                        <Text style={[styles.hintText, { color: colors.gray400 }]}>{t('status_expiry_hint')}</Text>
                     </View>
                 </View>
             </SafeAreaView>
