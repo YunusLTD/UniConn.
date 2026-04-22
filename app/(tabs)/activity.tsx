@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,7 +44,7 @@ export default function ActivityScreen() {
     const { t, language } = useLanguage();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<string>('activity');
+    const [filter, setFilter] = useState<string>('all');
 
     const { refreshUnreadCount } = useNotifications();
 
@@ -139,21 +139,40 @@ export default function ActivityScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ title: t('activity_header') }} />
-            <View style={styles.filterRow}>
-                {[
-                    { key: 'all', label: t('notif_filter_all') },
-                    { key: 'activity', label: t('notif_filter_activity') },
-                    { key: 'messages', label: t('notif_filter_messages') },
-                    { key: 'pulse', label: t('notif_filter_pulse') },
-                ].map(f => (
-                    <TouchableOpacity
-                        key={f.key}
-                        style={[styles.filterPill, filter === f.key && styles.filterPillActive]}
-                        onPress={() => handleSelectFilter(f.key)}
-                    >
-                        <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
-                    </TouchableOpacity>
-                ))}
+            <View style={[styles.filterContainer, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterRow}
+                >
+                    {[
+                        { key: 'all', label: t('notif_filter_all') },
+                        { key: 'upvotes', label: t('notif_filter_upvotes') },
+                        { key: 'comments', label: t('notif_filter_comments') },
+                        { key: 'friend_request', label: t('notif_filter_friend_requests') },
+                        { key: 'pulse', label: t('notif_filter_pulse') },
+                        { key: 'poll', label: t('notif_filter_poll') },
+                        { key: 'mentions', label: t('notif_filter_mentions') },
+                    ].map(f => (
+                        <TouchableOpacity
+                            key={f.key}
+                            style={[
+                                styles.filterPill, 
+                                { borderColor: colors.border },
+                                filter === f.key && { backgroundColor: colors.black, borderColor: colors.black }
+                            ]}
+                            onPress={() => handleSelectFilter(f.key)}
+                        >
+                            <Text style={[
+                                styles.filterText, 
+                                { color: filter === f.key ? colors.white : colors.gray500 },
+                                filter === f.key && { fontFamily: fonts.semibold }
+                            ]}>
+                                {f.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
             <FlatList
                 data={notifications}
@@ -252,9 +271,8 @@ const styles = StyleSheet.create({
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
     emptyTitle: { fontFamily: fonts.bold, fontSize: 20, textAlign: 'center' },
     emptySub: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4, textAlign: 'center' },
-    filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 12, gap: 8, backgroundColor: 'transparent' },
-    filterPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E5E7EB' },
-    filterPillActive: { backgroundColor: '#000000', borderColor: '#000000' },
-    filterText: { fontFamily: fonts.regular, fontSize: 13, color: '#6B7280' },
-    filterTextActive: { color: '#FFFFFF', fontFamily: fonts.semibold },
+    filterContainer: { borderBottomWidth: StyleSheet.hairlineWidth },
+    filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 14, gap: 8 },
+    filterPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+    filterText: { fontFamily: fonts.medium, fontSize: 13 },
 });

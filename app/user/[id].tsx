@@ -16,6 +16,8 @@ import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
 import MarketCard from '../../src/components/MarketCard';
 import ActionModal from '../../src/components/ActionModal';
+import StudyCard from '../../src/components/StudyCard';
+import JobCard from '../../src/components/JobCard';
 import { useToast } from '../../src/context/ToastContext';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { getUserStories } from '../../src/api/stories';
@@ -26,14 +28,12 @@ import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '.
 import { POST_METRICS_CHANGED_EVENT, applyPostMetricsChange } from '../../src/utils/postMetrics';
 import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
 
-type TabType = 'posts' | 'events' | 'polls' | 'listings';
+type TabType = 'posts' | 'replies';
 
-const TABS: { key: TabType, icon: string }[] = [
-    { key: 'posts', icon: 'grid-outline' },
-    { key: 'events', icon: 'calendar-outline' },
-    { key: 'polls', icon: 'stats-chart-outline' },
-    { key: 'listings', icon: 'cart-outline' },
-];
+const buildTabs = (t: (k: any) => string) => ([
+    { key: 'posts' as TabType, label: t('all_activity_tab') },
+    { key: 'replies' as TabType, label: t('replies_tab') },
+]);
 
 export default function UserProfileScreen() {
     const { colors, isDark } = useTheme();
@@ -114,9 +114,7 @@ export default function UserProfileScreen() {
         try {
             let res;
             if (tab === 'posts') res = await getUserPosts(targetId);
-            else if (tab === 'events') res = await getUserEvents(targetId);
-            else if (tab === 'polls') res = await getUserPolls(targetId);
-            else if (tab === 'listings') res = await getUserMarketplaceListings(targetId);
+            else if (tab === 'replies') res = await getMyComments(targetId); // backend service works for any userId
             setContent(res?.data || []);
         } catch (e) {
             console.log('Error loading tab content', e);
@@ -624,49 +622,38 @@ export default function UserProfileScreen() {
                                 )}
                             </View>
                             <View style={[styles.actionRow, { marginTop: 8 }]}>
-                                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
+                                <TouchableOpacity style={[styles.actionBtn, { borderRadius: 100, backgroundColor: isDark ? colors.surface : colors.gray100, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
                                     <Ionicons name="share-outline" size={18} color={colors.black} />
                                     <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile_label')}</Text>
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Pill-style Tab Bar */}
-                            {/* Segmented Pill Tab Bar */}
-                            <View style={styles.tabsContainer}>
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    contentContainerStyle={styles.tabContent}
-                                >
-                                    {TABS.map(({ key, icon }) => (
+                            <View style={[styles.tabsOuterContainer, { borderBottomColor: colors.border, marginTop: 12 }]}>
+                                <View style={styles.tabContent}>
+                                    {buildTabs(t).map(({ key, label }) => (
                                         <TouchableOpacity
                                             key={key}
                                             style={[
-                                                styles.tabPill,
-                                                {
-                                                    backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50),
-                                                    borderWidth: 1,
-                                                    borderColor: activeTab === key ? colors.black : colors.border,
-                                                },
-                                                activeTab === key && styles.activeTabPill
+                                                styles.tabItem,
+                                                activeTab === key && styles.activeTabItem
                                             ]}
                                             onPress={() => setActiveTab(key)}
                                             activeOpacity={0.7}
                                         >
-                                            <Ionicons
-                                                name={(activeTab === key ? icon.replace('-outline', '') : icon) as any}
-                                                size={16}
-                                                color={activeTab === key ? colors.white : colors.gray500}
-                                            />
-                                            <Text style={[styles.tabLabel, { color: activeTab === key ? colors.white : colors.gray500 }]}>
-                                                {key === 'posts' ? (t('post_tab' as any) || 'Posts') :
-                                                 key === 'events' ? (t('event_tab' as any) || 'Events') :
-                                                 key === 'polls' ? (t('poll_tab' as any) || 'Polls') :
-                                                 (t('market_tab' as any) || 'Market')}
-                                            </Text>
+                                            <View style={styles.tabContentInner}>
+                                                <Text style={[
+                                                    styles.tabLabel,
+                                                    { color: activeTab === key ? colors.black : colors.gray400 }
+                                                ]}>
+                                                    {label}
+                                                </Text>
+                                            </View>
+                                            {activeTab === key && (
+                                                <View style={[styles.tabIndicator, { backgroundColor: colors.black }]} />
+                                            )}
                                         </TouchableOpacity>
                                     ))}
-                                </ScrollView>
+                                </View>
                             </View>
                         </>
                     )}
@@ -681,10 +668,8 @@ export default function UserProfileScreen() {
                             <View style={styles.emptyState}>
                                 <Ionicons
                                     name={
-                                        activeTab === 'posts' ? 'camera-outline' :
-                                            activeTab === 'events' ? 'calendar-outline' :
-                                                activeTab === 'polls' ? 'stats-chart-outline' :
-                                                    'cart-outline'
+                                        activeTab === 'posts' ? 'list-outline' :
+                                            'chatbubble-ellipses-outline'
                                     }
                                     size={48}
                                     color={colors.gray300}
@@ -692,13 +677,55 @@ export default function UserProfileScreen() {
                                 <Text style={[styles.emptyTitle, { color: colors.gray500 }]}>{t('no_content_yet')}</Text>
                             </View>
                         ) : (
-                            content.map((item) => {
-                                if (activeTab === 'posts') return <PostCard key={item.id} post={item} hideNavigation={false} />;
-                                if (activeTab === 'events') return <EventCard key={item.id} event={item} />;
-                                if (activeTab === 'polls') return <PollCard key={item.id} poll={item} />;
-                                if (activeTab === 'listings') return <MarketCard key={item.id} item={item} />;
-                                return null;
-                            })
+                             content.map((item) => {
+                                 if (activeTab === 'posts') {
+                                     if (item.feed_type === 'post') return <PostCard key={item.id} post={item} hideNavigation={false} />;
+                                     if (item.feed_type === 'event') return <EventCard key={item.id} event={item} />;
+                                     if (item.feed_type === 'poll') return <PollCard key={item.id} poll={item} />;
+                                     if (item.feed_type === 'market') return <MarketCard key={item.id} item={item} />;
+                                     if (item.feed_type === 'study') return <StudyCard key={item.id} question={item} />;
+                                     if (item.feed_type === 'job') return <JobCard key={item.id} job={item} />;
+                                     return <PostCard key={item.id} post={item} hideNavigation={false} />;
+                                 }
+                                 if (activeTab === 'replies') {
+                                     const p = Array.isArray(item.posts) ? item.posts[0] : item.posts;
+                                     if (!p) return null;
+                                     return (
+                                         <View key={item.id} style={{ marginBottom: 12 }}>
+                                             <View style={{ padding: spacing.lg, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
+                                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                                                     <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, overflow: 'hidden' }}>
+                                                         {profile?.avatar_url && <Image source={{ uri: profile.avatar_url }} style={{ width: '100%', height: '100%' }} />}
+                                                     </View>
+                                                     <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.black }}>{profile?.name}</Text>
+                                                     <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.gray400 }}>{t('replied_to') || 'replied to'}</Text>
+                                                 </View>
+                                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: colors.black, marginBottom: 12 }}>{item.content}</Text>
+                                                 <TouchableOpacity
+                                                     onPress={() => router.push(`/posts/${p.id}`)}
+                                                     activeOpacity={0.8}
+                                                     style={{
+                                                         borderRadius: 12,
+                                                         borderWidth: 1,
+                                                         borderColor: colors.border,
+                                                         padding: 12,
+                                                         backgroundColor: colors.background
+                                                     }}
+                                                 >
+                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                                         <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.gray100, overflow: 'hidden' }}>
+                                                             {p.profiles?.avatar_url && <Image source={{ uri: p.profiles.avatar_url }} style={{ width: '100%', height: '100%' }} />}
+                                                         </View>
+                                                         <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.gray600 }}>{p.profiles?.name}</Text>
+                                                     </View>
+                                                     <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.gray500 }} numberOfLines={2}>{p.content}</Text>
+                                                 </TouchableOpacity>
+                                             </View>
+                                         </View>
+                                     );
+                                 }
+                                 return null;
+                             })
                         )}
                     </View>
                 )}
@@ -967,38 +994,42 @@ export default function UserProfileScreen() {
     },
     unblockBtnText: { fontFamily: fonts.bold, fontSize: 13 },
 
-    // Tabs — Unified Pill Form
-    tabsContainer: {
-        marginTop: 24,
+    // Tabs — Unified Text Form
+    tabsOuterContainer: {
+        borderBottomWidth: 0.5,
     },
     tabContent: {
         flexDirection: 'row',
-        gap: 4,
-        padding: 10
+        paddingHorizontal: spacing.lg,
     },
-    tabPill: {
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 14,
+        position: 'relative',
+    },
+    activeTabItem: {
+    },
+    tabContentInner: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 18,
-        paddingVertical: 10,
-        borderRadius: radii.full,
-        gap: 6,
-    },
-    activeTabPill: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        gap: 8,
     },
     tabLabel: {
         fontFamily: fonts.bold,
         fontSize: 13,
+        letterSpacing: 0.3,
     },
-    activeTabLabel: {
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        width: 48,
+        height: 2,
+        borderRadius: 1,
     },
 
     // Content
-    contentArea: { flex: 1, minHeight: 300 },
+    contentArea: { flex: 1, minHeight: 300, paddingTop: 8 },
     emptyState: { alignItems: 'center', marginTop: 64, gap: 12 },
     emptyTitle: {
         fontFamily: fonts.medium,

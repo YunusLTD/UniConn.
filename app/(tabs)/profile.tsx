@@ -4,9 +4,8 @@ import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getProfile, deleteAccount } from '../../src/api/users';
-import { getMyPosts } from '../../src/api/posts';
+import { getMyPosts, getMyComments, getSavedPosts, getUpvotedPosts } from '../../src/api/posts';
 import { getMyEvents } from '../../src/api/events';
-import { getMyPolls } from '../../src/api/polls';
 import { getMyMarketplaceListings } from '../../src/api/marketplace';
 import { getFriendsCount, getFriendRequests } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +14,8 @@ import PostCard from '../../src/components/PostCard';
 import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
 import MarketCard from '../../src/components/MarketCard';
+import StudyCard from '../../src/components/StudyCard';
+import JobCard from '../../src/components/JobCard';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import FriendRequestBanner from '../../src/components/FriendRequestBanner';
 import ProfileQRModal from '../../src/components/ProfileQRModal';
@@ -29,14 +30,53 @@ import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } f
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 
-type TabType = 'posts' | 'events' | 'polls' | 'listings' | 'settings';
+type TabType = 'posts' | 'replies' | 'saved' | 'upvoted' | 'settings';
 
 const buildTabs = (t: (k: any) => string) => ([
     { key: 'posts' as TabType, icon: 'grid-outline', label: t('post_tab') },
-    { key: 'events' as TabType, icon: 'calendar-outline', label: t('event_tab') },
-    { key: 'listings' as TabType, icon: 'cart-outline', label: t('market_tab') },
-    { key: 'settings' as TabType, icon: 'settings-outline', label: t('settings') },
+    { key: 'replies' as TabType, icon: 'chatbubble-ellipses-outline', label: t('replies_tab') },
+    { key: 'saved' as TabType, icon: 'bookmark-outline', label: t('saved_tab') },
+    { key: 'upvoted' as TabType, icon: 'arrow-up-circle-outline', label: t('upvoted_tab') },
 ]);
+
+const timeAgo = (dateStr: string, t: (key: any) => string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return t('just_now');
+    if (mins < 60) return t('minute_ago').replace('{{count}}', String(mins));
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return t('hour_ago').replace('{{count}}', String(hrs));
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return t('day_ago').replace('{{count}}', String(days));
+    return d.toLocaleDateString();
+};
+
+const buildReplyGroups = (items: any[]) => {
+    const groups: Array<{ postId: string, postItem: any, replies: any[] }> = [];
+    const groupsMap = new Map<string, { postId: string, postItem: any, replies: any[] }>();
+
+    items.forEach((item) => {
+        const postItem = Array.isArray(item.posts) ? item.posts[0] : item.posts;
+        const postId = item.post_id || postItem?.id || `unknown-${item.id}`;
+
+        let group = groupsMap.get(postId);
+        if (!group) {
+            group = { postId, postItem: postItem || null, replies: [] };
+            groupsMap.set(postId, group);
+            groups.push(group);
+        }
+
+        if (!group.postItem && postItem) {
+            group.postItem = postItem;
+        }
+
+        group.replies.push(item);
+    });
+
+    return groups;
+};
 
 export default function ProfileScreen() {
     const { logout, user, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
@@ -63,6 +103,8 @@ export default function ProfileScreen() {
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const [showUniScoreModal, setShowUniScoreModal] = useState(false);
+    const [expandedReplyPosts, setExpandedReplyPosts] = useState<Record<string, boolean>>({});
+    const activeTabRef = useRef<TabType>('posts');
     const router = useRouter();
     const profileBackground = isDark ? colors.surface : colors.background;
 
@@ -105,9 +147,9 @@ export default function ProfileScreen() {
         try {
             let res;
             if (tab === 'posts') res = await getMyPosts();
-            else if (tab === 'events') res = await getMyEvents();
-            else if (tab === 'polls') res = await getMyPolls();
-            else if (tab === 'listings') res = await getMyMarketplaceListings();
+            else if (tab === 'replies') res = await getMyComments();
+            else if (tab === 'saved') res = await getSavedPosts();
+            else if (tab === 'upvoted') res = await getUpvotedPosts();
             setContent(res?.data || []);
         } catch (e) {
             console.log('Error loading tab content', e);
@@ -119,6 +161,9 @@ export default function ProfileScreen() {
     useFocusEffect(
         useCallback(() => {
             loadProfileData();
+            if (activeTabRef.current !== 'settings') {
+                loadTabContent(activeTabRef.current);
+            }
             // Load pending requests for the banner
             const loadRequestData = async () => {
                 try {
@@ -130,7 +175,10 @@ export default function ProfileScreen() {
         }, [])
     );
 
-    useEffect(() => { loadTabContent(activeTab); }, [activeTab]);
+    useEffect(() => {
+        activeTabRef.current = activeTab;
+        loadTabContent(activeTab);
+    }, [activeTab]);
 
 
     useEffect(() => {
@@ -186,6 +234,100 @@ export default function ProfileScreen() {
         }
     };
 
+    const renderReplyContentWithMentions = (replyContent: string) => {
+        if (!replyContent) return null;
+        const parts = replyContent.split(/(@[\w.-]+)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('@')) {
+                const username = part.substring(1);
+                return (
+                    <Text
+                        key={index}
+                        style={{ color: colors.blue, fontFamily: fonts.semibold }}
+                        onPress={() => router.push(`/user/${username}`)}
+                    >
+                        {part}
+                    </Text>
+                );
+            }
+            return <Text key={index}>{part}</Text>;
+        });
+    };
+
+    const handleDeleteReply = (item: any) => {
+        Alert.alert(t('delete_comment_title'), t('delete_comment_confirm'), [
+            { text: t('cancel_label'), style: 'cancel' },
+            {
+                text: t('delete_label'),
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await deleteComment(item.post_id, item.id);
+                        setContent(prev => prev.filter(reply => reply.id !== item.id));
+                        DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, { postId: item.post_id, delta: -1 });
+                    } catch (e) {
+                        Alert.alert(t('error'), t('failed_to_delete_comment'));
+                    }
+                },
+            },
+        ]);
+    };
+
+    const toggleReplyGroup = (postId: string) => {
+        setExpandedReplyPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
+    };
+
+    const renderReplyRow = (item: any) => {
+        const replyProfile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+        const replyInitial = replyProfile?.name?.[0]?.toUpperCase() || 'U';
+
+        return (
+            <View style={[styles.replyBodyCard, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+                <TouchableOpacity
+                    onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}
+                    style={[styles.replyAvatar, { backgroundColor: colors.background }]}
+                    activeOpacity={0.8}
+                >
+                    {replyProfile?.avatar_url ? (
+                        <Image source={{ uri: replyProfile.avatar_url }} style={styles.replyAvatarImg} />
+                    ) : (
+                        <Text style={[styles.replyAvatarText, { color: colors.gray600 }]}>{replyInitial}</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.replyContentBody}
+                    onPress={() => router.push(`/post/${item.post_id}`)}
+                >
+                    <View style={styles.replyHeader}>
+                        <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
+                            <Text style={[styles.replyAuthor, { color: colors.black }]}>{replyProfile?.name || t('unknown_user')}</Text>
+                        </TouchableOpacity>
+                        <Text style={[styles.replyTime, { color: colors.gray400 }]}>{timeAgo(item.created_at, t)}</Text>
+                        {!!item.is_edited && (
+                            <Text style={[styles.replyTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
+                        )}
+                        <View style={{ flex: 1 }} />
+                        <TouchableOpacity
+                            hitSlop={8}
+                            onPress={() => handleDeleteReply(item)}
+                            style={styles.replyMenuBtn}
+                        >
+                            <Ionicons name="ellipsis-horizontal" size={16} color={colors.gray500} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={[styles.replyContent, { color: colors.gray700 }]}>
+                        {renderReplyContentWithMentions(item.content)}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const groupedReplies = activeTab === 'replies' ? buildReplyGroups(content) : [];
+
     const initial = profile?.name?.[0]?.toUpperCase() || 'U';
 
     if (loading) return (
@@ -200,11 +342,38 @@ export default function ProfileScreen() {
             <View
                 style={[styles.navHeader, { backgroundColor: profileBackground, borderBottomColor: colors.border }]}
             >
-                <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || t('profile'))}</Text>
+                {activeTab === 'settings' ? (
+                    <>
+                        <TouchableOpacity
+                            onPress={() => setActiveTab('posts')}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            activeOpacity={0.7}
+                            style={styles.headerMenuBtn}
+                        >
+                            <Ionicons name="arrow-back" size={24} color={colors.black} />
+                        </TouchableOpacity>
+                        <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{t('settings')}</Text>
+                        <View style={{ width: 36 }} />
+                    </>
+                ) : (
+                    <>
+                        <View style={{ width: 36 }} />
+                        <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || t('profile'))}</Text>
+                        <TouchableOpacity
+                            onPress={() => router.push('/settings')}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            activeOpacity={0.7}
+                            style={styles.headerMenuBtn}
+                        >
+                            <Ionicons name="menu-outline" size={26} color={colors.black} />
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
-                {/* IG-style header */}
+                {/* IG-style header — hidden when settings is active */}
+                {activeTab !== 'settings' && (
                 <View style={styles.header}>
                     <View style={styles.topRow}>
                         <TouchableOpacity 
@@ -358,42 +527,37 @@ export default function ProfileScreen() {
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile')}</Text>
                         </TouchableOpacity>
                     </View>
-
-                    {/* Segmented Pill Tab Bar */}
-                    <View style={styles.tabsContainer}>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.tabContent}
-                        >
-                            {TABS.map(({ key, icon, label }) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={[
-                                        styles.tabPill, 
-                                        {
-                                            backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray50),
-                                            borderWidth: 1,
-                                            borderColor: activeTab === key ? colors.black : colors.border,
-                                        },
-                                        activeTab === key && styles.activeTabPill
-                                    ]}
-                                    onPress={() => setActiveTab(key)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Ionicons
-                                        name={(activeTab === key ? icon.replace('-outline', '') : icon) as any}
-                                        size={16}
-                                        color={activeTab === key ? colors.white : colors.gray600}
-                                    />
-                                    <Text style={[styles.tabLabel, { color: activeTab === key ? colors.white : colors.gray500 }]}>
-                                        {label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
                 </View>
+                )}
+
+                {/* Segmented Tab Bar — Outside of padded header for full width */}
+                {activeTab !== 'settings' && (
+                <View style={[styles.tabsContainer, { borderBottomColor: colors.border, backgroundColor: profileBackground }]}>
+                    {TABS.map(({ key, icon, label }) => (
+                        <TouchableOpacity
+                            key={key}
+                            style={[
+                                styles.tabItem,
+                                activeTab === key && styles.activeTabItem
+                            ]}
+                            onPress={() => setActiveTab(key)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.tabContentInner}>
+                                <Text style={[
+                                    styles.tabLabel, 
+                                    { color: activeTab === key ? colors.black : colors.gray400 }
+                                ]}>
+                                    {label}
+                                </Text>
+                            </View>
+                            {activeTab === key && (
+                                <View style={[styles.tabIndicator, { backgroundColor: colors.black }]} />
+                            )}
+                        </TouchableOpacity>
+                    ))}
+                </View>
+                )}
 
                 {/* Content Area */}
                 <View style={styles.contentArea}>
@@ -492,10 +656,10 @@ export default function ProfileScreen() {
                                 <View style={styles.emptyState}>
                                     <Ionicons
                                         name={
-                                            activeTab === 'posts' ? 'camera-outline' :
-                                                activeTab === 'events' ? 'calendar-outline' :
-                                                    activeTab === 'polls' ? 'stats-chart-outline' :
-                                                        'briefcase-outline'
+                                            activeTab === 'posts' ? 'list-outline' :
+                                                activeTab === 'replies' ? 'chatbubble-ellipses-outline' :
+                                                    activeTab === 'saved' ? 'bookmark-outline' :
+                                                        'heart-outline'
                                         }
                                         size={48}
                                         color={colors.gray300}
@@ -503,12 +667,55 @@ export default function ProfileScreen() {
                                     />
                                     <Text style={[styles.emptyText, { color: colors.gray500 }]}>No {activeTab} yet</Text>
                                 </View>
+                            ) : activeTab === 'replies' ? (
+                                groupedReplies.map((group) => {
+                                    const isExpanded = !!expandedReplyPosts[group.postId];
+                                    const visibleReplies = isExpanded ? group.replies : group.replies.slice(0, 1);
+                                    const remainingCount = group.replies.length - 1;
+
+                                    return (
+                                        <React.Fragment key={group.postId}>
+                                            {group.postItem ? (
+                                                <PostCard post={group.postItem} />
+                                            ) : (
+                                                <View style={[styles.replyMissingPost, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+                                                    <Text style={[styles.replyMissingPostText, { color: colors.gray500 }]}>Post unavailable</Text>
+                                                </View>
+                                            )}
+
+                                            {visibleReplies.map((replyItem) => (
+                                                <React.Fragment key={replyItem.id}>
+                                                    {renderReplyRow(replyItem)}
+                                                </React.Fragment>
+                                            ))}
+
+                                            {remainingCount > 0 && (
+                                                <TouchableOpacity
+                                                    activeOpacity={0.8}
+                                                    style={styles.replyToggleBtn}
+                                                    onPress={() => toggleReplyGroup(group.postId)}
+                                                >
+                                                    <Text style={[styles.replyToggleText, { color: colors.gray500 }]}>
+                                                        {isExpanded
+                                                            ? 'Show less replies'
+                                                            : `See ${remainingCount} more ${remainingCount === 1 ? t('reply') : t('replies')}`}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })
                             ) : (
                                 content.map((item) => {
-                                    if (activeTab === 'posts') return <PostCard key={item.id} post={item} showDelete={true} onDelete={handleItemDelete} />;
-                                    if (activeTab === 'events') return <EventCard key={item.id} event={item} showDelete={true} onDelete={handleItemDelete} />;
-                                    if (activeTab === 'polls') return <PollCard key={item.id} poll={item} showDelete={true} onDelete={handleItemDelete} />;
-                                    if (activeTab === 'listings') return <MarketCard key={item.id} item={item} onDelete={handleItemDelete} />;
+                                    if (activeTab === 'posts' || activeTab === 'saved' || activeTab === 'upvoted') {
+                                        if (item.feed_type === 'post') return <PostCard key={item.id || item.postId} post={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
+                                        if (item.feed_type === 'event') return <EventCard key={item.id} event={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
+                                        if (item.feed_type === 'poll') return <PollCard key={item.id} poll={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
+                                        if (item.feed_type === 'market') return <MarketCard key={item.id} item={item} onDelete={handleItemDelete} />;
+                                        if (item.feed_type === 'study') return <StudyCard key={item.id} question={item} onDelete={handleItemDelete} />;
+                                        if (item.feed_type === 'job') return <JobCard key={item.id} job={item} onDelete={handleItemDelete} />;
+                                        return <PostCard key={item.id} post={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
+                                    }
                                     return null;
                                 })
                             )}
@@ -676,13 +883,21 @@ const styles = StyleSheet.create({
     navHeader: {
         height: 50,
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: spacing.lg,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     navHeaderTitle: {
         fontFamily: fonts.bold,
         fontSize: 16,
+    },
+    headerMenuBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     // IG-style layout match
@@ -765,21 +980,41 @@ const styles = StyleSheet.create({
     actionBtn: { flex: 1, height: 42, borderRadius: radii.full, justifyContent: 'center', alignItems: 'center' },
     actionBtnStacked: { width: '100%' },
     btnLight: { },
-    actionBtnText: { fontFamily: fonts.bold, fontSize: 14 },
+    actionBtnText: { fontFamily: fonts.bold, fontSize: 13 },
 
-    // Segmented Pill Tab Bar
-    tabsContainer: { marginTop: 24, padding: 5, borderRadius: radii.full, marginBottom: 8 },
-    tabContent: { flexDirection: 'row', gap: 4 },
-    tabPill: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 18, paddingVertical: 10,
-        borderRadius: radii.full, gap: 6,
+    // Redesigned Tab Bar
+    tabsContainer: { 
+        flexDirection: 'row',
+        marginTop: 12, 
+        borderBottomWidth: 1,
+        height: 50,
     },
-    activeTabPill: {
-        shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
+    tabItem: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    tabLabel: { fontFamily: fonts.bold, fontSize: 13 },
-    activeTabLabel: { },
+    activeTabItem: {
+    },
+    tabContentInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    tabLabel: { 
+        fontFamily: fonts.bold, 
+        fontSize: 13,
+        letterSpacing: -0.2,
+    },
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        height: 3,
+        width: 48,
+        alignSelf: 'center',
+        borderTopLeftRadius: 3,
+        borderTopRightRadius: 3,
+    },
 
     contentArea: { flex: 1, minHeight: 300, paddingBottom: 110 },
     emptyState: { alignItems: 'center', marginTop: 60 },
@@ -819,4 +1054,73 @@ const styles = StyleSheet.create({
     addAccountBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingVertical: 8 },
     addAccountIcon: { width: 36, height: 36, borderRadius: 18, borderStyle: 'dashed', borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     addAccountText: { fontFamily: fonts.bold, fontSize: 15 },
+
+    // Reply Tab Styles
+    replyMissingPost: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        borderBottomWidth: 1,
+    },
+    replyMissingPostText: {
+        fontFamily: fonts.medium,
+        fontSize: 13,
+    },
+    replyBodyCard: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: 14,
+        borderBottomWidth: 0.5,
+        gap: 12,
+    },
+    replyAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    replyAvatarImg: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 100,
+    },
+    replyAvatarText: {
+        fontFamily: fonts.bold,
+        fontSize: 15,
+    },
+    replyContentBody: {
+        flex: 1,
+    },
+    replyHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    replyAuthor: {
+        fontFamily: fonts.semibold,
+        fontSize: 13,
+    },
+    replyTime: {
+        fontFamily: fonts.regular,
+        fontSize: 11,
+    },
+    replyMenuBtn: {
+        padding: 2,
+    },
+    replyToggleBtn: {
+        paddingHorizontal: spacing.lg,
+        paddingTop: 2,
+        paddingBottom: 12,
+    },
+    replyToggleText: {
+        marginLeft: 52,
+        fontFamily: fonts.semibold,
+        fontSize: 12,
+    },
+    replyContent: {
+        fontFamily: fonts.regular,
+        fontSize: 14,
+        lineHeight: 20,
+        marginTop: 3,
+    },
 });

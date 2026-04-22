@@ -5,7 +5,7 @@ import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { votePost, deletePost, repostPost } from '../api/posts';
+import { votePost, deletePost, repostPost, savePost, unsavePost } from '../api/posts';
 import { submitReport } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -220,7 +220,7 @@ const AnimatedStatNumber = ({ value, style }: { value: number; style: any }) => 
 };
 
 // ─── PostCard ───
-function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, hideNavigation?: boolean }) {
+function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, onSaveChange?: (id: string, isSaved: boolean) => void, hideNavigation?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
     const { t, language } = useLanguage();
@@ -251,6 +251,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     const [viewCount, setViewCount] = useState<number>(post.view_count || 0);
     const [interactionCount, setInteractionCount] = useState<number>(post.interaction_count || 0);
     const [hasReposted, setHasReposted] = useState<boolean>(!!post.has_reposted);
+    const [isSaved, setIsSaved] = useState<boolean>(!!post.is_saved);
 
     useEffect(() => {
         setMyVote(post.my_vote);
@@ -259,7 +260,8 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
         setViewCount(post.view_count || 0);
         setInteractionCount(post.interaction_count || 0);
         setHasReposted(!!post.has_reposted);
-    }, [post.my_vote, post.vote_count, post.repost_count, post.view_count, post.interaction_count, post.has_reposted]);
+        setIsSaved(!!post.is_saved);
+    }, [post.my_vote, post.vote_count, post.repost_count, post.view_count, post.interaction_count, post.has_reposted, post.is_saved]);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [viewerIndex, setViewerIndex] = useState(0);
     const [actionVisible, setActionVisible] = useState(false);
@@ -349,6 +351,29 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
         setShareModalVisible(true);
     };
 
+    const handleSaveToggle = async () => {
+        setActionVisible(false);
+        const previousValue = isSaved;
+        const optimisticValue = !previousValue;
+
+        setIsSaved(optimisticValue);
+        if (onSaveChange) onSaveChange(post.id, optimisticValue);
+
+        try {
+            const res = previousValue ? await unsavePost(post.id) : await savePost(post.id);
+            const serverValue = typeof res?.data?.is_saved === 'boolean'
+                ? res.data.is_saved
+                : optimisticValue;
+
+            setIsSaved(serverValue);
+            if (onSaveChange) onSaveChange(post.id, serverValue);
+        } catch (e) {
+            setIsSaved(previousValue);
+            if (onSaveChange) onSaveChange(post.id, previousValue);
+            Alert.alert('Error', previousValue ? 'Failed to unsave post.' : 'Failed to save post.');
+        }
+    };
+
     const handleEdit = () => {
         setActionVisible(false);
         router.push({ 
@@ -361,6 +386,7 @@ function PostCard({ post, showDelete = false, onDelete, hideNavigation = false }
     };
 
     const actionOptions: ActionOption[] = [
+        { label: isSaved ? 'Unsave' : t('save'), icon: isSaved ? 'bookmark' : 'bookmark-outline', onPress: handleSaveToggle },
         { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
         { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
         { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
@@ -795,6 +821,7 @@ export default React.memo(PostCard, (prevProps, nextProps) => {
            prevProps.post.repost_count === nextProps.post.repost_count &&
            prevProps.post.interaction_count === nextProps.post.interaction_count &&
            prevProps.post.has_reposted === nextProps.post.has_reposted &&
+           prevProps.post.is_saved === nextProps.post.is_saved &&
            prevProps.post.comments?.[0]?.count === nextProps.post.comments?.[0]?.count &&
            prevProps.post.profiles?.name === nextProps.post.profiles?.name &&
            prevProps.post.profiles?.avatar_url === nextProps.post.profiles?.avatar_url &&

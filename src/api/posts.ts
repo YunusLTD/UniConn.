@@ -8,6 +8,18 @@ export const getMyPosts = async (page = 1) => {
     return await apiFetch(`/posts/me?page=${page}`);
 };
 
+export const getMyComments = async (page = 1) => {
+    return await apiFetch(`/posts/my-comments?page=${page}`);
+};
+
+export const getSavedPosts = async (page = 1) => {
+    return await apiFetch(`/posts/saved?page=${page}`);
+};
+
+export const getUpvotedPosts = async (page = 1) => {
+    return await apiFetch(`/posts/upvoted?page=${page}`);
+};
+
 export const getUserPosts = async (userId: string, page = 1) => {
     return await apiFetch(`/posts/user/${userId}?page=${page}`);
 };
@@ -39,6 +51,18 @@ export const recordPostView = async (id: string) => {
 export const repostPost = async (id: string) => {
     return await apiFetch(`/posts/${id}/repost`, {
         method: 'POST',
+    });
+};
+
+export const savePost = async (id: string) => {
+    return await apiFetch(`/posts/${id}/save`, {
+        method: 'POST',
+    });
+};
+
+export const unsavePost = async (id: string) => {
+    return await apiFetch(`/posts/${id}/save`, {
+        method: 'DELETE',
     });
 };
 
