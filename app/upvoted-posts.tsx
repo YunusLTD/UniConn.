@@ -5,10 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts } from '../src/constants/theme';
 import { useTheme } from '../src/context/ThemeContext';
 import { useLanguage } from '../src/context/LanguageContext';
-import { getSavedPosts } from '../src/api/posts';
+import { getUpvotedPosts } from '../src/api/posts';
 import PostCard from '../src/components/PostCard';
 
-export default function SavedPostsScreen() {
+export default function UpvotedPostsScreen() {
     const { colors } = useTheme();
     const { t } = useLanguage();
     const [posts, setPosts] = useState<any[]>([]);
@@ -17,7 +17,7 @@ export default function SavedPostsScreen() {
 
     const loadData = async () => {
         try {
-            const res = await getSavedPosts();
+            const res = await getUpvotedPosts();
             setPosts(res?.data || []);
         } catch (e) {
             setPosts([]);
@@ -36,7 +36,7 @@ export default function SavedPostsScreen() {
     if (loading) {
         return (
             <View style={[styles.centered, { backgroundColor: colors.background }]}>
-                <Stack.Screen options={{ title: t('saved_posts_title') }} />
+                <Stack.Screen options={{ title: t('upvoted_posts_title') }} />
                 <ActivityIndicator size="small" color={colors.black} />
             </View>
         );
@@ -44,7 +44,7 @@ export default function SavedPostsScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Stack.Screen options={{ title: t('saved_posts_title') }} />
+            <Stack.Screen options={{ title: t('upvoted_posts_title') }} />
             <FlatList
                 data={posts}
                 keyExtractor={(item) => item.id}
@@ -59,22 +59,13 @@ export default function SavedPostsScreen() {
                         tintColor={colors.black}
                     />
                 }
-                renderItem={({ item }) => (
-                    <PostCard
-                        post={item}
-                        onSaveChange={(postId, isSaved) => {
-                            if (!isSaved) {
-                                setPosts((prev) => prev.filter((post) => post.id !== postId));
-                            }
-                        }}
-                    />
-                )}
+                renderItem={({ item }) => <PostCard post={item} />}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Ionicons name="bookmark-outline" size={52} color={colors.gray300} />
-                        <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('saved_posts_empty_title')}</Text>
+                        <Ionicons name="arrow-up-circle-outline" size={52} color={colors.gray300} />
+                        <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('upvoted_posts_empty_title')}</Text>
                         <Text style={[styles.emptySub, { color: colors.gray500 }]}>
-                            {t('saved_posts_empty_sub')}
+                            {t('upvoted_posts_empty_sub')}
                         </Text>
                     </View>
                 }

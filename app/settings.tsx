@@ -188,16 +188,18 @@ export default function SettingsScreen() {
         <SafeAreaView style={styles.container} edges={['bottom']}>
             <Stack.Screen options={{ title: t('settings') }} />
             <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.sectionTitle}>Discover</Text>
+                <Text style={styles.sectionTitle}>{t('discover_section')}</Text>
                 <View style={styles.section}>
-                    <SettingsRow icon="notifications-outline" label="Notifications" subLabel="Manage your activity updates" onPress={() => router.push('/activity')} />
-                    <SettingsRow icon="bookmark-outline" label="Saved posts" subLabel="Things you want to revisit" onPress={() => router.push('/saved-posts')} />
-                    <SettingsRow icon="people-outline" label="Friends" subLabel={loadingCounts ? 'Loading...' : `${pendingRequests} pending requests`} onPress={() => router.push('/friends')} showBadge />
-                    <SettingsRow icon="help-circle-outline" label="Help" subLabel="FAQ and contact support" onPress={() => router.push('/help')} />
-                    <SettingsRow icon="information-circle-outline" label="About your account" subLabel="Joined date and account details" onPress={() => router.push('/about')} />
+                    <SettingsRow icon="notifications-outline" label={t('notifications')} subLabel={t('settings_notifications_sub')} onPress={() => router.push('/activity')} />
+                    <SettingsRow icon="bookmark-outline" label={t('settings_saved_posts')} subLabel={t('settings_saved_posts_sub')} onPress={() => router.push('/saved-posts')} />
+                    <SettingsRow icon="chatbubble-ellipses-outline" label={t('settings_replies')} subLabel={t('settings_replies_sub')} onPress={() => router.push('/my-replies')} />
+                    <SettingsRow icon="arrow-up-circle-outline" label={t('settings_upvoted_posts')} subLabel={t('settings_upvoted_posts_sub')} onPress={() => router.push('/upvoted-posts')} />
+                    <SettingsRow icon="people-outline" label={t('friends_label')} subLabel={loadingCounts ? t('loading') : t('settings_friends_sub').replace('{{count}}', String(pendingRequests))} onPress={() => router.push('/friends')} showBadge />
+                    <SettingsRow icon="help-circle-outline" label={t('help')} subLabel={t('settings_help_sub')} onPress={() => router.push('/help')} />
+                    <SettingsRow icon="information-circle-outline" label={t('settings_about_account')} subLabel={t('settings_about_account_sub')} onPress={() => router.push('/about')} />
                 </View>
 
-                <Text style={styles.sectionTitle}>Preferences</Text>
+                <Text style={styles.sectionTitle}>{t('preferences_section')}</Text>
                 <View style={styles.section}>
                     <SettingsRow icon={theme === 'dark' ? 'moon-outline' : theme === 'light' ? 'sunny-outline' : 'phone-portrait-outline'} label={t('theme')} subLabel={getThemeLabel(theme as 'light' | 'dark' | 'system')} onPress={() => setShowThemeModal(true)} />
                     <SettingsRow icon="language-outline" label={t('language')} subLabel={language === 'en' ? t('lang_en') : language === 'tr' ? t('lang_tr') : t('lang_ka')} onPress={() => setShowLanguageModal(true)} />
@@ -205,7 +207,7 @@ export default function SettingsScreen() {
                     <SettingsRow icon="document-text-outline" label={t('terms_of_use')} subLabel={t('terms_desc')} onPress={() => setLegalModal({ visible: true, type: 'terms' })} />
                 </View>
 
-                <Text style={styles.sectionTitle}>Account</Text>
+                <Text style={styles.sectionTitle}>{t('account_section')}</Text>
                 <View style={styles.section}>
                     <SettingsRow
                         icon="log-out-outline"
@@ -215,7 +217,7 @@ export default function SettingsScreen() {
                             await logout();
                             setLoggingOut(false);
                         }}
-                        subLabel={loggingOut ? 'Logging out...' : undefined}
+                        subLabel={loggingOut ? t('settings_logging_out') : undefined}
                     />
                     <SettingsRow icon="trash-outline" label={t('delete_account_label')} onPress={handleDeleteAccount} destructive />
                 </View>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -72,24 +72,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const bannerOpacity = useRef(new Animated.Value(0)).current;
     const activeBanner = messageBanner;
 
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCount = useCallback(async () => {
         if (!token) return;
         try {
             const res = await getUnreadCount();
             if (res?.data) {
-                setCounts({
+                const nextCounts = {
                     total: res.data.total || 0,
                     messages: res.data.messages || 0,
                     activity: res.data.activity || 0,
                     pulse: res.data.pulse || 0
-                });
+                };
+                setCounts((prev) => (
+                    prev.total === nextCounts.total &&
+                    prev.messages === nextCounts.messages &&
+                    prev.activity === nextCounts.activity &&
+                    prev.pulse === nextCounts.pulse
+                ) ? prev : nextCounts);
             }
         } catch (e) {
             console.log('Error fetching unread count:', e);
         }
-    };
+    }, [token]);
 
-    const registerForPushNotificationsAsync = async () => {
+    const registerForPushNotificationsAsync = useCallback(async () => {
         if (!Device.isDevice) return;
 
         try {
@@ -111,7 +117,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         } catch (e) {
             console.log('Push notification registration skipped or failed:', e.message || e);
         }
-    };
+    }, [token, user]);
 
     const isOnMessagingScreen = useCallback(() => {
         if (!pathname) return false;
@@ -404,19 +410,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         lastConversationMessageAtRef.current = {};
         checkConversationsForIncomingMessages();
 
-        const interval = setInterval(checkConversationsForIncomingMessages, 5000);
+        const interval = setInterval(checkConversationsForIncomingMessages, 30000);
         return () => clearInterval(interval);
     }, [checkConversationsForIncomingMessages, token, user?.id]);
 
-    return (
-        <NotificationContext.Provider value={{
+    const contextValue = useMemo(() => ({
             unreadCount: counts.total,
             messageUnreadCount: counts.messages,
             activityUnreadCount: counts.activity,
             pulseUnreadCount: counts.pulse,
             requestPermissions: registerForPushNotificationsAsync,
             refreshUnreadCount: fetchUnreadCount
-        }}>
+        }), [counts.activity, counts.messages, counts.pulse, counts.total, fetchUnreadCount, registerForPushNotificationsAsync]);
+
+    return (
+        <NotificationContext.Provider value={contextValue}>
             {children}
             {activeBanner && (
                 <Animated.View

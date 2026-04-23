@@ -4,9 +4,10 @@ import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getProfile, deleteAccount } from '../../src/api/users';
-import { getMyPosts, getMyComments, getSavedPosts, getUpvotedPosts } from '../../src/api/posts';
+import { getMyPosts } from '../../src/api/posts';
 import { getMyEvents } from '../../src/api/events';
 import { getMyMarketplaceListings } from '../../src/api/marketplace';
+import { getMyPolls } from '../../src/api/polls';
 import { getFriendsCount, getFriendRequests } from '../../src/api/friends';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -30,13 +31,15 @@ import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } f
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 
 
-type TabType = 'posts' | 'replies' | 'saved' | 'upvoted' | 'settings';
+type ContentTabType = 'posts' | 'marketplace' | 'polls' | 'events' | 'study';
+type TabType = ContentTabType | 'settings';
 
 const buildTabs = (t: (k: any) => string) => ([
     { key: 'posts' as TabType, icon: 'grid-outline', label: t('post_tab') },
-    { key: 'replies' as TabType, icon: 'chatbubble-ellipses-outline', label: t('replies_tab') },
-    { key: 'saved' as TabType, icon: 'bookmark-outline', label: t('saved_tab') },
-    { key: 'upvoted' as TabType, icon: 'arrow-up-circle-outline', label: t('upvoted_tab') },
+    { key: 'marketplace' as TabType, icon: 'storefront-outline', label: t('market_tab') },
+    { key: 'polls' as TabType, icon: 'stats-chart-outline', label: t('polls') },
+    { key: 'events' as TabType, icon: 'calendar-outline', label: t('events') },
+    { key: 'study' as TabType, icon: 'school-outline', label: t('study_tab') },
 ]);
 
 const timeAgo = (dateStr: string, t: (key: any) => string) => {
@@ -103,7 +106,6 @@ export default function ProfileScreen() {
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showThemeModal, setShowThemeModal] = useState(false);
     const [showUniScoreModal, setShowUniScoreModal] = useState(false);
-    const [expandedReplyPosts, setExpandedReplyPosts] = useState<Record<string, boolean>>({});
     const activeTabRef = useRef<TabType>('posts');
     const router = useRouter();
     const profileBackground = isDark ? colors.surface : colors.background;
@@ -146,11 +148,26 @@ export default function ProfileScreen() {
         setContentLoading(true);
         try {
             let res;
-            if (tab === 'posts') res = await getMyPosts();
-            else if (tab === 'replies') res = await getMyComments();
-            else if (tab === 'saved') res = await getSavedPosts();
-            else if (tab === 'upvoted') res = await getUpvotedPosts();
-            setContent(res?.data || []);
+            let nextContent: any[] = [];
+
+            if (tab === 'posts') {
+                res = await getMyPosts();
+                nextContent = (res?.data || []).filter((item: any) => !['event', 'poll', 'market', 'study'].includes(item.feed_type));
+            } else if (tab === 'marketplace') {
+                res = await getMyMarketplaceListings();
+                nextContent = res?.data || [];
+            } else if (tab === 'polls') {
+                res = await getMyPolls();
+                nextContent = res?.data || [];
+            } else if (tab === 'events') {
+                res = await getMyEvents();
+                nextContent = res?.data || [];
+            } else if (tab === 'study') {
+                res = await getMyPosts();
+                nextContent = (res?.data || []).filter((item: any) => item.feed_type === 'study');
+            }
+
+            setContent(nextContent);
         } catch (e) {
             console.log('Error loading tab content', e);
         } finally {
@@ -253,80 +270,6 @@ export default function ProfileScreen() {
             return <Text key={index}>{part}</Text>;
         });
     };
-
-    const handleDeleteReply = (item: any) => {
-        Alert.alert(t('delete_comment_title'), t('delete_comment_confirm'), [
-            { text: t('cancel_label'), style: 'cancel' },
-            {
-                text: t('delete_label'),
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await deleteComment(item.post_id, item.id);
-                        setContent(prev => prev.filter(reply => reply.id !== item.id));
-                        DeviceEventEmitter.emit(POST_COMMENT_COUNT_CHANGED_EVENT, { postId: item.post_id, delta: -1 });
-                    } catch (e) {
-                        Alert.alert(t('error'), t('failed_to_delete_comment'));
-                    }
-                },
-            },
-        ]);
-    };
-
-    const toggleReplyGroup = (postId: string) => {
-        setExpandedReplyPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
-    };
-
-    const renderReplyRow = (item: any) => {
-        const replyProfile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
-        const replyInitial = replyProfile?.name?.[0]?.toUpperCase() || 'U';
-
-        return (
-            <View style={[styles.replyBodyCard, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
-                <TouchableOpacity
-                    onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}
-                    style={[styles.replyAvatar, { backgroundColor: colors.background }]}
-                    activeOpacity={0.8}
-                >
-                    {replyProfile?.avatar_url ? (
-                        <Image source={{ uri: replyProfile.avatar_url }} style={styles.replyAvatarImg} />
-                    ) : (
-                        <Text style={[styles.replyAvatarText, { color: colors.gray600 }]}>{replyInitial}</Text>
-                    )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={styles.replyContentBody}
-                    onPress={() => router.push(`/post/${item.post_id}`)}
-                >
-                    <View style={styles.replyHeader}>
-                        <TouchableOpacity onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}>
-                            <Text style={[styles.replyAuthor, { color: colors.black }]}>{replyProfile?.name || t('unknown_user')}</Text>
-                        </TouchableOpacity>
-                        <Text style={[styles.replyTime, { color: colors.gray400 }]}>{timeAgo(item.created_at, t)}</Text>
-                        {!!item.is_edited && (
-                            <Text style={[styles.replyTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
-                        )}
-                        <View style={{ flex: 1 }} />
-                        <TouchableOpacity
-                            hitSlop={8}
-                            onPress={() => handleDeleteReply(item)}
-                            style={styles.replyMenuBtn}
-                        >
-                            <Ionicons name="ellipsis-horizontal" size={16} color={colors.gray500} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <Text style={[styles.replyContent, { color: colors.gray700 }]}>
-                        {renderReplyContentWithMentions(item.content)}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
-    const groupedReplies = activeTab === 'replies' ? buildReplyGroups(content) : [];
 
     const initial = profile?.name?.[0]?.toUpperCase() || 'U';
 
@@ -533,29 +476,41 @@ export default function ProfileScreen() {
                 {/* Segmented Tab Bar — Outside of padded header for full width */}
                 {activeTab !== 'settings' && (
                 <View style={[styles.tabsContainer, { borderBottomColor: colors.border, backgroundColor: profileBackground }]}>
-                    {TABS.map(({ key, icon, label }) => (
-                        <TouchableOpacity
-                            key={key}
-                            style={[
-                                styles.tabItem,
-                                activeTab === key && styles.activeTabItem
-                            ]}
-                            onPress={() => setActiveTab(key)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.tabContentInner}>
-                                <Text style={[
-                                    styles.tabLabel, 
-                                    { color: activeTab === key ? colors.black : colors.gray400 }
-                                ]}>
-                                    {label}
-                                </Text>
-                            </View>
-                            {activeTab === key && (
-                                <View style={[styles.tabIndicator, { backgroundColor: colors.black }]} />
-                            )}
-                        </TouchableOpacity>
-                    ))}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.tabScrollContent}
+                        bounces={false}
+                    >
+                        {TABS.map(({ key, icon, label }) => (
+                            <TouchableOpacity
+                                key={key}
+                                style={[
+                                    styles.tabItem,
+                                    {
+                                        backgroundColor: activeTab === key ? colors.black : (isDark ? colors.surface : colors.gray100),
+                                        borderColor: activeTab === key ? colors.black : colors.border,
+                                    }
+                                ]}
+                                onPress={() => setActiveTab(key)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.tabContentInner}>
+                                    <Ionicons
+                                        name={icon as any}
+                                        size={15}
+                                        color={activeTab === key ? colors.white : colors.gray500}
+                                    />
+                                    <Text style={[
+                                        styles.tabLabel, 
+                                        { color: activeTab === key ? colors.white : colors.black }
+                                    ]}>
+                                        {label}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
                 )}
 
@@ -656,66 +611,29 @@ export default function ProfileScreen() {
                                 <View style={styles.emptyState}>
                                     <Ionicons
                                         name={
-                                            activeTab === 'posts' ? 'list-outline' :
-                                                activeTab === 'replies' ? 'chatbubble-ellipses-outline' :
-                                                    activeTab === 'saved' ? 'bookmark-outline' :
-                                                        'heart-outline'
+                                            activeTab === 'marketplace' ? 'pricetag-outline' :
+                                                activeTab === 'polls' ? 'stats-chart-outline' :
+                                                    activeTab === 'events' ? 'calendar-outline' :
+                                                        activeTab === 'study' ? 'school-outline' :
+                                                            'list-outline'
                                         }
                                         size={48}
                                         color={colors.gray300}
                                         style={{ marginBottom: spacing.md }}
                                     />
-                                    <Text style={[styles.emptyText, { color: colors.gray500 }]}>No {activeTab} yet</Text>
+                                    <Text style={[styles.emptyText, { color: colors.gray500 }]}>{t('no_content_yet')}</Text>
                                 </View>
-                            ) : activeTab === 'replies' ? (
-                                groupedReplies.map((group) => {
-                                    const isExpanded = !!expandedReplyPosts[group.postId];
-                                    const visibleReplies = isExpanded ? group.replies : group.replies.slice(0, 1);
-                                    const remainingCount = group.replies.length - 1;
-
-                                    return (
-                                        <React.Fragment key={group.postId}>
-                                            {group.postItem ? (
-                                                <PostCard post={group.postItem} />
-                                            ) : (
-                                                <View style={[styles.replyMissingPost, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
-                                                    <Text style={[styles.replyMissingPostText, { color: colors.gray500 }]}>Post unavailable</Text>
-                                                </View>
-                                            )}
-
-                                            {visibleReplies.map((replyItem) => (
-                                                <React.Fragment key={replyItem.id}>
-                                                    {renderReplyRow(replyItem)}
-                                                </React.Fragment>
-                                            ))}
-
-                                            {remainingCount > 0 && (
-                                                <TouchableOpacity
-                                                    activeOpacity={0.8}
-                                                    style={styles.replyToggleBtn}
-                                                    onPress={() => toggleReplyGroup(group.postId)}
-                                                >
-                                                    <Text style={[styles.replyToggleText, { color: colors.gray500 }]}>
-                                                        {isExpanded
-                                                            ? 'Show less replies'
-                                                            : `See ${remainingCount} more ${remainingCount === 1 ? t('reply') : t('replies')}`}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })
                             ) : (
                                 content.map((item) => {
-                                    if (activeTab === 'posts' || activeTab === 'saved' || activeTab === 'upvoted') {
-                                        if (item.feed_type === 'post') return <PostCard key={item.id || item.postId} post={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
-                                        if (item.feed_type === 'event') return <EventCard key={item.id} event={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
-                                        if (item.feed_type === 'poll') return <PollCard key={item.id} poll={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
-                                        if (item.feed_type === 'market') return <MarketCard key={item.id} item={item} onDelete={handleItemDelete} />;
-                                        if (item.feed_type === 'study') return <StudyCard key={item.id} question={item} onDelete={handleItemDelete} />;
+                                    if (activeTab === 'posts') {
+                                        if (item.feed_type === 'post') return <PostCard key={item.id || item.postId} post={item} showDelete={true} onDelete={handleItemDelete} />;
                                         if (item.feed_type === 'job') return <JobCard key={item.id} job={item} onDelete={handleItemDelete} />;
                                         return <PostCard key={item.id} post={item} showDelete={activeTab === 'posts'} onDelete={handleItemDelete} />;
                                     }
+                                    if (activeTab === 'events') return <EventCard key={item.id} event={item} showDelete={true} onDelete={handleItemDelete} />;
+                                    if (activeTab === 'polls') return <PollCard key={item.id} poll={item} showDelete={true} onDelete={handleItemDelete} />;
+                                    if (activeTab === 'marketplace') return <MarketCard key={item.id} item={item} onDelete={handleItemDelete} />;
+                                    if (activeTab === 'study') return <StudyCard key={item.id} question={item} onDelete={handleItemDelete} />;
                                     return null;
                                 })
                             )}
@@ -982,38 +900,38 @@ const styles = StyleSheet.create({
     btnLight: { },
     actionBtnText: { fontFamily: fonts.bold, fontSize: 13 },
 
-    // Redesigned Tab Bar
+    // Pill Tab Bar
     tabsContainer: { 
+        marginTop: 18,
+        paddingTop: 4,
+        paddingBottom: 2,
+    },
+    tabScrollContent: {
         flexDirection: 'row',
-        marginTop: 12, 
-        borderBottomWidth: 1,
-        height: 50,
+        paddingLeft: spacing.lg,
+        paddingRight: spacing.lg,
+        gap: 8,
     },
     tabItem: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        minWidth: 84,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: radii.full,
+        borderWidth: 1,
     },
     activeTabItem: {
     },
     tabContentInner: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
     },
     tabLabel: { 
         fontFamily: fonts.bold, 
-        fontSize: 13,
-        letterSpacing: -0.2,
-    },
-    tabIndicator: {
-        position: 'absolute',
-        bottom: 0,
-        height: 3,
-        width: 48,
-        alignSelf: 'center',
-        borderTopLeftRadius: 3,
-        borderTopRightRadius: 3,
+        fontSize: 12,
+        letterSpacing: 0.1,
     },
 
     contentArea: { flex: 1, minHeight: 300, paddingBottom: 110 },

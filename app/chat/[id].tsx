@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Clipboard, PanResponder, Animated, Dimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { useLocalSearchParams, Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+import NetInfo from '@react-native-community/netinfo';
 import { spacing, fonts, radii, colors } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
-import { getMessages, sendMessage, getConversation, markConversationRead, deleteMessage } from '../../src/api/messages';
-import { uploadMultipleMedia } from '../../src/api/upload';
+import { getConversation, markConversationRead, deleteMessage, editMessage, toggleMessageReaction } from '../../src/api/messages';
 import { markReadByReference } from '../../src/api/notifications';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +21,104 @@ import { getCommunityMembers } from '../../src/api/communities';
 import SharedPostCard from '../../src/components/SharedPostCard';
 import SharedStoryCard from '../../src/components/SharedStoryCard';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { applyIncomingRealtimeMessage, applyUpdatedRealtimeMessage, drainOutbox, queueOptimisticMessage, retryFailedMessage, syncConversationMessages } from '../../src/chat/chatSync';
+import { chatStore } from '../../src/chat/chatStore';
+
+const DEFAULT_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+// Toggle reaction UI/server interactions while we ship this version
+const ENABLE_REACTIONS = false;
+const SEND_MESSAGE_SOUND = require('../../assets/sounds/message-sent.wav');
+
+const stripLegacyGroupChatSuffix = (value: string) =>
+    value
+        .replace(/\s*\((community\s+)?chat\)\s*$/gi, '')
+        .replace(/\s*\(community\s+hub\)\s*$/gi, '')
+        .trim();
+
+const getAvatarLabel = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '?';
+
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+        const first = Array.from(words[0])[0] || '';
+        const second = Array.from(words[1])[0] || '';
+        return (first + second).toUpperCase();
+    }
+
+    return Array.from(trimmed).slice(0, 2).join('').toUpperCase() || '?';
+};
+
+const getReactionGroups = (message: any) => {
+    const reactions = Array.isArray(message?.reactions) ? message.reactions : [];
+    const groups = new Map<string, { emoji: string; count: number; userIds: string[] }>();
+
+    reactions.forEach((reaction: any) => {
+        const key = reaction?.emoji || '';
+        if (!key) return;
+        const existing = groups.get(key);
+        if (existing) {
+            existing.count += 1;
+            if (reaction?.user_id) existing.userIds.push(reaction.user_id);
+            return;
+        }
+
+        groups.set(key, {
+            emoji: key,
+            count: 1,
+            userIds: reaction?.user_id ? [reaction.user_id] : [],
+        });
+    });
+
+    return Array.from(groups.values());
+};
+
+const getProfileSignature = (profile: any) => JSON.stringify({
+    name: profile?.name || null,
+    username: profile?.username || null,
+    avatar_url: profile?.avatar_url || null,
+    is_admin: !!profile?.is_admin,
+});
+
+const pickLatestTimestamp = (currentValue?: string | null, incomingValue?: string | null) => {
+    if (!incomingValue) return currentValue ?? null;
+    if (!currentValue) return incomingValue;
+
+    return new Date(incomingValue).getTime() >= new Date(currentValue).getTime()
+        ? incomingValue
+        : currentValue;
+};
+
+const mergeParticipantLists = (primaryParticipants: any[] = [], cachedParticipants: any[] = []) => {
+    const byUserId = new Map<string, any>();
+
+    for (const participant of primaryParticipants) {
+        if (!participant?.user_id) continue;
+        byUserId.set(participant.user_id, participant);
+    }
+
+    for (const participant of cachedParticipants) {
+        if (!participant?.user_id) continue;
+
+        const existing = byUserId.get(participant.user_id);
+        if (!existing) {
+            byUserId.set(participant.user_id, participant);
+            continue;
+        }
+
+        byUserId.set(participant.user_id, {
+            ...existing,
+            ...participant,
+            profiles: {
+                ...(existing.profiles || {}),
+                ...(participant.profiles || {}),
+            },
+            last_read_at: pickLatestTimestamp(existing.last_read_at, participant.last_read_at),
+        });
+    }
+
+    return Array.from(byUserId.values());
+};
 
 const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: boolean) => void }) => {
     const player = useVideoPlayer(uri, p => {
@@ -114,18 +213,24 @@ const MessageItem = React.memo(({
     fonts,
     onLongPress,
     onReply,
+    onRetry,
+    onToggleReaction,
     otherParticipant,
     conversation,
     isDissolving,
     dissolveAnim,
     router,
     setPreviewMedia,
-    isHidden
+    isHidden,
+    currentUserId,
+    replyingLabel,
+    editedLabel,
 }: any) => {
     const [isMediaLoadingLocal, setIsMediaLoadingLocal] = useState(false);
     const bubbleRef = useRef<View>(null);
     const isMine = item.sender_id === user?.id;
     const isReply = !!(item.reply_to && item.reply_to.id);
+    const reactionGroups = getReactionGroups(item);
 
     const handleLongPress = () => {
         if (bubbleRef.current) {
@@ -186,6 +291,7 @@ const MessageItem = React.memo(({
 
                     {isReply && item.reply_to && (
                         <View style={[styles.replyPreview, isMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
+                            <Text style={[styles.replyContextLabel, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]}>{replyingLabel}</Text>
                             <Text style={[styles.replyName, { color: isMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{item.reply_to.profiles?.name || 'User'}</Text>
                             <Text style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{item.reply_to.content || (item.reply_to.media_url ? '📷 Media' : '')}</Text>
                         </View>
@@ -262,15 +368,59 @@ const MessageItem = React.memo(({
                         );
                     })()}
 
+                    {ENABLE_REACTIONS && !!reactionGroups.length && (
+                        <View style={styles.reactionsRow}>
+                            {reactionGroups.map((reaction) => {
+                                const reactedByMe = reaction.userIds.includes(currentUserId);
+                                return (
+                                    <TouchableOpacity
+                                        key={`${item.id}-${reaction.emoji}`}
+                                        style={[
+                                            styles.reactionChip,
+                                            reactedByMe
+                                                ? { backgroundColor: isMine ? 'rgba(255,255,255,0.18)' : '#E8F4FF', borderColor: isMine ? 'rgba(255,255,255,0.28)' : '#A8D7FF' }
+                                                : { backgroundColor: isMine ? 'rgba(255,255,255,0.1)' : colors.gray50, borderColor: isMine ? 'rgba(255,255,255,0.12)' : colors.border },
+                                        ]}
+                                        activeOpacity={0.85}
+                                        onPress={() => onToggleReaction(item, reaction.emoji)}
+                                    >
+                                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                                        <Text style={[styles.reactionCount, { color: isMine ? '#FFFFFF' : colors.black }]}>{reaction.count}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
+
                     <View style={styles.timestampRow}>
                         <Text style={[styles.timestamp, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
                             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Text>
-                        {item.isOptimistic ? (
+                        {item.is_edited && (
+                            <Text style={[styles.editedLabel, { color: isMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
+                                {editedLabel}
+                            </Text>
+                        )}
+                        {item.sync_status === 'failed' ? (
+                            <>
+                                <Ionicons
+                                    name="alert-circle"
+                                    size={12}
+                                    color="#FF3B30"
+                                />
+                                <TouchableOpacity onPress={() => onRetry(item)} hitSlop={8}>
+                                    <Ionicons
+                                        name="refresh"
+                                        size={12}
+                                        color="#FF3B30"
+                                    />
+                                </TouchableOpacity>
+                            </>
+                        ) : item.isOptimistic ? (
                             <Ionicons
                                 name="time-outline"
-                                size={10}
-                                color={isMine ? 'rgba(255,255,255,0.6)' : colors.gray400}
+                                size={12}
+                                color={isMine ? 'rgba(255,255,255,0.75)' : colors.gray400}
                                 style={{ marginLeft: 4 }}
                             />
                         ) : (
@@ -297,6 +447,7 @@ export default function ChatScreen() {
     const { refreshUnreadCount } = useNotifications();
     const [messages, setMessages] = useState<any[]>([]);
     const [conversation, setConversation] = useState<any>(null);
+    const [resolvedConversationId, setResolvedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
@@ -305,8 +456,10 @@ export default function ChatScreen() {
     const [isMediaLoading, setIsMediaLoading] = useState(false);
     const [peerTyping, setPeerTyping] = useState(false);
     const [replyTo, setReplyTo] = useState<any>(null);
+    const [editingMessage, setEditingMessage] = useState<any>(null);
     const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
     const [members, setMembers] = useState<any[]>([]);
+    const [isViewportReady, setIsViewportReady] = useState(false);
     const [showingActions, setShowingActions] = useState<any>(null);
     const [bubbleLayout, setBubbleLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
     const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
@@ -315,103 +468,396 @@ export default function ChatScreen() {
     const flatListRef = useRef<FlatList>(null);
     const textInputRef = useRef<TextInput>(null);
     const channelRef = useRef<any>(null);
+    const messagesRef = useRef<any[]>([]);
+    const membersRef = useRef<any[]>([]);
+    const conversationRef = useRef<any>(null);
+    const sendSoundRef = useRef<Audio.Sound | null>(null);
+    const isNearBottomRef = useRef(true);
+    const hasCompletedInitialScrollRef = useRef(false);
+    const pendingImmediateScrollRef = useRef(false);
+    const initialPositionAttemptsRef = useRef(0);
+    const syncStateRef = useRef<{ conversationId: string | null; promise: Promise<void> | null }>({
+        conversationId: null,
+        promise: null,
+    });
+    const lastReadMarkRef = useRef<{ conversationId: string | null; at: number }>({
+        conversationId: null,
+        at: 0,
+    });
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
     const { t } = useLanguage();
+    const routeConversationId = Array.isArray(id) ? id[0] : id;
+    const routeTitle = Array.isArray(title) ? title[0] : title;
 
-    const loadMessages = async (convId: string) => {
-        try {
-            const res = await getMessages(convId);
-            if (res?.data) {
-                setMessages(res.data.reverse());
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
+
+    useEffect(() => {
+        membersRef.current = members;
+    }, [members]);
+
+    useEffect(() => {
+        conversationRef.current = conversation;
+    }, [conversation]);
+
+    useEffect(() => {
+        Audio.setAudioModeAsync({
+            playsInSilentModeIOS: false,
+            staysActiveInBackground: false,
+            shouldDuckAndroid: true,
+        }).catch(() => { });
+
+        return () => {
+            if (sendSoundRef.current) {
+                sendSoundRef.current.unloadAsync().catch(() => { });
+                sendSoundRef.current = null;
             }
-        } catch (e) {
-            console.log('Error loading messages', e);
+        };
+    }, []);
+
+    const areMessagesEquivalent = useCallback((a: any[], b: any[]) => {
+        if (a === b) return true;
+        if (a.length !== b.length) return false;
+
+        for (let index = 0; index < a.length; index += 1) {
+            const left = a[index];
+            const right = b[index];
+            const leftReactionSignature = JSON.stringify((left?.reactions || []).map((reaction: any) => `${reaction.id}:${reaction.emoji}:${reaction.user_id}`));
+            const rightReactionSignature = JSON.stringify((right?.reactions || []).map((reaction: any) => `${reaction.id}:${reaction.emoji}:${reaction.user_id}`));
+            const leftProfileSignature = getProfileSignature(left?.profiles);
+            const rightProfileSignature = getProfileSignature(right?.profiles);
+            const leftReplyProfileSignature = getProfileSignature(left?.reply_to?.profiles);
+            const rightReplyProfileSignature = getProfileSignature(right?.reply_to?.profiles);
+
+            if (
+                left?.id !== right?.id ||
+                left?.created_at !== right?.created_at ||
+                left?.content !== right?.content ||
+                left?.deleted_at !== right?.deleted_at ||
+                left?.sync_status !== right?.sync_status ||
+                left?.media_url !== right?.media_url ||
+                left?.media_url_local !== right?.media_url_local ||
+                left?.is_edited !== right?.is_edited ||
+                left?.reply_to?.id !== right?.reply_to?.id ||
+                leftProfileSignature !== rightProfileSignature ||
+                leftReplyProfileSignature !== rightReplyProfileSignature ||
+                leftReactionSignature !== rightReactionSignature
+            ) {
+                return false;
+            }
         }
-    };
 
-    const loadConversation = async () => {
+        return true;
+    }, []);
+
+    const refreshLocalMessages = useCallback(async (conversationId: string) => {
+        const cachedMessages = await chatStore.loadConversationMessages(conversationId);
+        setMessages((previous) => (areMessagesEquivalent(previous, cachedMessages) ? previous : cachedMessages));
+        return cachedMessages;
+    }, [areMessagesEquivalent]);
+
+    const playSendSound = useCallback(async () => {
         try {
-            const res = await getConversation(id as string);
-            if (res?.data) {
-                setConversation(res.data);
-                
-                // If the ID we requested was different from the conversation ID (e.g. it was a userId)
-                // we should load messages for the actual conversation ID now
-                const realId = res.data.id;
-                if (realId !== id) {
-                    await loadMessages(realId);
-                } else {
-                    await loadMessages(id as string);
-                }
+            if (!sendSoundRef.current) {
+                const { sound } = await Audio.Sound.createAsync(SEND_MESSAGE_SOUND, { shouldPlay: false, volume: 0.45 });
+                sendSoundRef.current = sound;
+            }
 
-                // If this is a community chat, load members for tagging
-                const communityId = res.data.communities?.[0]?.id || res.data.community_id;
+            await sendSoundRef.current.setPositionAsync(0);
+            await sendSoundRef.current.playAsync();
+        } catch (error) {
+            console.log('Send sound failed', error);
+        }
+    }, []);
+
+    const scrollToBottom = useCallback((delay = 120) => {
+        setTimeout(() => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }, delay);
+    }, []);
+
+    const jumpToBottom = useCallback((delay = 0) => {
+        setTimeout(() => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }, delay);
+    }, []);
+
+    const settleInitialBottomPosition = useCallback(() => {
+        if (loading || !pendingImmediateScrollRef.current || !messages.length) return;
+
+        jumpToBottom(0);
+        initialPositionAttemptsRef.current += 1;
+
+        if (initialPositionAttemptsRef.current < 6) {
+            requestAnimationFrame(() => {
+                settleInitialBottomPosition();
+            });
+            return;
+        }
+
+        pendingImmediateScrollRef.current = false;
+        initialPositionAttemptsRef.current = 0;
+        setIsViewportReady(true);
+    }, [jumpToBottom, loading, messages.length]);
+
+    useEffect(() => {
+        if (!loading && pendingImmediateScrollRef.current && messages.length) {
+            settleInitialBottomPosition();
+        }
+    }, [loading, messages.length, settleInitialBottomPosition]);
+
+    useEffect(() => {
+        const unsubscribe = chatStore.subscribe((conversationId) => {
+            if (!resolvedConversationId || conversationId !== resolvedConversationId) return;
+            refreshLocalMessages(conversationId).catch(() => { });
+        });
+
+        return unsubscribe;
+    }, [refreshLocalMessages, resolvedConversationId]);
+
+    const syncConversationState = useCallback(async (conversationId: string) => {
+        let syncError: unknown = null;
+
+        try {
+            await syncConversationMessages(conversationId);
+        } catch (error) {
+            syncError = error;
+        }
+
+        try {
+            await drainOutbox();
+        } catch (error) {
+            if (!syncError) syncError = error;
+        }
+
+        await refreshLocalMessages(conversationId);
+
+        if (syncError) {
+            throw syncError;
+        }
+    }, [refreshLocalMessages]);
+
+    const runConversationSync = useCallback((conversationId: string) => {
+        const existing = syncStateRef.current;
+        if (existing.conversationId === conversationId && existing.promise) {
+            return existing.promise;
+        }
+
+        const promise = syncConversationState(conversationId)
+            .finally(() => {
+                if (syncStateRef.current.promise === promise) {
+                    syncStateRef.current = { conversationId: null, promise: null };
+                }
+            });
+
+        syncStateRef.current = { conversationId, promise };
+        return promise;
+    }, [syncConversationState]);
+
+    const markConversationSeen = useCallback(async (conversationId: string, options?: { notifyUnread?: boolean; broadcastRead?: boolean }) => {
+        const now = Date.now();
+        const previous = lastReadMarkRef.current;
+        if (previous.conversationId === conversationId && now - previous.at < 1500) {
+            return;
+        }
+
+        lastReadMarkRef.current = { conversationId, at: now };
+        const readAt = new Date().toISOString();
+
+        if (user?.id) {
+            await chatStore.updateParticipantReadState(conversationId, user.id, readAt);
+            setConversation((prev: any) => {
+                if (!prev) return prev;
+                const participants = Array.isArray(prev.participants) ? prev.participants : [];
+                const hasCurrentUser = participants.some((participant: any) => participant.user_id === user.id);
+                return {
+                    ...prev,
+                    participants: hasCurrentUser
+                        ? participants.map((participant: any) =>
+                            participant.user_id === user.id
+                                ? { ...participant, last_read_at: pickLatestTimestamp(participant.last_read_at, readAt) }
+                                : participant
+                        )
+                        : participants.concat({ user_id: user.id, last_read_at: readAt, profiles: null })
+                };
+            });
+        }
+
+        await Promise.all([
+            markReadByReference('message', conversationId),
+            markConversationRead(conversationId),
+        ]);
+
+        if (options?.broadcastRead && channelRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'read',
+                payload: { user_id: user?.id }
+            });
+        }
+
+        if (options?.notifyUnread !== false) {
+            await refreshUnreadCount();
+        }
+    }, [refreshUnreadCount, user?.id]);
+
+    const enrichRealtimeMessage = useCallback((message: any) => {
+        const enriched = {
+            ...message,
+            conversation_id: message.conversation_id || resolvedConversationId,
+        };
+
+        if (!enriched.profiles) {
+            const fromMembers = membersRef.current.find((member: any) => member.user_id === enriched.sender_id);
+            const fromParticipants = conversationRef.current?.participants?.find((participant: any) => participant.user_id === enriched.sender_id);
+            enriched.profiles = fromMembers?.profiles || fromParticipants?.profiles || null;
+        }
+
+        if (enriched.reply_to_message_id && !enriched.reply_to) {
+            const original = messagesRef.current.find((item) => item.id === enriched.reply_to_message_id);
+            if (original) enriched.reply_to = original;
+        }
+
+        return enriched;
+    }, [resolvedConversationId]);
+
+    const loadConversation = useCallback(async () => {
+        try {
+            const res = await getConversation(String(routeConversationId ?? id ?? ''));
+            if (res?.data) {
+                const realId = res.data.id;
+                const remoteParticipants = Array.isArray(res.data.participants) ? res.data.participants : [];
+                await chatStore.upsertConversationParticipants(realId, remoteParticipants);
+                const cachedParticipants = await chatStore.getConversationParticipants(realId);
+                const mergedConversation = {
+                    ...res.data,
+                    participants: mergeParticipantLists(remoteParticipants, cachedParticipants),
+                };
+
+                await chatStore.upsertConversation(mergedConversation);
+                setConversation(mergedConversation);
+                await refreshLocalMessages(realId);
+
+                const communityId = mergedConversation.community?.id || mergedConversation.communities?.[0]?.id || mergedConversation.community_id;
                 if (communityId) {
                     const membersRes = await getCommunityMembers(communityId);
                     if (membersRes?.data) setMembers(membersRes.data);
+                } else {
+                    setMembers([]);
                 }
-                
+
                 return realId;
             }
         } catch (e) {
             console.log('Error loading conversation', e);
-            setLoading(false);
         }
-        return id as string;
-    };
+        return String(routeConversationId ?? id ?? '');
+    }, [id, refreshLocalMessages, routeConversationId]);
 
     useEffect(() => {
+        let isActive = true;
+
         const init = async () => {
+            setLoading(true);
+            setIsViewportReady(false);
+            setResolvedConversationId(null);
+            setMessages([]);
+            hasCompletedInitialScrollRef.current = false;
+            isNearBottomRef.current = true;
+            pendingImmediateScrollRef.current = false;
+            initialPositionAttemptsRef.current = 0;
+            const initialConversationId = routeConversationId ? String(routeConversationId) : null;
+
+            if (initialConversationId) {
+                const cachedConversation = await chatStore.getConversation(initialConversationId);
+                if (cachedConversation) {
+                    setConversation(cachedConversation);
+                }
+
+                const cachedMessages = await refreshLocalMessages(initialConversationId);
+                if (cachedMessages.length) {
+                    hasCompletedInitialScrollRef.current = true;
+                    pendingImmediateScrollRef.current = true;
+                } else {
+                    setIsViewportReady(true);
+                }
+                if (isActive) {
+                    setLoading(false);
+                }
+            }
+
             const realId = await loadConversation();
-            setLoading(false);
+            if (!isActive) return;
+
+            setResolvedConversationId(realId);
+            if (realId !== initialConversationId) {
+                const cachedMessages = await refreshLocalMessages(realId);
+                if (cachedMessages.length) {
+                    hasCompletedInitialScrollRef.current = true;
+                    pendingImmediateScrollRef.current = true;
+                } else {
+                    setIsViewportReady(true);
+                }
+            }
+            if (isActive) setLoading(false);
 
             try {
-                // ... notifications logic ...
-                await markReadByReference('message', realId);
-                await markConversationRead(realId);
-                refreshUnreadCount();
+                await markConversationSeen(realId, { notifyUnread: true, broadcastRead: true });
             } catch (e) {
                 console.log('Failed to clear notifications', e);
             }
 
-            // ─── Realtime: Messages ───
-            // MUST bind to realId, otherwise navigating by userId breaks subscriptions!
-            const channel = supabase
-                .channel(`conversation:${realId}`, {
-                    config: {
-                        broadcast: { self: false } // We handle our own optimistic updates
+            void runConversationSync(realId)
+                .then(() => {
+                    if (!hasCompletedInitialScrollRef.current) {
+                        hasCompletedInitialScrollRef.current = true;
+                        scrollToBottom();
                     }
+                    setIsViewportReady(true);
                 })
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'messages',
-                        filter: `conversation_id=eq.${realId}`,
-                    },
-                (payload) => {
-                    const newMessage = payload.new;
-                    if (newMessage.sender_id === user?.id) return;
-                    
-                    setMessages(prev => {
-                        if (prev.find(m => m.id === newMessage.id)) return prev;
-                        if (!newMessage.profiles) {
-                            const member = members.find(m => m.user_id === newMessage.sender_id);
-                            if (member) newMessage.profiles = member.profiles;
-                        }
-                        // Connect reply_to manually if it's in our local state but not hydrated
-                        if (newMessage.reply_to_message_id && !newMessage.reply_to) {
-                            const original = prev.find(m => m.id === newMessage.reply_to_message_id);
-                            if (original) newMessage.reply_to = original;
-                        }
-                        return [...prev, newMessage];
-                    });
-                    setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
+                .catch((error) => {
+                    console.log('Initial chat sync failed', error);
+                    setIsViewportReady(true);
+                });
+        };
 
-                    if (newMessage.sender_id !== user?.id) {
-                        markReadByReference('message', id as string).then(() => refreshUnreadCount()).catch(() => { });
+        init();
+
+        return () => {
+            isActive = false;
+        };
+    }, [loadConversation, markConversationSeen, refreshLocalMessages, routeConversationId, runConversationSync, scrollToBottom]);
+
+    useEffect(() => {
+        if (!resolvedConversationId) return;
+
+        const channel = supabase
+            .channel(`conversation:${resolvedConversationId}`, {
+                config: {
+                    broadcast: { self: false }
+                }
+            })
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${resolvedConversationId}`,
+                },
+                async (payload) => {
+                    const incoming = enrichRealtimeMessage(payload.new);
+                    await applyIncomingRealtimeMessage(incoming);
+                    await refreshLocalMessages(resolvedConversationId);
+                    setIsViewportReady(true);
+                    if (incoming.sender_id === user?.id || isNearBottomRef.current) {
+                        scrollToBottom();
+                    }
+
+                    if (incoming.sender_id !== user?.id) {
+                        markConversationSeen(resolvedConversationId, { notifyUnread: true, broadcastRead: true }).catch(() => { });
                     }
                 }
             )
@@ -421,11 +867,28 @@ export default function ChatScreen() {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'messages',
-                    filter: `conversation_id=eq.${realId}`,
+                    filter: `conversation_id=eq.${resolvedConversationId}`,
                 },
-                (payload) => {
-                    const updatedMessage = payload.new;
-                    setMessages(prev => prev.map(m => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m));
+                async (payload) => {
+                    const updatedMessage = enrichRealtimeMessage(payload.new);
+                    await applyUpdatedRealtimeMessage(updatedMessage);
+                    await refreshLocalMessages(resolvedConversationId);
+                    setIsViewportReady(true);
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'message_reactions',
+                    filter: `conversation_id=eq.${resolvedConversationId}`,
+                },
+                async (payload) => {
+                    if (!ENABLE_REACTIONS) return;
+                    const reactionPayload = payload.eventType === 'DELETE' ? payload.old : payload.new;
+                    await chatStore.applyReactionEvent(payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE', reactionPayload);
+                    await refreshLocalMessages(resolvedConversationId);
                 }
             )
             .on(
@@ -442,75 +905,77 @@ export default function ChatScreen() {
             .on(
                 'broadcast',
                 { event: 'read' },
-                (payload) => {
+                async (payload) => {
                     if (payload.payload.user_id !== user?.id) {
+                        const readAt = new Date().toISOString();
+                        await chatStore.updateParticipantReadState(resolvedConversationId, payload.payload.user_id, readAt);
                         setConversation((prev: any) => {
                             if (!prev) return prev;
+                            const participants = Array.isArray(prev.participants) ? prev.participants : [];
+                            const hasParticipant = participants.some((participant: any) => participant.user_id === payload.payload.user_id);
                             return {
                                 ...prev,
-                                participants: prev.participants.map((p: any) =>
-                                    p.user_id === payload.payload.user_id
-                                        ? { ...p, last_read_at: new Date().toISOString() }
-                                        : p
-                                )
+                                participants: hasParticipant
+                                    ? participants.map((participant: any) =>
+                                        participant.user_id === payload.payload.user_id
+                                            ? { ...participant, last_read_at: pickLatestTimestamp(participant.last_read_at, readAt) }
+                                            : participant
+                                    )
+                                    : participants.concat({ user_id: payload.payload.user_id, last_read_at: readAt, profiles: null })
                             };
                         });
                     }
                 }
             )
-            .on(
-                'broadcast',
-                { event: 'new_msg' },
-                (payload) => {
-                    const newMessage = payload.payload;
-                    setMessages(prev => {
-                        if (prev.find(m => m.id === newMessage.id)) return prev;
-                        return [...prev, { ...newMessage, isOptimistic: false }];
-                    });
-                    setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
-
-                    if (newMessage.sender_id !== user?.id) {
-                        try {
-                            markReadByReference('message', id as string);
-                            markConversationRead(id as string);
-                            refreshUnreadCount();
-                            channelRef.current?.send({
-                                type: 'broadcast',
-                                event: 'read',
-                                payload: { user_id: user?.id }
-                            });
-                        } catch (e) { }
-                    }
-                }
-            )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log('Realtime: Chat Broadcast/DB connected for', realId);
+                    console.log('Realtime: Chat connected for', resolvedConversationId);
+                    void runConversationSync(resolvedConversationId)
+                        .catch((error) => {
+                            console.log('Realtime resync failed', error);
+                        });
                 }
             });
 
-            channelRef.current = channel;
-        };
-
-        init();
-
-        const syncRead = async () => {
-            try {
-                await markConversationRead(conversation?.id || id as string);
-                if (channelRef.current) {
-                    channelRef.current.send({
-                        type: 'broadcast',
-                        event: 'read',
-                        payload: { user_id: user?.id }
-                    });
-                }
-            } catch (e) { }
-        };
+        channelRef.current = channel;
 
         return () => {
-            if (channelRef.current) supabase.removeChannel(channelRef.current);
+            supabase.removeChannel(channel);
+            if (channelRef.current === channel) channelRef.current = null;
         };
-    }, [id]);
+    }, [enrichRealtimeMessage, markConversationSeen, refreshLocalMessages, resolvedConversationId, runConversationSync, scrollToBottom, user?.id]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!resolvedConversationId) return undefined;
+
+            void (async () => {
+                try {
+                    await runConversationSync(resolvedConversationId);
+                    await markConversationSeen(resolvedConversationId, { notifyUnread: true, broadcastRead: true });
+                } catch (error) {
+                    console.log('Focus sync failed', error);
+                }
+            })();
+
+            return undefined;
+        }, [markConversationSeen, resolvedConversationId, runConversationSync])
+    );
+
+    useEffect(() => {
+        if (!resolvedConversationId) return;
+
+        const unsubscribe = NetInfo.addEventListener((state) => {
+            if (state.isConnected && state.isInternetReachable !== false) {
+                void runConversationSync(resolvedConversationId)
+                    .catch((error) => {
+                        console.log('Reconnect sync failed', error);
+                    });
+            }
+        });
+
+        return unsubscribe;
+    }, [resolvedConversationId, runConversationSync]);
 
     const pickMedia = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -525,76 +990,129 @@ export default function ChatScreen() {
     };
 
     const handleSend = async () => {
-        if ((!input.trim() && !mediaUri) || sending) return;
+        if ((!input.trim() && !mediaUri) || sending || !resolvedConversationId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        const content = input.trim();
+        if (editingMessage) {
+            const nextContent = input.trim();
+            if (!nextContent) return;
+
+            const previousMessage = editingMessage;
+            setSending(true);
+            setEditingMessage(null);
+            setInput('');
+
+            try {
+                await chatStore.updateLocalMessage(previousMessage.id, (message) => ({
+                    ...message,
+                    content: nextContent,
+                    is_edited: true,
+                }));
+                await refreshLocalMessages(resolvedConversationId);
+
+                const response = await editMessage(previousMessage.id, nextContent);
+                if (response?.data) {
+                    await chatStore.upsertMessages([{ ...response.data, sync_status: 'sent', is_local_only: false }]);
+                    await refreshLocalMessages(resolvedConversationId);
+                }
+            } catch (e) {
+                console.log('Error editing message', e);
+                await chatStore.updateLocalMessage(previousMessage.id, (message) => ({
+                    ...message,
+                    content: previousMessage.content,
+                    is_edited: previousMessage.is_edited || false,
+                }));
+                await refreshLocalMessages(resolvedConversationId);
+                setEditingMessage(previousMessage);
+                setInput(nextContent);
+            } finally {
+                setSending(false);
+            }
+            return;
+        }
+
+        const content = input.trim() || null;
         const media = mediaUri;
         const isMedia = !!media;
-        
-        // Use a real UUID for both local state, broadcast and DB to ensure perfect sync
-        const messageUUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
 
-        const optimisticMessage = {
-            id: messageUUID,
-            content: content,
-            sender_id: user?.id,
-            media_url: media,
-            media_type: media?.endsWith('.mp4') ? 'video' : 'image',
-            created_at: new Date().toISOString(),
-            isOptimistic: true,
-            reply_to: replyTo,
-            profiles: { name: user?.name, avatar_url: user?.profile?.avatar_url },
-            media_url_local: media,
-        };
-
-        setMessages(prev => [...prev, optimisticMessage]);
         setInput('');
         setMediaUri(null);
-        setReplyTo(null); 
-        setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
-
-        // Instant Broadcast to Peer for ultra-low latency
-        if (channelRef.current) {
-            channelRef.current.send({
-                type: 'broadcast',
-                event: 'new_msg',
-                payload: optimisticMessage
-            });
-        }
+        setReplyTo(null);
 
         if (isMedia) setSending(true);
         try {
-            let uploadedUrl;
-            let mediaType;
-            if (media) {
-                const isVideo = media.endsWith('.mp4') || media.endsWith('.mov');
-                const uploadRes = await uploadMultipleMedia([{ uri: media, type: isVideo ? 'video' : 'image' }]);
-                if (uploadRes && uploadRes.length > 0) {
-                    uploadedUrl = uploadRes[0].url;
-                    mediaType = isVideo ? 'video' : 'image';
-                }
+            const optimisticId = await queueOptimisticMessage({
+                conversationId: resolvedConversationId,
+                senderId: user?.id,
+                senderProfile: {
+                    name: user?.name,
+                    avatar_url: user?.profile?.avatar_url,
+                    username: user?.profile?.username,
+                },
+                content,
+                mediaUri: media,
+                replyTo,
+            });
+            if (optimisticId) {
+                await refreshLocalMessages(resolvedConversationId);
+                void playSendSound();
             }
-            
-            // Validate UUID syntax for replyTo.id.
-            const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-            const validReplyId = (replyTo?.id && isUUID(replyTo.id)) ? replyTo.id : undefined;
-
-            const res = await sendMessage(conversation?.id || (id as string), content, uploadedUrl, mediaType, validReplyId, messageUUID);
-            if (res?.data) {
-                setMessages(prev => prev.map(m => m.id === messageUUID ? { ...m, ...res.data, isOptimistic: false } : m));
-            }
+            scrollToBottom(100);
         } catch (e) {
-            setMessages(prev => prev.filter(m => m.id !== messageUUID));
             console.log('Error sending message', e);
-            alert('Failed to send message');
         } finally {
             setSending(false);
+            await refreshLocalMessages(resolvedConversationId);
         }
     };
+
+    const handleRetryMessage = useCallback(async (message: any) => {
+        if (!resolvedConversationId) return;
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        try {
+            await retryFailedMessage(resolvedConversationId, message.id);
+        } catch (error) {
+            console.log('Retry message failed', error);
+        } finally {
+            await refreshLocalMessages(resolvedConversationId);
+        }
+    }, [refreshLocalMessages, resolvedConversationId]);
+
+    const handleToggleReaction = useCallback(async (message: any, emoji: string) => {
+        // Reactions temporarily disabled
+        if (!ENABLE_REACTIONS) {
+            setShowingActions(null);
+            setBubbleLayout(null);
+            return;
+        }
+
+        Haptics.selectionAsync();
+        setShowingActions(null);
+        setBubbleLayout(null);
+
+        try {
+            const response = await toggleMessageReaction(message.id, emoji);
+            if (response?.data) {
+                await chatStore.upsertMessages([{ ...response.data, sync_status: 'sent', is_local_only: false }]);
+                if (resolvedConversationId) {
+                    await refreshLocalMessages(resolvedConversationId);
+                }
+            }
+        } catch (error) {
+            console.log('Toggle reaction failed', error);
+        }
+    }, [refreshLocalMessages, resolvedConversationId]);
+
+    const beginEditMessage = useCallback((message: any) => {
+        setEditingMessage(message);
+        setReplyTo(null);
+        setInput(message.content || '');
+        setShowingActions(null);
+        setBubbleLayout(null);
+        setTimeout(() => textInputRef.current?.focus(), 100);
+    }, []);
 
     const getDeleteAnim = (msgId: string) => {
         if (!deleteAnims.has(msgId)) {
@@ -624,10 +1142,16 @@ export default function ChatScreen() {
 
             try {
                 await deleteMessage(messageId);
+                await chatStore.markMessageDeleted(messageId);
+                if (resolvedConversationId) {
+                    await refreshLocalMessages(resolvedConversationId);
+                }
             } catch (e) {
                 console.log('Error deleting message', e);
                 alert('Failed to delete message');
-                loadMessages(conversation?.id || id as string);
+                if (resolvedConversationId) {
+                    refreshLocalMessages(resolvedConversationId).catch(() => { });
+                }
             }
         });
     };
@@ -651,6 +1175,11 @@ export default function ChatScreen() {
             });
         }
     };
+
+    const handleListScroll = useCallback((event: any) => {
+        const { contentOffset } = event.nativeEvent;
+        isNearBottomRef.current = contentOffset.y < 120;
+    }, []);
 
     const handleSelectTag = (username: string) => {
         const words = input.split(' ');
@@ -682,10 +1211,14 @@ export default function ChatScreen() {
         });
     }, [taggingSearch, members, conversation?.participants, user?.id]);
 
+    const renderedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
     const otherParticipant = conversation?.participants?.find((p: any) => p.user_id !== user?.id);
     const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
-    const rawDisplayName = conversation?.type === 'direct' ? (otherParticipant?.profiles?.name || 'User') : conversation?.name || 'Group';
-    const displayName = rawDisplayName.replace(/Community/gi, '').replace(/University/gi, '').trim();
+    const rawDisplayName = conversation?.type === 'direct'
+        ? (otherParticipant?.profiles?.name || routeTitle || 'User')
+        : conversation?.name || routeTitle || 'Group';
+    const displayName = stripLegacyGroupChatSuffix(rawDisplayName);
     const isPlatform = otherParticipant?.profiles?.is_admin || displayName === 'UniConn Platform';
 
     if (loading) {
@@ -693,7 +1226,7 @@ export default function ChatScreen() {
             <View style={{ flex: 1, backgroundColor: colors.background }}>
                 <Stack.Screen options={{
                     headerStyle: { backgroundColor: colors.background },
-                    headerTitle: title ? title as string : '',
+                    headerTitle: routeTitle || '',
                     headerShown: true,
                     headerShadowVisible: false,
                     headerBackTitle: '',
@@ -737,11 +1270,7 @@ export default function ChatScreen() {
                             if (avatarUrl) {
                                 return <Image source={{ uri: avatarUrl }} style={{ width: 32, height: 32, borderRadius: 16 }} />;
                             }
-                            const initials = (() => {
-                                const parts = displayName.split(' ').filter((p: string) => p.length > 0);
-                                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-                                return displayName.substring(0, 2).toUpperCase();
-                            })();
+                            const initials = getAvatarLabel(displayName);
                             return (
                                 <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
                                     <Text style={{ color: colors.black, fontSize: 13, fontFamily: fonts.bold }}>{initials}</Text>
@@ -769,7 +1298,9 @@ export default function ChatScreen() {
 
             <FlatList
                 ref={flatListRef}
-                data={messages}
+                data={renderedMessages}
+                inverted
+                style={!isViewportReady && renderedMessages.length ? { opacity: 0 } : undefined}
                 keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => {
                     if (item.deleted_at && !deletingIds.has(item.id)) return null;
@@ -789,19 +1320,36 @@ export default function ChatScreen() {
                                 setShowingActions(msg);
                             }}
                             onReply={(msg: any) => {
+                                setEditingMessage(null);
                                 setReplyTo(msg);
                                 setTimeout(() => textInputRef.current?.focus(), 100);
                             }}
+                            onRetry={handleRetryMessage}
+                            onToggleReaction={handleToggleReaction}
                             isDissolving={deletingIds.has(item.id)}
                             dissolveAnim={getDeleteAnim(item.id)}
                             router={router}
                             setPreviewMedia={setPreviewMedia}
                             isHidden={showingActions?.id === item.id}
+                            currentUserId={user?.id}
+                            replyingLabel={t('replying_to')}
+                            editedLabel={t('edited_label')}
                         />
                     );
                 }}
                 contentContainerStyle={styles.listContent}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+                onLayout={() => {
+                    if (pendingImmediateScrollRef.current || !isViewportReady) {
+                        settleInitialBottomPosition();
+                    }
+                }}
+                onContentSizeChange={() => {
+                    if (pendingImmediateScrollRef.current || !isViewportReady) {
+                        settleInitialBottomPosition();
+                    }
+                }}
+                onScroll={handleListScroll}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             />
@@ -872,6 +1420,7 @@ export default function ChatScreen() {
                         <View style={styles.replyBarContent}>
                             <View style={styles.replyIndicator} />
                             <View style={{ flex: 1 }}>
+                                <Text style={[styles.replyContextLabel, { color: colors.gray500 }]}>{t('replying_to')}</Text>
                                 <Text style={[styles.replyName, { color: isDark ? '#3AB2FF' : '#00A3FF' }]}>{replyTo.profiles?.name || 'User'}</Text>
                                 <Text style={[styles.replyPreviewText, { color: colors.gray500 }]} numberOfLines={1}>
                                     {replyTo.content || (replyTo.media_url ? '📷 Media' : '')}
@@ -879,6 +1428,23 @@ export default function ChatScreen() {
                             </View>
                         </View>
                         <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={10}>
+                            <Ionicons name="close-circle" size={20} color={colors.gray400} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {editingMessage && (
+                    <View style={[styles.replyBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]} key={`editing-${editingMessage.id}`}>
+                        <View style={styles.replyBarContent}>
+                            <View style={[styles.replyIndicator, { backgroundColor: '#FF9F0A' }]} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.replyContextLabel, { color: colors.gray500 }]}>{t('edit_label')}</Text>
+                                <Text style={[styles.replyPreviewText, { color: colors.gray500 }]} numberOfLines={1}>
+                                    {editingMessage.content || ''}
+                                </Text>
+                            </View>
+                        </View>
+                        <TouchableOpacity onPress={() => { setEditingMessage(null); setInput(''); }} hitSlop={10}>
                             <Ionicons name="close-circle" size={20} color={colors.gray400} />
                         </TouchableOpacity>
                     </View>
@@ -893,7 +1459,7 @@ export default function ChatScreen() {
                         </View>
                     ) : (
                         <>
-                            <TouchableOpacity onPress={pickMedia} style={styles.attachBtn}>
+                            <TouchableOpacity onPress={pickMedia} style={styles.attachBtn} disabled={!!editingMessage}>
                                 <Ionicons name="camera-outline" size={24} color={colors.gray500} />
                             </TouchableOpacity>
                             <View style={[styles.inputContainer, { backgroundColor: isDark ? '#1A1A1A' : colors.gray100 }]}>
@@ -912,7 +1478,7 @@ export default function ChatScreen() {
                                 onPress={handleSend}
                                 disabled={!input.trim() && !mediaUri || sending}
                             >
-                                <Ionicons name="arrow-up" size={20} color={colors.white} />
+                                <Ionicons name={editingMessage ? 'checkmark' : 'arrow-up'} size={20} color={colors.white} />
                             </TouchableOpacity>
                         </>
                     )}
@@ -984,8 +1550,9 @@ export default function ChatScreen() {
 
                     {showingActions && bubbleLayout && (() => {
                         const actIsMine = showingActions.sender_id === user?.id;
+                        const canEditAction = actIsMine && !!showingActions?.content && !showingActions?.media_url && !showingActions?.deleted_at && showingActions?.sync_status === 'sent';
                         const screenH = Dimensions.get('window').height;
-                        const menuItemCount = actIsMine ? 3 : 2;
+                        const menuItemCount = actIsMine ? (canEditAction ? 4 : 3) : 2;
                         const menuH = menuItemCount * 48 + 8;
                         const spaceBelow = screenH - (bubbleLayout.top + bubbleLayout.height);
                         const menuBelow = spaceBelow > menuH + 24;
@@ -1010,6 +1577,7 @@ export default function ChatScreen() {
                                         {/* Reply preview */}
                                         {showingActions.reply_to && (
                                             <View style={[styles.replyPreview, actIsMine ? { backgroundColor: 'rgba(255,255,255,0.1)', borderLeftColor: '#FFFFFF' } : { backgroundColor: isDark ? '#1A1A1A' : colors.gray50, borderLeftColor: colors.black }]}>
+                                                <Text style={[styles.replyContextLabel, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]}>{t('replying_to')}</Text>
                                                 <Text style={[styles.replyName, { color: actIsMine ? '#A5F3FC' : (isDark ? '#3AB2FF' : '#00A3FF') }]} numberOfLines={1}>{showingActions.reply_to.profiles?.name || 'User'}</Text>
                                                 <Text style={[styles.replyText, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray500 }]} numberOfLines={2}>{showingActions.reply_to.content || '📷 Media'}</Text>
                                             </View>
@@ -1085,18 +1653,81 @@ export default function ChatScreen() {
                                             <Text style={[styles.timestamp, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
                                                 {new Date(showingActions.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </Text>
-                                            {showingActions.isOptimistic ? (
-                                                <Ionicons name="time-outline" size={10} color={actIsMine ? 'rgba(255,255,255,0.6)' : colors.gray400} style={{ marginLeft: 4 }} />
+                                            {showingActions.is_edited && (
+                                                <Text style={[styles.editedLabel, { color: actIsMine ? 'rgba(255,255,255,0.7)' : colors.gray400 }]}>
+                                                    {t('edited_label')}
+                                                </Text>
+                                            )}
+                                            {showingActions.sync_status === 'failed' ? (
+                                                <>
+                                                    <Ionicons name="alert-circle" size={12} color="#FF3B30" />
+                                                    <TouchableOpacity onPress={() => handleRetryMessage(showingActions)} hitSlop={8}>
+                                                        <Ionicons name="refresh" size={12} color="#FF3B30" />
+                                                    </TouchableOpacity>
+                                                </>
+                                            ) : showingActions.isOptimistic ? (
+                                                <Ionicons
+                                                    name="time-outline"
+                                                    size={12}
+                                                    color={actIsMine ? 'rgba(255,255,255,0.75)' : colors.gray400}
+                                                    style={{ marginLeft: 4 }}
+                                                />
                                             ) : (
                                                 actIsMine && otherParticipant?.last_read_at && new Date(showingActions.created_at) <= new Date(otherParticipant.last_read_at) && (
                                                     <Ionicons name="checkmark-done" size={12} color="rgba(255,255,255,0.8)" style={{ marginLeft: 4 }} />
                                                 )
                                             )}
                                         </View>
+
+                                        {ENABLE_REACTIONS && !!getReactionGroups(showingActions).length && (
+                                            <View style={styles.reactionsRow}>
+                                                {getReactionGroups(showingActions).map((reaction) => {
+                                                    const reactedByMe = !!user?.id && reaction.userIds.includes(user.id);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={`action-${showingActions.id}-${reaction.emoji}`}
+                                                            style={[
+                                                                styles.reactionChip,
+                                                                reactedByMe
+                                                                    ? { backgroundColor: actIsMine ? 'rgba(255,255,255,0.18)' : '#E8F4FF', borderColor: actIsMine ? 'rgba(255,255,255,0.28)' : '#A8D7FF' }
+                                                                    : { backgroundColor: actIsMine ? 'rgba(255,255,255,0.1)' : colors.gray50, borderColor: actIsMine ? 'rgba(255,255,255,0.12)' : colors.border },
+                                                            ]}
+                                                            activeOpacity={0.85}
+                                                            onPress={() => handleToggleReaction(showingActions, reaction.emoji)}
+                                                        >
+                                                            <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                                                            <Text style={[styles.reactionCount, { color: actIsMine ? '#FFFFFF' : colors.black }]}>{reaction.count}</Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+                                            </View>
+                                        )}
                                     </View>
                                 </View>
 
                                 {/* Context menu directly below (or above) the bubble */}
+                                {ENABLE_REACTIONS && (
+                                    <View
+                                        style={[
+                                            styles.reactionPickerRow,
+                                            menuBelow
+                                                ? { top: bubbleLayout.top + bubbleLayout.height - 42 }
+                                                : { top: bubbleLayout.top - menuH - 62 },
+                                            actIsMine ? { right: 16 } : { left: 16 },
+                                            { backgroundColor: isDark ? '#2A2A2A' : '#FFFFFF' },
+                                        ]}
+                                    >
+                                        {DEFAULT_REACTIONS.map((emoji) => (
+                                            <TouchableOpacity
+                                                key={`picker-${emoji}`}
+                                                style={styles.reactionPickerButton}
+                                                onPress={() => handleToggleReaction(showingActions, emoji)}
+                                            >
+                                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
                                 <Animated.View style={[
                                     styles.contextMenu,
                                     { 
@@ -1106,13 +1737,13 @@ export default function ChatScreen() {
                                         transform: [{ scale: 1 }] 
                                     },
                                     menuBelow
-                                        ? { top: bubbleLayout.top + bubbleLayout.height + 12 }
-                                        : { top: bubbleLayout.top - menuH - 12 },
+                                        ? { top: bubbleLayout.top + bubbleLayout.height + 56 }
+                                        : { top: bubbleLayout.top - menuH - 76 },
                                     actIsMine ? { right: 16 } : { left: 16 },
                                 ]}>
                                     <TouchableOpacity 
                                         style={styles.contextOption} 
-                                        onPress={() => { setReplyTo(showingActions); setShowingActions(null); setBubbleLayout(null); setTimeout(() => textInputRef.current?.focus(), 100); }}
+                                        onPress={() => { setEditingMessage(null); setReplyTo(showingActions); setShowingActions(null); setBubbleLayout(null); setTimeout(() => textInputRef.current?.focus(), 100); }}
                                     >
                                         <Ionicons name="return-up-back-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
                                         <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>{t('chat_reply')}</Text>
@@ -1125,6 +1756,18 @@ export default function ChatScreen() {
                                         <Ionicons name="copy-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
                                         <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>{t('chat_copy')}</Text>
                                     </TouchableOpacity>
+                                    {canEditAction && (
+                                        <>
+                                            <View style={[styles.contextDivider, { backgroundColor: isDark ? '#404040' : '#F0F0F0' }]} />
+                                            <TouchableOpacity
+                                                style={styles.contextOption}
+                                                onPress={() => beginEditMessage(showingActions)}
+                                            >
+                                                <Ionicons name="create-outline" size={18} color={isDark ? '#E0E0E0' : '#333'} />
+                                                <Text style={[styles.contextOptionText, { color: isDark ? '#E0E0E0' : '#333' }]}>{t('edit_label')}</Text>
+                                            </TouchableOpacity>
+                                        </>
+                                    )}
                                     {actIsMine && (
                                         <>
                                             <View style={[styles.contextDivider, { backgroundColor: isDark ? '#404040' : '#F0F0F0' }]} />
@@ -1184,6 +1827,20 @@ const styles = StyleSheet.create({
     theirReplyPreview: { backgroundColor: colors.gray50, borderLeftColor: colors.black },
     replyName: { fontFamily: fonts.bold, fontSize: 12, color: '#00A3FF' },
     replyText: { fontFamily: fonts.regular, fontSize: 12, color: colors.gray500 },
+    replyContextLabel: { fontFamily: fonts.medium, fontSize: 11, marginBottom: 2 },
+    editedLabel: { fontFamily: fonts.medium, fontSize: 10 },
+    reactionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    reactionChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    reactionEmoji: { fontSize: 13 },
+    reactionCount: { fontFamily: fonts.medium, fontSize: 12 },
 
     typingWrap: { paddingHorizontal: 20, paddingVertical: 8 },
     typingText: { fontFamily: fonts.medium, fontSize: 12, color: colors.gray500, fontStyle: 'italic' },
@@ -1333,4 +1990,27 @@ const styles = StyleSheet.create({
         height: 0.5,
         marginHorizontal: 12,
     },
+    sendingLabel: { fontFamily: fonts.medium, fontSize: 10, fontStyle: 'italic' },
+    reactionPickerRow: {
+        position: 'absolute',
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 10,
+        gap: 2,
+    },
+    reactionPickerButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    reactionPickerEmoji: { fontSize: 20 },
 });

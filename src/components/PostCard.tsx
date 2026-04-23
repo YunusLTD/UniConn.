@@ -352,6 +352,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     };
 
     const handleSaveToggle = async () => {
+        hapticLight();
         setActionVisible(false);
         const previousValue = isSaved;
         const optimisticValue = !previousValue;
@@ -738,6 +739,18 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                                 />
                             </View>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionBtn, styles.trailingActionBtn]}
+                            hitSlop={6}
+                            onPress={handleSaveToggle}
+                        >
+                            <Ionicons
+                                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                                size={18}
+                                color={isSaved ? themeColors.blue : themeColors.gray500}
+                            />
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -1082,6 +1095,9 @@ const styles = StyleSheet.create({
         fontFamily: fonts.medium,
         fontSize: 10,
         includeFontPadding: false,
+    },
+    trailingActionBtn: {
+        marginLeft: 'auto',
     },
     menuBtn: {
         padding: 4,

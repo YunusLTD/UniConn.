@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { getFriendsList } from '../../src/api/friends';
+import { createConversation } from '../../src/api/messages';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -10,6 +11,7 @@ export default function FriendsListScreen() {
     const [friends, setFriends] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [startingFor, setStartingFor] = useState<string | null>(null);
     const router = useRouter();
     const { colors, isDark } = useTheme();
 
@@ -54,6 +56,26 @@ export default function FriendsListScreen() {
                         {friend.universities?.name || friend.department || 'Student'}
                     </Text>
                 </View>
+                <TouchableOpacity onPress={async () => {
+                    setStartingFor(friend.id);
+                    try {
+                        const res = await createConversation({ type: 'direct', participant_ids: [friend.id] });
+                        const conv = res?.data;
+                        if (conv?.id) {
+                            router.push(`/chat/${conv.id}`);
+                        }
+                    } catch (e) {
+                        console.log('Failed to start conversation', e);
+                    } finally {
+                        setStartingFor(null);
+                    }
+                }} style={{ padding: 8, marginRight: 8 }}>
+                    {startingFor === friend.id ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                        <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.gray300} />
+                    )}
+                </TouchableOpacity>
                 <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
             </TouchableOpacity>
         );

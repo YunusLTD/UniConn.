@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, TextInput } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getConversations } from '../../src/api/messages';
@@ -10,6 +11,56 @@ import ShadowLoader from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { deleteConversation } from '../../src/api/messages';
 import ActionModal from '../../src/components/ActionModal';
+import { chatStore } from '../../src/chat/chatStore';
+
+const stripLegacyGroupChatSuffix = (value: string) =>
+    value
+        .replace(/\s*\((community\s+)?chat\)\s*$/gi, '')
+        .replace(/\s*\(community\s+hub\)\s*$/gi, '')
+        .trim();
+
+const getAvatarLabel = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '?';
+
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+        const first = Array.from(words[0])[0] || '';
+        const second = Array.from(words[1])[0] || '';
+        return (first + second).toUpperCase();
+    }
+
+    return Array.from(trimmed).slice(0, 2).join('').toUpperCase() || '?';
+};
+
+const getConversationTimestamp = (conversation: any) =>
+    new Date(conversation?.last_message?.created_at || conversation?.created_at || 0).getTime();
+
+const normalizeConversationList = (items: any[]) => {
+    if (!Array.isArray(items)) return [];
+
+    const byId = new Map<string, any>();
+    const fallbackItems: any[] = [];
+
+    for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+
+        const conversationId = typeof item.id === 'string' ? item.id : '';
+        if (!conversationId) {
+            fallbackItems.push(item);
+            continue;
+        }
+
+        const existing = byId.get(conversationId);
+        if (!existing || getConversationTimestamp(item) >= getConversationTimestamp(existing)) {
+            byId.set(conversationId, item);
+        }
+    }
+
+    return [...byId.values(), ...fallbackItems].sort((left, right) => {
+        return getConversationTimestamp(right) - getConversationTimestamp(left);
+    });
+};
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<any[]>([]);
@@ -20,29 +71,72 @@ export default function MessagesScreen() {
     const { user, onlineUsers } = useAuth();
     const { colors, isDark } = useTheme();
     const { t } = useLanguage();
+    const insets = useSafeAreaInsets();
+    const safeConversations = normalizeConversationList(conversations);
 
-    const loadData = async () => {
+    const loadLocalData = useCallback(async () => {
+        if (!user?.id) return;
+        try {
+            const cached = normalizeConversationList(await chatStore.getConversationList(user.id));
+            if (cached.length) {
+                setConversations(cached);
+                setLoading(false);
+            }
+        } catch (e) {
+            console.log('Error loading local conversations', e);
+        }
+    }, [user?.id]);
+
+    const loadData = useCallback(async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await getConversations();
-            if (res?.data) setConversations(res.data);
+            const nextConversations = normalizeConversationList(res?.data);
+            setConversations(nextConversations);
+            if (nextConversations.length) {
+                await chatStore.upsertConversationList(user.id, nextConversations);
+            }
         } catch (e) {
             console.log('Error loading conversations', e);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.id]);
 
     useEffect(() => {
-        loadData();
-        const interval = setInterval(loadData, 5000);
-        return () => clearInterval(interval);
-    }, []);
+        loadLocalData();
+    }, [loadLocalData]);
 
-    const filteredConversations = conversations.filter(conv => {
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const unsubscribe = chatStore.subscribe(async () => {
+            const cached = normalizeConversationList(await chatStore.getConversationList(user.id));
+            setConversations(cached);
+        });
+
+        return unsubscribe;
+    }, [user?.id]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadLocalData();
+            loadData();
+            const interval = setInterval(loadData, 30000);
+            return () => clearInterval(interval);
+        }, [loadData, loadLocalData])
+    );
+
+    const filteredConversations = safeConversations.filter(conv => {
+        if (!conv || typeof conv !== 'object') return false;
         if (!searchQuery.trim()) return true;
         const otherParticipant = conv.participants?.find((p: any) => p.user_id !== user?.id);
-        const name = conv.type === 'direct' ? (otherParticipant?.profiles?.name || '') : (conv.name || '');
-        const username = otherParticipant?.profiles?.username || '';
+        const name = String(conv.type === 'direct' ? (otherParticipant?.profiles?.name || '') : (conv.name || ''));
+        const username = String(otherParticipant?.profiles?.username || '');
         return (
             name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             username.toLowerCase().includes(searchQuery.toLowerCase())
@@ -52,7 +146,8 @@ export default function MessagesScreen() {
     const handleDeleteConversation = async (id: string) => {
         try {
             await deleteConversation(id);
-            setConversations(prev => prev.filter(c => c.id !== id));
+            await chatStore.clearConversation(id);
+            setConversations(prev => normalizeConversationList(prev.filter(c => c?.id !== id)));
             setLongPressedConv(null);
         } catch (e) {
             console.log('Error deleting conversation', e);
@@ -83,31 +178,33 @@ export default function MessagesScreen() {
                     </View>
                 </View>
             }
-            keyExtractor={item => item.id.toString()}
+            keyExtractor={(item, index) => String(item?.id ?? `conversation-${index}`)}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
+                if (!item || typeof item !== 'object') return null;
                 const otherParticipant = item.participants?.find((p: any) => p.user_id !== user?.id);
-                const isOnline = otherParticipant && onlineUsers.includes(otherParticipant.user_id);
-                const rawDisplayName = item.type === 'direct' ? (otherParticipant?.profiles?.name || t('user_fallback')) : item.name || t('group_fallback');
-                const displayName = rawDisplayName
-                    .replace(/[💬]/g, '')
-                    .replace(/Community/gi, '')
-                    .replace(/University/gi, '')
-                    .replace(/\(Chat\)/gi, '')
-                    .replace(/\(Community Chat\)/gi, '')
-                    .trim();
+                const otherParticipantId = typeof otherParticipant?.user_id === 'string' ? otherParticipant.user_id : '';
+                const isOnline = !!otherParticipantId && onlineUsers.includes(otherParticipantId);
+                const rawDisplayName = String(
+                    item.type === 'direct'
+                        ? (otherParticipant?.profiles?.name || t('user_fallback'))
+                        : (item.name || t('group_fallback'))
+                );
+                const displayName = stripLegacyGroupChatSuffix(rawDisplayName) || t(item.type === 'direct' ? 'user_fallback' : 'group_fallback');
                 const avatarUrl = item.type === 'direct' ? otherParticipant?.profiles?.avatar_url : item.community?.image_url;
-                
-                const initials = (() => {
-                    const parts = displayName.split(' ').filter((p: string) => p.length > 0);
-                    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-                    return displayName.substring(0, 2).toUpperCase();
-                })();
+                const conversationId = typeof item.id === 'string' ? item.id : '';
+                const initials = getAvatarLabel(displayName);
 
                 return (
                     <TouchableOpacity
                         style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
-                        onPress={() => router.push(`/chat/${item.id}` as any)}
+                        onPress={() => {
+                            if (!conversationId) return;
+                            router.push({
+                                pathname: '/chat/[id]',
+                                params: { id: conversationId }
+                            });
+                        }}
                         onLongPress={() => item.type === 'direct' && setLongPressedConv(item)}
                         activeOpacity={0.7}
                     >
@@ -155,7 +252,6 @@ export default function MessagesScreen() {
             }}
             ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyIcon}>💬</Text>
                     <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('no_conversations')}</Text>
                     <Text style={[styles.emptySub, { color: colors.gray500 }]}>{t('start_chatting_sub')}</Text>
                 </View>
@@ -173,6 +269,14 @@ export default function MessagesScreen() {
                 headerShadowVisible: false
             }} />
             {content}
+            
+            <TouchableOpacity
+                style={[styles.fab, { backgroundColor: isDark ? '#262626' : colors.primary, bottom: Math.max(insets.bottom + spacing.md, 20) }]}
+                onPress={() => router.push('/friends/list')}
+                accessibilityLabel={t('start_new_message')}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
             
             <ActionModal
                 visible={!!longPressedConv}
@@ -272,5 +376,15 @@ const styles = StyleSheet.create({
         borderRadius: 7,
         backgroundColor: '#34C759',
         borderWidth: 2,
+    },
+    fab: {
+        position: 'absolute',
+        right: 16,
+        borderRadius: 28,
+        width: 56,
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5,
     },
 });
