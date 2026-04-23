@@ -5,25 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../src/constants/theme';
 import { useTheme } from '../src/context/ThemeContext';
 import { SUPPORT_EMAIL } from '../src/constants/support';
-
-const FAQ_ITEMS = [
-    {
-        title: 'How do I save a post?',
-        body: 'Open the 3-dot menu on any post and tap Save. You can find it later in Saved posts.',
-    },
-    {
-        title: 'How do friend requests work?',
-        body: 'Open Friends in Settings to review requests and manage your connections in one place.',
-    },
-    {
-        title: 'How do I report content?',
-        body: 'Use the 3-dot menu on a post and choose Report. Our team reviews reported content.',
-    },
-    {
-        title: 'Why can’t I see some posts?',
-        body: 'Private community posts require membership. You may also not see content from blocked or reported users.',
-    },
-];
+import { useLanguage } from '../src/context/LanguageContext';
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -71,14 +53,34 @@ const createStyles = (colors: any) => StyleSheet.create({
 
 export default function HelpScreen() {
     const { colors } = useTheme();
+    const { t } = useLanguage();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
+    const faqItems = [
+        {
+            title: t('help_faq_save_title'),
+            body: t('help_faq_save_body'),
+        },
+        {
+            title: t('help_faq_friends_title'),
+            body: t('help_faq_friends_body'),
+        },
+        {
+            title: t('help_faq_report_title'),
+            body: t('help_faq_report_body'),
+        },
+        {
+            title: t('help_faq_visibility_title'),
+            body: t('help_faq_visibility_body'),
+        },
+    ];
+
     const handleContactSupport = async () => {
-        const subject = encodeURIComponent('UniConn Support Request');
+        const subject = encodeURIComponent(t('help_support_subject'));
         const mailto = `mailto:${SUPPORT_EMAIL}?subject=${subject}`;
         const canOpen = await Linking.canOpenURL(mailto);
         if (!canOpen) {
-            Alert.alert('Support', `Email us at ${SUPPORT_EMAIL}`);
+            Alert.alert(t('help'), `${t('help_email_support')} ${SUPPORT_EMAIL}`);
             return;
         }
         await Linking.openURL(mailto);
@@ -86,20 +88,20 @@ export default function HelpScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Help' }} />
+            <Stack.Screen options={{ title: t('help') }} />
             <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.sectionTitle}>Frequently asked</Text>
-                {FAQ_ITEMS.map((item) => (
+                <Text style={styles.sectionTitle}>{t('help_faq_section')}</Text>
+                {faqItems.map((item) => (
                     <View key={item.title} style={styles.card}>
                         <Text style={styles.title}>{item.title}</Text>
                         <Text style={styles.body}>{item.body}</Text>
                     </View>
                 ))}
 
-                <Text style={styles.sectionTitle}>Contact support</Text>
+                <Text style={styles.sectionTitle}>{t('help_contact_section')}</Text>
                 <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8} onPress={handleContactSupport}>
                     <Ionicons name="mail-outline" size={18} color={colors.white} />
-                    <Text style={styles.contactText}>Email support</Text>
+                    <Text style={styles.contactText}>{t('help_email_support')}</Text>
                 </TouchableOpacity>
                 <Text style={styles.supportEmail}>{SUPPORT_EMAIL}</Text>
             </ScrollView>

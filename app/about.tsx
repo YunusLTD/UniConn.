@@ -5,6 +5,7 @@ import { spacing, fonts } from '../src/constants/theme';
 import { useTheme } from '../src/context/ThemeContext';
 import { useAuth } from '../src/context/AuthContext';
 import { getProfile } from '../src/api/users';
+import { useLanguage } from '../src/context/LanguageContext';
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -49,10 +50,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     headerSub: { marginTop: 6, fontFamily: fonts.regular, fontSize: 13, color: colors.gray500, lineHeight: 19 },
 });
 
-const formatDate = (value?: string | null) => {
-    if (!value) return 'Not available';
+const formatDate = (value?: string | null, fallback?: string) => {
+    if (!value) return fallback || '';
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return 'Not available';
+    if (Number.isNaN(parsed.getTime())) return fallback || '';
     return parsed.toLocaleDateString();
 };
 
@@ -60,6 +61,7 @@ export default function AboutScreen() {
     const { colors } = useTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { user } = useAuth();
+    const { t } = useLanguage();
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -83,7 +85,7 @@ export default function AboutScreen() {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <Stack.Screen options={{ title: 'About your account' }} />
+                <Stack.Screen options={{ title: t('settings_about_account') }} />
                 <ActivityIndicator size="small" color={colors.black} />
             </View>
         );
@@ -91,29 +93,30 @@ export default function AboutScreen() {
 
     const status = profile?.status || user?.profile?.status || 'active';
     const verificationStatus = profile?.student_id_url
-        ? (status === 'pending' ? 'Verification pending' : status === 'approved' || status === 'active' ? 'Verified profile' : 'Verification submitted')
-        : 'Not submitted';
-    const region = profile?.hometown || profile?.universities?.name || user?.profile?.university_id || 'Not available';
+        ? (status === 'pending' ? t('about_account_verification_pending') : status === 'approved' || status === 'active' ? t('about_account_verified_profile') : t('about_account_verification_submitted'))
+        : t('about_account_not_submitted');
+    const notAvailable = t('about_account_not_available');
+    const region = profile?.hometown || profile?.universities?.name || user?.profile?.university_id || notAvailable;
 
     const rows = [
-        { label: 'Joined', value: formatDate(profile?.created_at) },
-        { label: 'Email', value: user?.email || 'Not available' },
-        { label: 'Username', value: profile?.username ? `@${profile.username}` : 'Not set' },
-        { label: 'Account ID', value: profile?.id || user?.id || 'Not available' },
-        { label: 'University', value: profile?.universities?.name || 'Not set' },
-        { label: 'Region', value: region },
-        { label: 'Account status', value: status },
-        { label: 'Verification', value: verificationStatus },
+        { label: t('about_account_joined'), value: formatDate(profile?.created_at, notAvailable) },
+        { label: t('email'), value: user?.email || notAvailable },
+        { label: t('about_account_username'), value: profile?.username ? `@${profile.username}` : t('about_account_not_set') },
+        { label: t('about_account_id'), value: profile?.id || user?.id || notAvailable },
+        { label: t('about_account_university'), value: profile?.universities?.name || t('about_account_not_set') },
+        { label: t('about_account_region'), value: region },
+        { label: t('about_account_status'), value: status },
+        { label: t('about_account_verification'), value: verificationStatus },
     ];
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'About your account' }} />
+            <Stack.Screen options={{ title: t('settings_about_account') }} />
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.headerCard}>
-                    <Text style={styles.headerTitle}>Account details</Text>
+                    <Text style={styles.headerTitle}>{t('about_account_header_title')}</Text>
                     <Text style={styles.headerSub}>
-                        This section shows key information about your profile, verification, and account timeline.
+                        {t('about_account_header_sub')}
                     </Text>
                 </View>
 

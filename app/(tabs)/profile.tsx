@@ -463,12 +463,6 @@ export default function ProfileScreen() {
                         >
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('edit_profile')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionBtn, language === 'ka' && styles.actionBtnStacked, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
-                            onPress={() => setShowQRModal(true)}
-                        >
-                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile')}</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
                 )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Share, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, Modal } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
@@ -140,24 +140,6 @@ export default function UserProfileScreen() {
             console.log('Error loading tab content', e);
         } finally {
             setContentLoading(false);
-        }
-    };
-
-    const handleShareProfile = async () => {
-        if (!profile?.id) return;
-        try {
-            const shareUrl = `https://uni-platform.app/user/${profile.id}`;
-            const shareTitle = t('share_profile_title')
-                .replace('{{name}}', profile.name || t('user_fallback'));
-            const shareMessage = t('share_profile_message')
-                .replace('{{name}}', profile.name || t('user_fallback'))
-                .replace('{{url}}', shareUrl);
-            await Share.share({
-                title: shareTitle,
-                message: shareMessage,
-            });
-        } catch (error) {
-            console.error('Share error:', error);
         }
     };
 
@@ -641,13 +623,6 @@ export default function UserProfileScreen() {
                                     </>
                                 )}
                             </View>
-                            <View style={[styles.actionRow, { marginTop: 8 }]}>
-                                <TouchableOpacity style={[styles.actionBtn, { borderRadius: 100, backgroundColor: isDark ? colors.surface : colors.gray100, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 8 }]} onPress={handleShareProfile}>
-                                    <Ionicons name="share-outline" size={18} color={colors.black} />
-                                    <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile_label')}</Text>
-                                </TouchableOpacity>
-                            </View>
-
                             <View style={[styles.tabsOuterContainer, { borderBottomColor: colors.border, marginTop: 18 }]}>
                                 <ScrollView
                                     horizontal

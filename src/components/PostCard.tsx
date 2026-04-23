@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { formatTimeAgo } from '../utils/localization';
 import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
 import { POST_METRICS_CHANGED_EVENT } from '../utils/postMetrics';
@@ -224,6 +225,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     const router = useRouter();
     const { colors: themeColors } = useTheme();
     const { t, language } = useLanguage();
+    const { showToast } = useToast();
 
     const renderContentWithMentions = (content: string) => {
         if (!content) return null;
@@ -368,6 +370,11 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
             setIsSaved(serverValue);
             if (onSaveChange) onSaveChange(post.id, serverValue);
+            showToast({
+                title: t('success'),
+                message: serverValue ? 'Post saved' : 'Post removed from saved',
+                type: 'success'
+            });
         } catch (e) {
             setIsSaved(previousValue);
             if (onSaveChange) onSaveChange(post.id, previousValue);
@@ -590,9 +597,14 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                     {/* Repost indicator (shown for profile feed when backend flags reposted_by_user) */}
                     {post.reposted_by_user && (
                         <View style={styles.repostedRow} pointerEvents="none">
-                            <Ionicons name="repeat" size={12} color={themeColors.gray500} />
-                            <Text style={[styles.repostedText, { color: themeColors.gray500 }]}> 
-                                {(t('reposted_label') || 'Reposted')} · {formatTimeAgo(post.reposted_at || post._display_time || post.created_at, t, language, true)}
+                            <View style={[styles.repostedBadge, { backgroundColor: themeColors.elevated, borderColor: themeColors.border }]}>
+                                <Ionicons name="repeat" size={12} color={themeColors.gray500} />
+                                <Text style={[styles.repostedBadgeText, { color: themeColors.gray500 }]}>
+                                    {t('reposted_label') || 'Reposted'}
+                                </Text>
+                            </View>
+                            <Text style={[styles.repostedText, { color: themeColors.gray500 }]}>
+                                {formatTimeAgo(post.reposted_at || post._display_time || post.created_at, t, language, true)}
                             </Text>
                         </View>
                     )}
@@ -740,17 +752,6 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                             </View>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[styles.actionBtn, styles.trailingActionBtn]}
-                            hitSlop={6}
-                            onPress={handleSaveToggle}
-                        >
-                            <Ionicons
-                                name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                                size={18}
-                                color={isSaved ? themeColors.blue : themeColors.gray500}
-                            />
-                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -923,6 +924,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         marginBottom: 6,
+    },
+    repostedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    repostedBadgeText: {
+        fontFamily: fonts.semibold,
+        fontSize: 11,
     },
     repostedText: {
         fontFamily: fonts.medium,

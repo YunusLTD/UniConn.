@@ -47,6 +47,7 @@ export default function ActivityScreen() {
     const [filter, setFilter] = useState<string>('all');
 
     const { refreshUnreadCount } = useNotifications();
+    const visibleNotifications = notifications.filter((item) => item?.type !== 'message');
 
     const loadData = async (categoryParam?: string) => {
         try {
@@ -54,8 +55,9 @@ export default function ActivityScreen() {
             const cat = categoryParam !== undefined ? categoryParam : filter;
             const res = await getNotifications(cat === 'all' ? undefined : cat);
             if (res?.data) {
-                setNotifications(res.data);
-                return res.data;
+                const filtered = res.data.filter((item: any) => item?.type !== 'message');
+                setNotifications(filtered);
+                return filtered;
             }
             return [];
         } catch (e) {
@@ -175,7 +177,7 @@ export default function ActivityScreen() {
                 </ScrollView>
             </View>
             <FlatList
-                data={notifications}
+                data={visibleNotifications}
                 keyExtractor={item => item.id.toString()}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => {
