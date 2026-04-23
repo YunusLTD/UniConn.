@@ -271,13 +271,7 @@ export default function ProfileScreen() {
         });
     };
 
-    const initial = profile?.name?.[0]?.toUpperCase() || 'U';
-
-    if (loading) return (
-        <View style={{ flex: 1, backgroundColor: profileBackground, paddingTop: 40 }}>
-            <ShadowLoader type="profile" />
-        </View>
-    );
+    const initial = (profile?.name || user?.name)?.[0]?.toUpperCase() || 'U';
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: profileBackground }]} edges={['top']}>
@@ -301,7 +295,11 @@ export default function ProfileScreen() {
                 ) : (
                     <>
                         <View style={{ width: 36 }} />
-                        <Text style={[styles.navHeaderTitle, { color: colors.black }]}>{profile?.username ? `@${profile.username}` : (profile?.name || t('profile'))}</Text>
+                        <Text style={[styles.navHeaderTitle, { color: colors.black }]}>
+                            {profile?.username 
+                                ? `@${profile.username}` 
+                                : (user?.profile?.username ? `@${user.profile.username}` : (profile?.name || user?.name || t('profile')))}
+                        </Text>
                         <TouchableOpacity
                             onPress={() => router.push('/settings')}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -314,10 +312,15 @@ export default function ProfileScreen() {
                 )}
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
-                {/* IG-style header — hidden when settings is active */}
-                {activeTab !== 'settings' && (
-                <View style={styles.header}>
+            {loading ? (
+                <View style={{ flex: 1 }}>
+                    <ShadowLoader type="profile" />
+                </View>
+            ) : (
+                <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
+                    {/* IG-style header — hidden when settings is active */}
+                    {activeTab !== 'settings' && (
+                        <View style={styles.header}>
                     <View style={styles.topRow}>
                         <TouchableOpacity 
                             style={styles.avatarRing} 
@@ -641,6 +644,7 @@ export default function ProfileScreen() {
                     )}
                 </View>
             </ScrollView>
+            )}
 
             {/* Legal Data Management Modal */}
             <Modal visible={showLegalModal.visible} transparent animationType="fade" onRequestClose={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
