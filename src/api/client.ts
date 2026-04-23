@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = await AsyncStorage.getItem('auth_token');
+    const requestUrl = `${API_URL}${endpoint}`;
 
     const isFormData = options.body instanceof FormData;
 
@@ -15,7 +16,9 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    console.log(`[apiFetch] ${options.method || 'GET'} ${requestUrl}`);
+
+    const response = await fetch(requestUrl, {
         ...options,
         headers,
     });
