@@ -374,7 +374,6 @@ export function getYearOfStudyLabel(value: string | null | undefined, language: 
     const normalized = value.trim().toLowerCase();
     if (normalized === 'graduated') return t('profile_graduated');
     if (normalized === '0') return t('profile_not_graduated');
-    if (normalized === 'vats') return t('profile_vats');
 
     const numeric = Number(normalized);
     if (Number.isFinite(numeric)) {
@@ -397,7 +396,6 @@ export function buildYearOptions(language: Language, t: Translator) {
         { label: getYearLabel(3, language), value: '3' },
         { label: getYearLabel(4, language), value: '4' },
         { label: getYearLabel(5, language), value: '5' },
-        { label: t('profile_vats'), value: 'vats' },
         { label: t('profile_graduated'), value: 'graduated' },
         { label: t('profile_not_graduated'), value: '0' },
     ];

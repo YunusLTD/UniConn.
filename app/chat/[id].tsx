@@ -669,6 +669,7 @@ export default function ChatScreen() {
 
         if (user?.id) {
             await chatStore.updateParticipantReadState(conversationId, user.id, readAt);
+            await chatStore.updateConversationListUnread(user.id, conversationId, 0);
             setConversation((prev: any) => {
                 if (!prev) return prev;
                 const participants = Array.isArray(prev.participants) ? prev.participants : [];
@@ -851,6 +852,7 @@ export default function ChatScreen() {
                 async (payload) => {
                     const incoming = enrichRealtimeMessage(payload.new);
                     await applyIncomingRealtimeMessage(incoming);
+                    await runConversationSync(resolvedConversationId);
                     await refreshLocalMessages(resolvedConversationId);
                     setIsViewportReady(true);
                     if (incoming.sender_id === user?.id || isNearBottomRef.current) {
@@ -950,6 +952,8 @@ export default function ChatScreen() {
         useCallback(() => {
             if (!resolvedConversationId) return undefined;
 
+            let isActive = true;
+
             void (async () => {
                 try {
                     await runConversationSync(resolvedConversationId);
@@ -959,7 +963,23 @@ export default function ChatScreen() {
                 }
             })();
 
-            return undefined;
+            const interval = setInterval(() => {
+                if (!isActive) return;
+
+                void (async () => {
+                    try {
+                        await runConversationSync(resolvedConversationId);
+                        await markConversationSeen(resolvedConversationId, { notifyUnread: false, broadcastRead: false });
+                    } catch (error) {
+                        console.log('Foreground chat sync failed', error);
+                    }
+                })();
+            }, 4000);
+
+            return () => {
+                isActive = false;
+                clearInterval(interval);
+            };
         }, [markConversationSeen, resolvedConversationId, runConversationSync])
     );
 
@@ -1267,7 +1287,14 @@ export default function ChatScreen() {
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
                     >
                         {(() => {
-                            const avatarUrl = conversation?.type === 'direct' ? otherParticipant?.profiles?.avatar_url : (conversation?.communities?.[0]?.logo_url || conversation?.communities?.[0]?.image_url);
+                            const avatarUrl = conversation?.type === 'direct'
+                                ? otherParticipant?.profiles?.avatar_url
+                                : (
+                                    conversation?.community?.logo_url ||
+                                    conversation?.community?.image_url ||
+                                    conversation?.communities?.[0]?.logo_url ||
+                                    conversation?.communities?.[0]?.image_url
+                                );
                             if (avatarUrl) {
                                 return <Image source={{ uri: avatarUrl }} style={{ width: 32, height: 32, borderRadius: 16 }} />;
                             }
@@ -1356,12 +1383,22 @@ export default function ChatScreen() {
             />
 
             {mediaUri && (
-                <View style={[styles.mediaPreviewContainer, ]}> 
+                <View
+                    style={[
+                        styles.mediaPreviewContainer,
+                        {
+                            backgroundColor: isDark ? '#121212' : colors.white,
+                            borderTopColor: isDark ? colors.border : colors.gray200,
+                        }
+                    ]}
+                >
                     <Image source={{ uri: mediaUri }} style={styles.mediaPreview} />
                     <TouchableOpacity
                         style={[
                             styles.removeMediaBtn,
-                            { right: 12, top: 10 }
+                            {
+                                backgroundColor: isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.92)',
+                            }
                         ]}
                         onPress={() => setMediaUri(null)}
                         hitSlop={8}
@@ -1862,7 +1899,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 2,
         left: 70,
-        backgroundColor: 'rgba(0,0,0,0.5)',
         borderRadius: 12,
     },
 

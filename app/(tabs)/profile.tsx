@@ -422,7 +422,7 @@ export default function ProfileScreen() {
                                                 <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
                                                 <Text style={[styles.detailText, { color: colors.gray600 }]}>
                                                     {language === 'tr'
-                                                        ? `${profile.age} yas`
+                                                        ? `${profile.age} Yaş`
                                                         : language === 'ka'
                                                             ? `${profile.age} წ.`
                                                             : `${profile.age} yrs`}
@@ -462,6 +462,12 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/edit-profile')}
                         >
                             <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('edit_profile')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, language === 'ka' && styles.actionBtnStacked, { backgroundColor: isDark ? colors.surface : colors.gray200, borderWidth: 1, borderColor: colors.border }]}
+                            onPress={() => setShowQRModal(true)}
+                        >
+                            <Text style={[styles.actionBtnText, { color: colors.black }]}>{t('share_profile')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -760,9 +766,9 @@ export default function ProfileScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('uniscore_label')}</Text>
+                            <Text style={[styles.modalTitle, { color: isDark ? colors.gray700 : colors.black }]}>{t('uniscore_label')}</Text>
                             <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
+                                <Ionicons name="close" size={24} color={isDark ? colors.gray700 : colors.black} />
                             </TouchableOpacity>
                         </View>
                         <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
@@ -772,8 +778,8 @@ export default function ProfileScreen() {
                             >
                                 <Ionicons name="flash" size={32} color="#FFFFFF" />
                             </LinearGradient>
-                            <Text style={[styles.modalTitle, { fontSize: 24, marginBottom: spacing.sm }]}>{profile?.user_score || 0}</Text>
-                            <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
+                            <Text style={[styles.modalTitle, { fontSize: 24, marginBottom: spacing.sm, color: isDark ? '#3B82F6' : colors.black }]}>{profile?.user_score || 0}</Text>
+                            <Text style={[styles.legalText, { textAlign: 'center', color: isDark ? colors.black : colors.gray600 }]}>
                                 {t('uniscore_body')}
                             </Text>
                         </View>

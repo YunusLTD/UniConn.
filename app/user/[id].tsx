@@ -748,9 +748,9 @@ export default function UserProfileScreen() {
                 <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
                     <View style={{ backgroundColor: colors.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.black }}>{t('uniscore_label')}</Text>
+                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: isDark ? colors.gray700 : colors.black }}>{t('uniscore_label')}</Text>
                             <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
+                                <Ionicons name="close" size={24} color={isDark ? colors.gray700 : colors.black} />
                             </TouchableOpacity>
                         </View>
                         <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
@@ -761,7 +761,7 @@ export default function UserProfileScreen() {
                                 <Ionicons name="flash" size={32} color="#FFFFFF" />
                             </LinearGradient>
                             <Text style={{ fontFamily: fonts.bold, fontSize: 24, color: colors.black, marginBottom: spacing.sm }}>{profile?.user_score || 0}</Text>
-                            <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: colors.gray600, textAlign: 'center', lineHeight: 22 }}>
+                            <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: isDark ? colors.black : colors.gray600, textAlign: 'center', lineHeight: 22 }}>
                                 {t('uniscore_body')}
                             </Text>
                         </View>

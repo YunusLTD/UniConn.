@@ -589,8 +589,28 @@ export const chatStore = {
         const db = await getDb();
         for (const conversation of conversations) {
             await upsertConversationListEntry(db, userId, conversation);
+            await db.runAsync(
+                `INSERT INTO chat_conversations (id, raw_json, updated_at)
+                 VALUES (?, ?, ?)
+                 ON CONFLICT(id) DO UPDATE SET
+                   raw_json = excluded.raw_json,
+                   updated_at = excluded.updated_at`,
+                conversation.id,
+                JSON.stringify(conversation),
+                new Date().toISOString()
+            );
+
             if (Array.isArray(conversation?.participants) && conversation.participants.length) {
                 await this.upsertConversationParticipants(conversation.id, conversation.participants);
+            }
+
+            if (conversation?.last_message?.id && conversation?.last_message?.created_at) {
+                await this.upsertMessages([{
+                    ...conversation.last_message,
+                    conversation_id: conversation.id,
+                    sync_status: 'sent',
+                    is_local_only: false,
+                }]);
             }
         }
 
@@ -620,6 +640,30 @@ export const chatStore = {
         }));
 
         return sortConversationList(conversations);
+    },
+
+    async updateConversationListUnread(userId: string, conversationId: string, unreadCount: number) {
+        if (!userId || !conversationId) return;
+
+        const db = await getDb();
+        const row = await db.getFirstAsync<StoredConversationListRow>(
+            `SELECT user_id, conversation_id, raw_json
+             FROM chat_conversation_lists
+             WHERE user_id = ? AND conversation_id = ?`,
+            userId,
+            conversationId
+        );
+
+        if (!row?.raw_json) return;
+
+        const conversation = JSON.parse(row.raw_json);
+        const updatedConversation = {
+            ...conversation,
+            unread_count: Math.max(0, unreadCount || 0),
+        };
+
+        await upsertConversationListEntry(db, userId, updatedConversation);
+        emitConversationChange(conversationId);
     },
 
     async loadConversationMessages(conversationId: string) {

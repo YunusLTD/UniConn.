@@ -594,8 +594,8 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                 </View>
 
                 <View style={styles.rightCol}>
-                    {/* Repost indicator (shown for profile feed when backend flags reposted_by_user) */}
-                    {post.reposted_by_user && (
+                    {/* Repost indicator */}
+                    {(post.reposted_by_user || post.reposted_at) && (
                         <View style={styles.repostedRow} pointerEvents="none">
                             <View style={[styles.repostedBadge, { backgroundColor: themeColors.elevated, borderColor: themeColors.border }]}>
                                 <Ionicons name="repeat" size={12} color={themeColors.gray500} />

@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { apiFetch } from '../src/api/client';
 import ActionModal from '../src/components/ActionModal';
 import { useLanguage } from '../src/context/LanguageContext';
-import { buildYearOptions, getRelationshipStatusLabel, getYearOfStudyLabel } from '../src/utils/localization';
+import { buildYearOptions, getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../src/utils/localization';
 
 export default function EditProfileScreen() {
     const { colors, isDark } = useTheme();
@@ -149,9 +149,7 @@ export default function EditProfileScreen() {
                 username: username.trim().toLowerCase(),
             });
 
-            Alert.alert(t('success'), t('profile_updated'), [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            router.back();
         } catch (e: any) {
             Alert.alert(t('error'), e.message || t('error'));
         } finally {
@@ -304,7 +302,7 @@ export default function EditProfileScreen() {
                                 onPress={() => setShowDeptModal(true)}
                             >
                                 <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: department ? colors.black : colors.gray400 }}>
-                                    {department || t('select_department')}
+                                    {department ? getDepartmentLabel(department, t) : t('select_department')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -356,7 +354,7 @@ export default function EditProfileScreen() {
                 title={t('graduation_year_label')}
                 options={buildYearOptions(language, t).map((option) => ({
                     label: option.label,
-                    icon: option.value === 'graduated' ? 'trophy-outline' : option.value === 'vats' ? 'medal-outline' : option.value === '0' ? 'time-outline' : 'calendar-outline',
+                    icon: option.value === 'graduated' ? 'trophy-outline' : option.value === '0' ? 'time-outline' : 'calendar-outline',
                     onPress: () => { setYearOfStudy(option.value); setShowYearModal(false); },
                 }))}
             />
