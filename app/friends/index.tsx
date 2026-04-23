@@ -66,6 +66,7 @@ const createStyles = (colors: any) => StyleSheet.create({
 export default function FriendsHubScreen() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [segment, setSegment] = useState<Segment>('requests');
     const [loading, setLoading] = useState(true);
@@ -128,7 +129,7 @@ export default function FriendsHubScreen() {
                 >
                     <Text style={[styles.name, { color: colors.black }]}>{profile.name}</Text>
                     <Text style={[styles.sub, { color: colors.gray500 }]} numberOfLines={1}>
-                        {profile.department || 'Wants to connect with you'}
+                        {profile.department || t('wants_to_connect')}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.actions}>
@@ -140,7 +141,7 @@ export default function FriendsHubScreen() {
                         {actionLoading === `${item.id}-reject` ? (
                             <ActivityIndicator size="small" color={colors.gray500} />
                         ) : (
-                            <Text style={[styles.actionText, { color: colors.gray600 }]}>Decline</Text>
+                            <Text style={[styles.actionText, { color: colors.gray600 }]}>{t('decline')}</Text>
                         )}
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -151,7 +152,7 @@ export default function FriendsHubScreen() {
                         {actionLoading === `${item.id}-accept` ? (
                             <ActivityIndicator size="small" color={colors.white} />
                         ) : (
-                            <Text style={[styles.actionText, { color: colors.white }]}>Accept</Text>
+                            <Text style={[styles.actionText, { color: colors.white }]}>{t('accept')}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -174,7 +175,7 @@ export default function FriendsHubScreen() {
                 <View style={{ flex: 1 }}>
                     <Text style={[styles.name, { color: colors.black }]}>{friend.name}</Text>
                     <Text style={[styles.sub, { color: colors.gray500 }]} numberOfLines={1}>
-                        {friend.department || friend.username || 'Friend'}
+                        {friend.department || friend.username || t('friends')}
                     </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={17} color={colors.gray300} />
@@ -185,7 +186,7 @@ export default function FriendsHubScreen() {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <Stack.Screen options={{ title: 'Friends' }} />
+                <Stack.Screen options={{ title: t('friends') }} />
                 <ActivityIndicator size="small" color={colors.black} />
             </View>
         );
@@ -196,7 +197,7 @@ export default function FriendsHubScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Friends' }} />
+            <Stack.Screen options={{ title: t('friends') }} />
 
             <View style={styles.segmentWrap}>
                 <TouchableOpacity
@@ -204,7 +205,7 @@ export default function FriendsHubScreen() {
                     onPress={() => setSegment('requests')}
                     activeOpacity={0.8}
                 >
-                    <Text style={[styles.segmentLabel, { color: isRequests ? colors.white : colors.gray500 }]}>Requests</Text>
+                    <Text style={[styles.segmentLabel, { color: isRequests ? colors.white : colors.gray500 }]}>{t('requests_tab')}</Text>
                     {requests.length > 0 && (
                         <View style={[styles.segmentBadge, { backgroundColor: isRequests ? colors.white : colors.black }]}>
                             <Text style={[styles.segmentBadgeText, { color: isRequests ? colors.black : colors.white }]}>
@@ -218,7 +219,7 @@ export default function FriendsHubScreen() {
                     onPress={() => setSegment('friends')}
                     activeOpacity={0.8}
                 >
-                    <Text style={[styles.segmentLabel, { color: !isRequests ? colors.white : colors.gray500 }]}>Friends</Text>
+                    <Text style={[styles.segmentLabel, { color: !isRequests ? colors.white : colors.gray500 }]}>{t('friends')}</Text>
                     <View style={[styles.segmentBadge, { backgroundColor: !isRequests ? colors.white : colors.gray100 }]}>
                         <Text style={[styles.segmentBadgeText, { color: !isRequests ? colors.black : colors.gray600 }]}>
                             {friends.length}
@@ -239,10 +240,10 @@ export default function FriendsHubScreen() {
                             color={colors.gray300}
                         />
                         <Text style={[styles.emptyTitle, { color: colors.black }]}>
-                            {isRequests ? 'No pending requests' : 'No friends yet'}
+                            {isRequests ? t('no_pending_requests') : t('friends_empty_title')}
                         </Text>
                         <Text style={[styles.emptySub, { color: colors.gray500 }]}>
-                            {isRequests ? 'Incoming requests will show here.' : 'Connect with people in your university communities.'}
+                            {isRequests ? t('requests_empty_sub') : t('friends_empty_sub')}
                         </Text>
                     </View>
                 }

@@ -361,7 +361,7 @@ export default function ProfileScreen() {
                             </View>
                             <TouchableOpacity style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push('/friends/list')} activeOpacity={0.7}>
                                 <Text style={[styles.statNumber, { color: colors.black }]}>{profile?.friends_count || 0}</Text>
-                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends')}</Text>
+                                <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('friends_label')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.statPill, { backgroundColor: colors.surface, borderColor: colors.border }]}

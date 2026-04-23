@@ -5,7 +5,7 @@ import { getFriendsList } from '../../src/api/friends';
 import { createConversation } from '../../src/api/messages';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function FriendsListScreen() {
     const [friends, setFriends] = useState<any[]>([]);
@@ -14,6 +14,7 @@ export default function FriendsListScreen() {
     const [startingFor, setStartingFor] = useState<string | null>(null);
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { t } = useLanguage();
 
     const fetchFriends = async () => {
         try {
@@ -53,7 +54,7 @@ export default function FriendsListScreen() {
                 <View style={styles.info}>
                     <Text style={[styles.name, { color: colors.black }]}>{friend.name}</Text>
                     <Text style={[styles.uni, { color: colors.gray500 }]}>
-                        {friend.universities?.name || friend.department || 'Student'}
+                        {friend.universities?.name || friend.department || t('user_fallback')}
                     </Text>
                 </View>
                 <TouchableOpacity onPress={async () => {
@@ -84,7 +85,7 @@ export default function FriendsListScreen() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Stack.Screen options={{ 
-                title: 'All Friends', 
+                title: t('all_friends_title'), 
                 headerShown: true, 
                 headerBackTitle: '',
                 headerTintColor: colors.black,
@@ -115,7 +116,7 @@ export default function FriendsListScreen() {
                     ListEmptyComponent={
                         <View style={styles.empty}>
                             <Ionicons name="people-outline" size={48} color={colors.gray300} />
-                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>No friends yet. Start connecting!</Text>
+                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>{t('friends_empty_title')} {t('friends_empty_cta')}</Text>
                         </View>
                     }
                 />

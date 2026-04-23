@@ -137,7 +137,7 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                             <Text style={[styles.title, { color: colors.black, marginBottom: 0 }]} numberOfLines={2}>{event.title}</Text>
                             {isPassed && (
                                 <View style={[styles.passedBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
-                                    <Text style={styles.passedBadgeText}>PASSED</Text>
+                                    <Text style={styles.passedBadgeText}>{t('event_passed')}</Text>
                                 </View>
                             )}
                         </View>

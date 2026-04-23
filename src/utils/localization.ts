@@ -500,3 +500,23 @@ export function formatTimeAgo(dateLike: string | Date, t: Translator, language: 
 
     return formatMonthDay(date, language);
 }
+export function formatChatDate(dateLike: string | Date, language: Language, t: Translator) {
+    const date = new Date(dateLike);
+    const now = new Date();
+    
+    const isToday = date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+        
+    if (isToday) return t('today' as any);
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.getDate() === yesterday.getDate() &&
+        date.getMonth() === yesterday.getMonth() &&
+        date.getFullYear() === yesterday.getFullYear();
+        
+    if (isYesterday) return t('yesterday' as any);
+    
+    return formatMonthDay(date, language);
+}

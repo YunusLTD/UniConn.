@@ -11,7 +11,7 @@ import { getUnreadCount } from '../api/notifications';
 import { supabase } from '../api/supabase';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
-import { getConversation, getConversations } from '../api/messages';
+import { getConversation } from '../api/messages';
 import { fonts, spacing } from '../constants/theme';
 import { hapticLight } from '../utils/haptics';
 import { POST_COMMENT_COUNT_CHANGED_EVENT } from '../utils/postCommentCount';
@@ -47,7 +47,7 @@ type MessageBannerData = {
     avatarUrl?: string;
 };
 
-type BannerSource = 'realtime_push' | 'realtime_notifications' | 'polling_fallback';
+type BannerSource = 'realtime_push' | 'realtime_notifications' | 'realtime_messages';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -64,10 +64,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const responseListener = useRef<Notifications.Subscription | null>(null);
     const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastBannerRef = useRef<{ signature: string; shownAt: number } | null>(null);
-    const lastConversationMessageAtRef = useRef<Record<string, string>>({});
-    const seededConversationWatcherRef = useRef(false);
-    const bannerSourceRef = useRef<BannerSource>('polling_fallback');
+    const bannerSourceRef = useRef<BannerSource>('realtime_messages');
     const previousSourceRef = useRef<BannerSource | null>(null);
+    const userConversationIdsRef = useRef<Set<string>>(new Set());
     const bannerTranslate = useRef(new Animated.Value(-160)).current;
     const bannerOpacity = useRef(new Animated.Value(0)).current;
     const activeBanner = messageBanner;
@@ -218,77 +217,36 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         bannerTimer.current = setTimeout(hideMessageBanner, 4500);
     }, [bannerOpacity, bannerTranslate, hideMessageBanner, hydrateConversationMeta, isOnMessagingScreen, setBannerSource, t]);
 
-    const checkConversationsForIncomingMessages = useCallback(async () => {
-        const currentUserId = user?.id;
-        if (!token || !currentUserId) return;
+    const handleRealtimeMessage = useCallback((payload: any) => {
+        const msg = payload.new;
+        if (!msg || msg.sender_id === user?.id) return;
+        if (msg.deleted_at) return;
+
+        // Optimistically bump message unread count
+        setCounts(prev => ({
+            ...prev,
+            messages: prev.messages + 1,
+            total: prev.total + 1,
+        }));
+
+        // Track this conversation for future messages
+        if (msg.conversation_id) {
+            userConversationIdsRef.current.add(msg.conversation_id);
+        }
+
         if (isOnMessagingScreen()) return;
 
-        try {
-            const res = await getConversations();
-            const conversations = Array.isArray(res?.data) ? res.data : [];
+        const body = (msg.content || '').trim()
+            || (msg.media_type === 'video' ? t('video_label') : msg.media_url ? t('photo_label') : t('you_received_a_new_message'));
 
-            if (!seededConversationWatcherRef.current) {
-                const seed: Record<string, string> = {};
-                conversations.forEach((conv: any) => {
-                    const ts = conv?.last_message?.created_at;
-                    if (ts) seed[conv.id] = ts;
-                });
-                lastConversationMessageAtRef.current = seed;
-                seededConversationWatcherRef.current = true;
-                return;
-            }
-
-            let newestIncoming: { conv: any; message: any; createdAtMs: number } | null = null;
-
-            for (const conv of conversations) {
-                const msg = conv?.last_message;
-                const createdAt = msg?.created_at;
-                if (!conv?.id || !createdAt) continue;
-
-                const prev = lastConversationMessageAtRef.current[conv.id];
-                lastConversationMessageAtRef.current[conv.id] = createdAt;
-                if (!prev) continue;
-
-                const createdAtMs = new Date(createdAt).getTime();
-                const prevMs = new Date(prev).getTime();
-                if (!Number.isFinite(createdAtMs) || !Number.isFinite(prevMs) || createdAtMs <= prevMs) continue;
-                if (msg?.sender_id === currentUserId) continue;
-
-                if (!newestIncoming || createdAtMs > newestIncoming.createdAtMs) {
-                    newestIncoming = { conv, message: msg, createdAtMs };
-                }
-            }
-
-            if (!newestIncoming) return;
-
-            const conv = newestIncoming.conv;
-            const msg = newestIncoming.message;
-            const other = conv?.participants?.find((p: any) => p?.user_id !== currentUserId);
-            const isDirect = conv?.type === 'direct';
-
-            const title = isDirect
-                ? (other?.profiles?.name || t('new_message'))
-                : (conv?.name || conv?.community?.name || t('group_chat'));
-
-            const avatarUrl = isDirect
-                ? other?.profiles?.avatar_url
-                : (conv?.community?.image_url || conv?.community?.logo_url);
-
-            const body = (msg?.content || '').trim()
-                || (msg?.media_type === 'video' ? t('video_label') : msg?.media_url ? t('photo_label') : t('you_received_a_new_message'));
-
-            setBannerSource('polling_fallback', 'new_message_detected_by_polling');
-            showMessageBanner({
-                conversationId: conv.id,
-                title,
-                body,
-                avatarUrl,
-                source: 'polling_fallback',
-            });
-        } catch (e) {
-            console.log('Conversation watcher failed', e);
-        }
-    }, [isOnMessagingScreen, setBannerSource, showMessageBanner, t, token, user?.id]);
+        setBannerSource('realtime_messages', 'messages_table_insert');
+        showMessageBanner({
+            conversationId: msg.conversation_id,
+            title: undefined,
+            body,
+            source: 'realtime_messages',
+        });
+    }, [isOnMessagingScreen, setBannerSource, showMessageBanner, t, user?.id]);
 
     useEffect(() => {
         if (messageBanner && isOnMessagingScreen()) {
@@ -342,16 +300,33 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     (payload) => {
                         console.log('New notification received via realtime:', payload.new);
                         fetchUnreadCount();
+                        // Message banners are now handled by the messages channel below
+                    }
+                )
+                .subscribe();
 
-                        if (payload.new?.type === 'message') {
-                            setBannerSource('realtime_notifications', 'notifications_realtime_insert');
-                            showMessageBanner({
-                                conversationId: payload.new.reference_id,
-                                title: payload.new.title,
-                                body: payload.new.message,
-                                source: 'realtime_notifications',
-                            });
+            // Direct messages realtime channel — fires for every new message
+            const messagesChannel = supabase
+                .channel(`messages:realtime:${user.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'messages',
+                    },
+                    (payload) => {
+                        const msg = payload.new;
+                        if (!msg || msg.sender_id === user.id) return;
+                        // Only process if this is a conversation the user belongs to
+                        // The notification insert from backend confirms membership,
+                        // but we also check our known set
+                        if (userConversationIdsRef.current.size > 0 && !userConversationIdsRef.current.has(msg.conversation_id)) {
+                            // Not a known conversation — could be new; refresh to check
+                            fetchUnreadCount();
+                            return;
                         }
+                        handleRealtimeMessage(payload);
                     }
                 )
                 .subscribe();
@@ -390,11 +365,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 notificationListener.current?.remove();
                 responseListener.current?.remove();
                 supabase.removeChannel(channel);
+                supabase.removeChannel(messagesChannel);
                 supabase.removeChannel(commentsChannel);
                 hideMessageBanner();
             };
         }
-    }, [token, user, showMessageBanner, hideMessageBanner, setBannerSource]);
+    }, [token, user, showMessageBanner, hideMessageBanner, setBannerSource, handleRealtimeMessage]);
 
     useEffect(() => {
         if (token) {
@@ -403,16 +379,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
     }, [token]);
 
+    // Seed known conversation IDs so the messages channel can filter
     useEffect(() => {
         if (!token || !user?.id) return;
-
-        seededConversationWatcherRef.current = false;
-        lastConversationMessageAtRef.current = {};
-        checkConversationsForIncomingMessages();
-
-        const interval = setInterval(checkConversationsForIncomingMessages, 30000);
-        return () => clearInterval(interval);
-    }, [checkConversationsForIncomingMessages, token, user?.id]);
+        (async () => {
+            try {
+                const { getConversations } = await import('../api/messages');
+                const res = await getConversations();
+                const conversations = Array.isArray(res?.data) ? res.data : [];
+                const ids = new Set<string>();
+                conversations.forEach((c: any) => { if (c?.id) ids.add(c.id); });
+                userConversationIdsRef.current = ids;
+                console.log(`[MessageRT] Seeded ${ids.size} conversation IDs`);
+            } catch (e) {
+                console.log('[MessageRT] Failed to seed conversation IDs', e);
+            }
+        })();
+    }, [token, user?.id]);
 
     const contextValue = useMemo(() => ({
             unreadCount: counts.total,
