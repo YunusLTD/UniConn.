@@ -16,8 +16,6 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log(`[apiFetch] ${options.method || 'GET'} ${requestUrl}`);
-
     const response = await fetch(requestUrl, {
         ...options,
         headers,

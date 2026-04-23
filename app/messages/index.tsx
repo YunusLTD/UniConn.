@@ -17,6 +17,7 @@ const stripLegacyGroupChatSuffix = (value: string) =>
     value
         .replace(/\s*\((community\s+)?chat\)\s*$/gi, '')
         .replace(/\s*\(community\s+hub\)\s*$/gi, '')
+        .replace(/\s+community\s*$/i, '')
         .trim();
 
 const getAvatarLabel = (value: string) => {

@@ -33,6 +33,7 @@ const stripLegacyGroupChatSuffix = (value: string) =>
     value
         .replace(/\s*\((community\s+)?chat\)\s*$/gi, '')
         .replace(/\s*\(community\s+hub\)\s*$/gi, '')
+        .replace(/\s+community\s*$/i, '')
         .trim();
 
 const getAvatarLabel = (value: string) => {
@@ -128,7 +129,7 @@ const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: bo
 
     useEffect(() => {
         onLoading(true);
-        const sub = player.addListener('statusChange', (status) => {
+        const sub = player.addListener('statusChange', ({ status }) => {
             if (status === 'readyToPlay') {
                 onLoading(false);
             }
@@ -140,7 +141,7 @@ const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: bo
         <VideoView 
             player={player} 
             style={{ width: '100%', height: '80%' }} 
-            contentMode="contain"
+            contentFit="contain"
         />
     );
 };
