@@ -936,7 +936,7 @@ const translations = {
         leave_community_body: 'Topluluktan ayrılmak istediğine emin misin?',
         request_sent_title: 'İstek gönderildi',
         request_sent_body: 'Bu topluluk gizlidir. Bir yönetici isteğini inceleyecek.',
-        pulse_title: 'Nabız',
+        pulse_title: 'Pulse',
         mentioned_in_moment: 'Bu hikayede bahsedilenler',
         report_story: 'Hikayeyi Bildir',
         report_this_story: 'Bu Hikayeyi Bildir',
