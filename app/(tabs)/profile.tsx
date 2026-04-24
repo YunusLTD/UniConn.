@@ -413,17 +413,21 @@ export default function ProfileScreen() {
                         </Text>
 
                                 {((profile?.show_hometown !== false && profile?.hometown) || (profile?.show_age !== false && profile?.age) || (profile?.show_relationship !== false && profile?.relationship_status)) && (
-                                    <View style={styles.detailsRow}>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: spacing.lg }} style={{ marginTop: 12, marginLeft: -spacing.lg, paddingLeft: spacing.lg }}>
                                         {profile?.show_hometown !== false && profile?.hometown && (
-                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                                <Ionicons name="location-outline" size={12} color={colors.gray500} />
-                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>{profile.hometown}</Text>
+                                            <View style={[styles.detailCard, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)' }]}>
+                                                <View style={[styles.detailIconBox, { backgroundColor: isDark ? '#3B82F6' : '#3B82F6' }]}>
+                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=CZM3HWxN9R21&format=png&color=FFFFFF' }} style={{ width: 14, height: 14 }} />
+                                                </View>
+                                                <Text style={[styles.detailCardText, { color: isDark ? '#60A5FA' : '#2563EB' }]}>{profile.hometown}</Text>
                                             </View>
                                         )}
                                         {profile?.show_age !== false && profile?.age && (
-                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                                <Ionicons name="calendar-outline" size={12} color={colors.gray500} />
-                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>
+                                            <View style={[styles.detailCard, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.1)' }]}>
+                                                <View style={[styles.detailIconBox, { backgroundColor: isDark ? '#A855F7' : '#A855F7' }]}>
+                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=vQsmg1r5VYrR&format=png&color=FFFFFF' }} style={{ width: 14, height: 14 }} />
+                                                </View>
+                                                <Text style={[styles.detailCardText, { color: isDark ? '#C084FC' : '#9333EA' }]}>
                                                     {language === 'tr'
                                                         ? `${profile.age} Yaş`
                                                         : language === 'ka'
@@ -433,14 +437,16 @@ export default function ProfileScreen() {
                                             </View>
                                         )}
                                         {profile?.show_relationship !== false && profile?.relationship_status && (
-                                            <View style={[styles.detailPill, { backgroundColor: colors.surface }]}>
-                                                <Ionicons name="heart-outline" size={12} color={colors.gray500} />
-                                                <Text style={[styles.detailText, { color: colors.gray600 }]}>
+                                            <View style={[styles.detailCard, { backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.1)' }]}>
+                                                <View style={[styles.detailIconBox, { backgroundColor: isDark ? '#EC4899' : '#EC4899' }]}>
+                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=RLESleVyTJxh&format=png&color=FFFFFF' }} style={{ width: 14, height: 14 }} />
+                                                </View>
+                                                <Text style={[styles.detailCardText, { color: isDark ? '#F472B6' : '#DB2777' }]}>
                                                     {getRelationshipStatusLabel(profile.relationship_status, language)}
                                                 </Text>
                                             </View>
                                         )}
-                                    </View>
+                                    </ScrollView>
                                 )}
                     </View>
 
@@ -885,13 +891,27 @@ const styles = StyleSheet.create({
     metaText: { fontFamily: fonts.regular, fontSize: 13 },
     bioText: { fontFamily: fonts.regular, fontSize: 14, marginTop: 6, lineHeight: 19 },
 
-    detailsRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
-    detailPill: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 8, paddingVertical: 4,
-        borderRadius: radii.full, gap: 4,
+    detailCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingRight: 12,
+        paddingLeft: 4,
+        paddingVertical: 4,
+        borderRadius: radii.full,
+        gap: 6,
     },
-    detailText: { fontFamily: fonts.medium, fontSize: 11, textTransform: 'capitalize' },
+    detailIconBox: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    detailCardText: {
+        fontFamily: fonts.semibold,
+        fontSize: 13,
+        textTransform: 'capitalize',
+    },
 
     completionPrompt: { padding: 12, borderRadius: radii.md, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed' },
     completionText: { flex: 1, fontFamily: fonts.semibold, fontSize: 13 },
