@@ -8,7 +8,6 @@ import { useTheme } from '../src/context/ThemeContext';
 import { useLanguage } from '../src/context/LanguageContext';
 import { useAuth } from '../src/context/AuthContext';
 import { useDialog } from '../src/context/DialogContext';
-import { deleteAccount } from '../src/api/users';
 import { getFriendRequests } from '../src/api/friends';
 
 type LegalModalType = 'privacy' | 'terms';
@@ -124,33 +123,6 @@ export default function SettingsScreen() {
         return t('theme_system');
     };
 
-    const handleDeleteAccount = async () => {
-        const reason = await prompt({
-            title: t('delete_account_label'),
-            message: language === 'tr'
-                ? 'Hesabını neden sildiğini yaz.'
-                : language === 'ka'
-                    ? 'მოკლედ დაწერე, რატომ შლი ანგარიშს.'
-                    : 'Tell us why you are deleting your account.',
-            placeholder: language === 'tr'
-                ? 'Sebep'
-                : language === 'ka'
-                    ? 'მიზეზი'
-                    : 'Reason',
-            confirmText: t('delete_label'),
-            cancelText: t('cancel_label'),
-            requireInput: true,
-        });
-
-        if (!reason) return;
-
-        try {
-            await deleteAccount(reason);
-            await logout();
-        } catch (e: any) {
-            Alert.alert(t('error'), e.message || 'Failed to delete account');
-        }
-    };
 
     const SettingsRow = ({
         icon,
@@ -219,7 +191,7 @@ export default function SettingsScreen() {
                         }}
                         subLabel={loggingOut ? t('settings_logging_out') : undefined}
                     />
-                    <SettingsRow icon="trash-outline" label={t('delete_account_label')} onPress={handleDeleteAccount} destructive />
+                    <SettingsRow icon="trash-outline" label={t('delete_account_label')} onPress={() => router.push('/delete-account')} destructive />
                 </View>
             </ScrollView>
 
