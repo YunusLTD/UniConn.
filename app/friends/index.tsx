@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getFriendRequests, getFriendsList, respondToFriendRequest } from '../../src/api/friends';
+import { getDepartmentLabel } from '../../src/utils/localization';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 type Segment = 'requests' | 'friends';
 
@@ -129,7 +131,7 @@ export default function FriendsHubScreen() {
                 >
                     <Text style={[styles.name, { color: colors.black }]}>{profile.name}</Text>
                     <Text style={[styles.sub, { color: colors.gray500 }]} numberOfLines={1}>
-                        {profile.department || t('wants_to_connect')}
+                        {getDepartmentLabel(profile.department, t) || t('wants_to_connect')}
                     </Text>
                 </TouchableOpacity>
                 <View style={styles.actions}>
@@ -175,7 +177,7 @@ export default function FriendsHubScreen() {
                 <View style={{ flex: 1 }}>
                     <Text style={[styles.name, { color: colors.black }]}>{friend.name}</Text>
                     <Text style={[styles.sub, { color: colors.gray500 }]} numberOfLines={1}>
-                        {friend.department || friend.username || t('friends')}
+                        {getDepartmentLabel(friend.department, t) || friend.username || t('friends')}
                     </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={17} color={colors.gray300} />

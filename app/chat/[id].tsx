@@ -427,7 +427,7 @@ export default function ChatScreen() {
     });
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
-    const { t, language } = useLanguage();
+    const { t, language: appLanguage } = useLanguage();
     const routeConversationId = Array.isArray(id) ? id[0] : id;
     const routeTitle = Array.isArray(title) ? title[0] : title;
 
@@ -1297,11 +1297,12 @@ export default function ChatScreen() {
                 style={!isViewportReady && renderedMessages.length ? { opacity: 0 } : undefined}
                 keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => {
+
                     if (item.type === 'date_separator') {
                         return (
                             <View style={styles.dateSeparator}>
                                 <Text style={[styles.dateSeparatorText, { color: isDark ? colors.gray400 : colors.gray500, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                                    {formatChatDate(item.date, language, t)}
+                                    {formatChatDate(item.date, appLanguage, t)}
                                 </Text>
                             </View>
                         );

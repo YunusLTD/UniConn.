@@ -6,6 +6,8 @@ import { createConversation } from '../../src/api/messages';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useTheme } from '../../src/context/ThemeContext';
+import { getDepartmentLabel } from '../../src/utils/localization';
 
 export default function FriendsListScreen() {
     const [friends, setFriends] = useState<any[]>([]);
@@ -54,7 +56,7 @@ export default function FriendsListScreen() {
                 <View style={styles.info}>
                     <Text style={[styles.name, { color: colors.black }]}>{friend.name}</Text>
                     <Text style={[styles.uni, { color: colors.gray500 }]}>
-                        {friend.universities?.name || friend.department || t('user_fallback')}
+                        {friend.universities?.name || getDepartmentLabel(friend.department, t) || t('user_fallback')}
                     </Text>
                 </View>
                 <TouchableOpacity onPress={async () => {
