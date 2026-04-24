@@ -12,6 +12,7 @@ import { useLanguage } from '../../src/context/LanguageContext';
 import { deleteConversation } from '../../src/api/messages';
 import ActionModal from '../../src/components/ActionModal';
 import { chatStore } from '../../src/chat/chatStore';
+import { drainOutbox } from '../../src/chat/chatSync';
 
 const stripLegacyGroupChatSuffix = (value: string) =>
     value
@@ -127,7 +128,11 @@ export default function MessagesScreen() {
         useCallback(() => {
             loadLocalData();
             loadData();
-            const interval = setInterval(loadData, 30000);
+            drainOutbox().catch(() => { });
+            const interval = setInterval(() => {
+                loadData();
+                drainOutbox().catch(() => { });
+            }, 30000);
             return () => clearInterval(interval);
         }, [loadData, loadLocalData])
     );
@@ -229,6 +234,21 @@ export default function MessagesScreen() {
                             <Text style={[styles.lastMsg, { color: colors.gray500 }]} numberOfLines={1}>
                                 {(() => {
                                     if (!item.last_message) return t('no_messages_yet');
+                                    
+                                    if (item.last_message.sync_status === 'sending' || item.last_message.sync_status === 'queued') {
+                                        return (
+                                            <Text style={{ fontStyle: 'italic', color: colors.gray400 }}>
+                                                {t('sending_indicator') || 'Sending...'}
+                                            </Text>
+                                        );
+                                    }
+                                    if (item.last_message.sync_status === 'failed') {
+                                        return (
+                                            <Text style={{ color: '#FF3B30' }}>
+                                                ⚠️ {t('send_failed') || 'Failed to send'}
+                                            </Text>
+                                        );
+                                    }
                                     
                                     const isSharedPost = item.last_message.content?.includes('https://uni-platform.app/post/');
                                     if (isSharedPost) {

@@ -133,50 +133,58 @@ export const queueOptimisticMessage = async ({
     return messageId;
 };
 
+let isDraining = false;
+
 export const drainOutbox = async (conversationId?: string) => {
-    if (!(await isOnline())) return;
+    if (isDraining || !(await isOnline())) return;
+    isDraining = true;
 
-    const queuedMessages = await chatStore.getOutboxMessages(conversationId);
+    try {
+        const queuedMessages = await chatStore.getOutboxMessages(conversationId);
 
-    for (const queued of queuedMessages) {
-        const { payload } = queued;
+        for (const queued of queuedMessages) {
+            const { payload } = queued;
 
-        try {
-            await chatStore.updateMessageStatus(payload.messageId, 'sending');
+            try {
+                await chatStore.updateMessageStatus(payload.messageId, 'sending');
 
-            let uploadedUrl: string | undefined;
-            let mediaType = payload.mediaType || detectMediaType(payload.mediaUri) || undefined;
+                let uploadedUrl: string | undefined;
+                let mediaType = payload.mediaType || detectMediaType(payload.mediaUri) || undefined;
 
-            if (payload.mediaUri) {
-                const uploadResult = await uploadMultipleMedia([{ uri: payload.mediaUri, type: mediaType || 'image' }]);
-                if (uploadResult?.length) {
-                    uploadedUrl = uploadResult[0].url;
+                if (payload.mediaUri) {
+                    const uploadResult = await uploadMultipleMedia([{ uri: payload.mediaUri, type: mediaType || 'image' }]);
+                    if (uploadResult?.length) {
+                        uploadedUrl = uploadResult[0].url;
+                    }
                 }
-            }
 
-            const response = await sendMessage(
-                payload.conversationId,
-                payload.content,
-                uploadedUrl,
-                mediaType,
-                payload.replyToMessageId || undefined,
-                payload.messageId
-            );
+                const response = await sendMessage(
+                    payload.conversationId,
+                    payload.content,
+                    uploadedUrl,
+                    mediaType,
+                    payload.replyToMessageId || undefined,
+                    payload.messageId
+                );
 
-            if (response?.data) {
-                await chatStore.markMessageSent(payload.messageId, {
-                    ...response.data,
-                    local_media_uri: payload.mediaUri || null,
-                });
-            }
-        } catch (error) {
-            if (isNetworkError(error)) {
-                await chatStore.updateMessageStatus(payload.messageId, 'queued');
-                break;
-            }
+                if (response?.data) {
+                    await chatStore.markMessageSent(payload.messageId, {
+                        ...response.data,
+                        local_media_uri: payload.mediaUri || null,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to send outbox message:', error);
+                if (isNetworkError(error)) {
+                    await chatStore.updateMessageStatus(payload.messageId, 'queued');
+                    break;
+                }
 
-            await chatStore.updateMessageStatus(payload.messageId, 'failed');
+                await chatStore.updateMessageStatus(payload.messageId, 'failed');
+            }
         }
+    } finally {
+        isDraining = false;
     }
 };
 

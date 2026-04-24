@@ -333,7 +333,7 @@ export default function ShadowLoader({ type = 'feed' }: { type?: 'feed' | 'messa
             </View>
         );
         if (type === 'students') return [1, 2, 3, 4, 5, 6, 7, 8].map(i => <StudentItemSkeleton key={i} />);
-        if (type === 'chat') return [1, 2, 3, 4, 5].map(i => <ChatBubbleSkeleton key={i} isMine={i % 2 === 0} />);
+        if (type === 'chat') return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => <ChatBubbleSkeleton key={i} isMine={i % 2 === 0} />);
         if (type === 'community') return <CommunityDetailSkeleton />;
         if (type === 'explore_communities') return [1, 2, 3, 4, 5].map(i => <ExploreCommunitySkeleton key={i} />);
         if (type === 'study') return [1, 2, 3, 4].map(i => <PostSkeleton key={i} style={{ marginHorizontal: 0 }} />);

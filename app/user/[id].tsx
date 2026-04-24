@@ -629,8 +629,13 @@ export default function UserProfileScreen() {
                                         <TouchableOpacity 
                                             style={[styles.actionBtn, { backgroundColor: isDark ? colors.surface : '#000000', borderWidth: isDark ? 1 : 0, borderColor: colors.border }]} 
                                             onPress={handleMessage}
+                                            disabled={startingChat}
                                         >
-                                            <Text style={[styles.actionBtnText, { color: isDark ? colors.black : '#FFFFFF' }]}>{t('message_label') || 'Message'}</Text>
+                                            {startingChat ? (
+                                                <ActivityIndicator size="small" color={isDark ? colors.black : '#FFFFFF'} />
+                                            ) : (
+                                                <Text style={[styles.actionBtnText, { color: isDark ? colors.black : '#FFFFFF' }]}>{t('message_label') || 'Message'}</Text>
+                                            )}
                                         </TouchableOpacity>
                                     </>
                                 )}

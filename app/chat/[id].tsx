@@ -23,6 +23,7 @@ import SharedStoryCard from '../../src/components/SharedStoryCard';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { applyIncomingRealtimeMessage, applyUpdatedRealtimeMessage, drainOutbox, queueOptimisticMessage, retryFailedMessage, syncConversationMessages } from '../../src/chat/chatSync';
 import { chatStore } from '../../src/chat/chatStore';
+import { BlurView } from 'expo-blur';
 import { formatChatDate } from '../../src/utils/localization';
 
 
@@ -712,20 +713,25 @@ export default function ChatScreen() {
             initialPositionAttemptsRef.current = 0;
             const initialConversationId = routeConversationId ? String(routeConversationId) : null;
 
+            let hasCache = false;
             if (initialConversationId) {
                 const cachedConversation = await chatStore.getConversation(initialConversationId);
                 if (cachedConversation) {
                     setConversation(cachedConversation);
+                    hasCache = true;
                 }
 
                 const cachedMessages = await refreshLocalMessages(initialConversationId);
                 if (cachedMessages.length) {
                     hasCompletedInitialScrollRef.current = true;
                     pendingImmediateScrollRef.current = true;
+                    hasCache = true;
                 } else {
                     setIsViewportReady(true);
                 }
-                if (isActive) {
+                
+                // Only stop loading if we have a meaningful cache to show
+                if (isActive && hasCache) {
                     setLoading(false);
                 }
             }
@@ -734,7 +740,7 @@ export default function ChatScreen() {
             if (!isActive) return;
 
             setResolvedConversationId(realId);
-            if (realId !== initialConversationId) {
+            if (realId !== initialConversationId || !hasCache) {
                 const cachedMessages = await refreshLocalMessages(realId);
                 if (cachedMessages.length) {
                     hasCompletedInitialScrollRef.current = true;
@@ -1557,10 +1563,13 @@ export default function ChatScreen() {
                 <View style={{ flex: 1 }}>
                     {/* Dark overlay - blurs all other messages */}
                     <TouchableOpacity 
-                        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} 
+                        style={StyleSheet.absoluteFill} 
                         activeOpacity={1} 
                         onPress={() => { setShowingActions(null); setBubbleLayout(null); }}
-                    />
+                    >
+                        <BlurView intensity={20} style={StyleSheet.absoluteFill} tint={isDark ? 'dark' : 'light'} />
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)' }]} />
+                    </TouchableOpacity>
 
                     {showingActions && bubbleLayout && (() => {
                         const actIsMine = showingActions.sender_id === user?.id;
