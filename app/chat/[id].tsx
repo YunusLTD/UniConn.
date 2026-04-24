@@ -1760,8 +1760,8 @@ export default function ChatScreen() {
                                         transform: [{ scale: 1 }] 
                                     },
                                     menuBelow
-                                        ? { top: bubbleLayout.top + bubbleLayout.height + 56 }
-                                        : { top: bubbleLayout.top - menuH - 76 },
+                                        ? { top: bubbleLayout.top + bubbleLayout.height + 12 }
+                                        : { top: bubbleLayout.top - menuH - 12 },
                                     actIsMine ? { right: 16 } : { left: 16 },
                                 ]}>
                                     <TouchableOpacity 
