@@ -125,12 +125,13 @@ const mergeParticipantLists = (primaryParticipants: any[] = [], cachedParticipan
 };
 
 const VideoPreview = ({ uri, onLoading }: { uri: string, onLoading: (loading: boolean) => void }) => {
-    const player = useVideoPlayer(uri, p => {
-        p.loop = true;
-        p.play();
-    });
+    const player = useVideoPlayer(uri);
 
     useEffect(() => {
+        if (player) {
+            player.loop = true;
+            player.play();
+        }
         onLoading(true);
         const sub = player.addListener('statusChange', ({ status }) => {
             if (status === 'readyToPlay') {

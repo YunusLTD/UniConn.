@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Image, FlatList, DeviceEventEmitter } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    View, Text, TextInput, TouchableOpacity, StyleSheet,
+    ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+    ScrollView, Image, Animated,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { spacing, fonts, radii } from '../src/constants/theme';
-import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { useLanguage } from '../src/context/LanguageContext';
-import { getMyCommunities, createCommunity } from '../src/api/communities';
+import { getMyCommunities } from '../src/api/communities';
 import { createPost, getPost, updatePost } from '../src/api/posts';
 import { createEvent } from '../src/api/events';
 import { createJob } from '../src/api/jobs';
@@ -17,12 +21,35 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCommunityMembers } from '../src/api/communities';
+import { DeviceEventEmitter } from 'react-native';
+import { useAuth } from '../src/context/AuthContext';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+type CreationType = 'post' | 'event' | 'job' | 'study' | 'market' | 'poll' | 'story';
+
+// ─── Subcomponents ────────────────────────────────────────────────────────────
+
+function AvatarBlock({ size = 40, letter = '?', color, uri }: { size?: number; letter?: string; color: string; uri?: string }) {
+    if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+    return (
+        <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ fontFamily: fonts.bold, fontSize: size * 0.38, color: '#fff' }}>{letter}</Text>
+        </View>
+    );
+}
+
+function ThreadLine({ color }: { color: string }) {
+    return <View style={{ width: 2, flex: 1, backgroundColor: color, borderRadius: 1, marginVertical: 4, alignSelf: 'center' }} />;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CreatePostModal() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { colors, isDark } = useTheme();
     const { t } = useLanguage();
+    const { user } = useAuth();
 
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<any>(null);
@@ -33,586 +60,655 @@ export default function CreatePostModal() {
     const [taggingSearch, setTaggingSearch] = useState<string | null>(null);
     const [taggingRefInput, setTaggingRefInput] = useState<'content' | 'description' | 'poll' | null>(null);
     const [members, setMembers] = useState<any[]>([]);
+    const [attachments, setAttachments] = useState<{ uri: string; type: 'image' | 'video'; thumbnail?: string | null }[]>([]);
 
-    // Normalize plural types from tabs
     const normalizedType = params.type === 'events' ? 'event' : params.type === 'jobs' ? 'job' : params.type;
-    const [creationType, setCreationType] = useState<'post' | 'event' | 'job' | 'study' | 'market' | 'poll' | 'story'>(((normalizedType as any) || 'post'));
-    const [location, setLocation] = useState<any>(null);
-
-    useEffect(() => {
-        if (creationType === 'story') {
-            (async () => {
-                const { status: lStat } = await import('expo-location').then(l => l.requestForegroundPermissionsAsync());
-                if (lStat === 'granted') {
-                    const loc = await import('expo-location').then(l => l.getCurrentPositionAsync({}));
-                    setLocation(loc.coords);
-                }
-            })();
-        }
-    }, [creationType]);
+    const [creationType, setCreationType] = useState<CreationType>(((normalizedType as any) || 'post'));
 
     const [pollQuestion, setPollQuestion] = useState('');
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
-
     const [eventTitle, setEventTitle] = useState('');
     const [eventDate, setEventDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [eventLocation, setEventLocation] = useState('');
-
     const [jobTitle, setJobTitle] = useState('');
     const [jobBudget, setJobBudget] = useState('');
-
     const [studyTitle, setStudyTitle] = useState('');
     const [studyTopic, setStudyTopic] = useState('');
     const [studySchedule, setStudySchedule] = useState('');
-
     const [marketTitle, setMarketTitle] = useState('');
     const [marketPrice, setMarketPrice] = useState('');
 
-    const [attachments, setAttachments] = useState<{ uri: string, type: 'image' | 'video' }[]>([]);
+    const selectorAnim = useRef(new Animated.Value(0)).current;
+
+    const toggleSelector = (open: boolean) => {
+        setShowSelector(open);
+        Animated.spring(selectorAnim, { toValue: open ? 1 : 0, useNativeDriver: true, tension: 60, friction: 12 }).start();
+    };
 
     useEffect(() => {
-        const loadInitialData = async () => {
+        const load = async () => {
             try {
-                // 1. Load communities
                 const commRes = await getMyCommunities();
-                if (commRes?.data) {
-                    setCommunities(commRes.data);
-                }
+                if (commRes?.data) setCommunities(commRes.data);
 
-                // 2. If editing, load the post
                 if (params.edit === 'true' && params.postId) {
                     const postRes = await getPost(params.postId as string);
                     if (postRes?.data) {
                         const post = postRes.data;
                         setContent(post.content || '');
-                        setCreationType('post'); // For now only editing regular posts
-                        
                         if (commRes?.data) {
                             const comm = commRes.data.find((c: any) => c.id === post.community_id);
-                            if (comm) {
-                                setSelectedCommunity(comm);
-                                loadMembers(comm.id);
-                            }
+                            if (comm) { setSelectedCommunity(comm); loadMembers(comm.id); }
                         }
                     }
                 } else if (commRes?.data) {
-                    // Default selection for new posts
                     let target = null;
-                    if (params.communityId) {
-                        target = commRes.data.find((c: any) => c.id === params.communityId);
-                    } else if (commRes.data.length > 0) {
-                        target = commRes.data[0];
-                    }
-                    if (target) {
-                        setSelectedCommunity(target);
-                        loadMembers(target.id);
-                    }
+                    if (params.communityId) target = commRes.data.find((c: any) => c.id === params.communityId);
+                    else if (commRes.data.length > 0) target = commRes.data[0];
+                    if (target) { setSelectedCommunity(target); loadMembers(target.id); }
                 }
-            } catch (error) {
-                console.error('Failed to load initial data:', error);
-            } finally {
-                setLoading(false);
-            }
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
         };
-        loadInitialData();
+        load();
     }, [params.communityId, params.edit, params.postId]);
 
-    const loadMembers = async (communityId: string) => {
-        try {
-            const res = await getCommunityMembers(communityId);
-            if (res?.data) setMembers(res.data);
-        } catch (e) { }
+    const loadMembers = async (id: string) => {
+        try { const r = await getCommunityMembers(id); if (r?.data) setMembers(r.data); } catch (_) { }
     };
 
-    const removeAttachment = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-    };
+    const removeAttachment = (i: number) => setAttachments(p => p.filter((_, j) => j !== i));
 
     const pickMedia = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images', 'videos'],
-            allowsMultipleSelection: true,
-            selectionLimit: 10,
-            quality: 0.8,
-        });
-        if (!result.canceled) {
-            const newAttachments = result.assets.map(asset => ({
-                uri: asset.uri,
-                type: asset.type as 'image' | 'video'
+        const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 10, quality: 0.8, videoMaxDuration: 120 });
+        if (!r.canceled) {
+            const assetsWithThumbs = await Promise.all(r.assets.map(async (a) => {
+                let thumbnail = null;
+                if (a.type === 'video') {
+                    try {
+                        const { uri } = await VideoThumbnails.getThumbnailAsync(a.uri, { time: 1000 });
+                        thumbnail = uri;
+                    } catch (e) { console.error('Thumbnail error:', e); }
+                }
+                return { uri: a.uri, type: a.type as 'image' | 'video', thumbnail };
             }));
-            setAttachments([...attachments, ...newAttachments].slice(0, 10));
+            setAttachments(p => [...p, ...assetsWithThumbs].slice(0, 10));
         }
     };
 
     const takeMedia = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return Alert.alert(t('error'), 'Camera permission is required');
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 });
-        if (!result.canceled) {
-            const asset = result.assets[0];
-            const newAttachment = { uri: asset.uri, type: asset.type as 'image' | 'video' };
-            setAttachments([...attachments, newAttachment].slice(0, 10));
+        if (status !== 'granted') return Alert.alert(t('error'), 'Camera permission required');
+        const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.8, videoMaxDuration: 120 });
+        if (!r.canceled) {
+            let thumbnail = null;
+            const asset = r.assets[0];
+            if (asset.type === 'video') {
+                try {
+                    const { uri } = await VideoThumbnails.getThumbnailAsync(asset.uri, { time: 1000 });
+                    thumbnail = uri;
+                } catch (e) { }
+            }
+            setAttachments(p => [...p, { uri: asset.uri, type: asset.type as 'image' | 'video', thumbnail }].slice(0, 10));
         }
     };
 
     const handlePost = async () => {
         if (!selectedCommunity && !['study'].includes(creationType)) return Alert.alert(t('error'), 'Please select a community.');
-        
         const uploadId = Math.random().toString(36).substring(7);
         const type = creationType === 'market' ? 'market' : 'post';
-        
-        // Immediate UI feedback
         DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'uploading' });
         router.back();
-
         try {
-            let media_urls: string[] = [];
-            let media_types: string[] = [];
+            let media_urls: string[] = [], media_types: string[] = [];
             if (attachments.length > 0) {
-                const uploadRes = await uploadMultipleMedia(attachments);
-                media_urls = uploadRes.map((f: any) => f.url);
-                media_types = uploadRes.map((f: any) => f.type);
+                const up = await uploadMultipleMedia(attachments);
+                media_urls = up.map((f: any) => f.url);
+                media_types = up.map((f: any) => f.type);
             }
-
             if (creationType === 'post') {
-                if (!content.trim() && attachments.length === 0) throw new Error('Content or media is required');
+                if (!content.trim() && attachments.length === 0) throw new Error('Content or media required');
                 if (params.edit === 'true' && params.postId) {
-                    const updateRes = await updatePost(params.postId as string, { content: content.trim() });
-                    const localUpdatedAt = new Date().toISOString();
-                    DeviceEventEmitter.emit('postUpdated', {
-                        postId: params.postId,
-                        content: content.trim(),
-                        updated_at: localUpdatedAt,
-                        is_edited: true,
-                        updatedPost: updateRes?.data || updateRes || null,
-                    });
+                    const ur = await updatePost(params.postId as string, { content: content.trim() });
+                    DeviceEventEmitter.emit('postUpdated', { postId: params.postId, content: content.trim(), updated_at: new Date().toISOString(), is_edited: true, updatedPost: ur?.data || null });
                 } else {
                     await createPost(selectedCommunity.id, { content: content.trim(), media_urls, media_types });
                 }
-            } else if (creationType === 'study') {
-                await createPost(selectedCommunity?.id || 'public', { content: content.trim(), media_urls, media_types });
             } else if (creationType === 'event') {
-                if (!eventTitle.trim()) throw new Error('Title is required');
-                await createEvent(selectedCommunity.id, {
-                    title: eventTitle, description: content,
-                    start_time: eventDate.toISOString(), location: eventLocation,
-                    image_url: media_urls[0]
-                });
+                if (!eventTitle.trim()) throw new Error('Title required');
+                await createEvent(selectedCommunity.id, { title: eventTitle, description: content, start_time: eventDate.toISOString(), location: eventLocation, image_url: media_urls[0] });
             } else if (creationType === 'job') {
-                if (!jobTitle.trim()) throw new Error('Title is required');
-                await createJob(selectedCommunity.id, {
-                    title: jobTitle, description: content,
-                    budget: jobBudget ? parseFloat(jobBudget) : null
-                });
+                if (!jobTitle.trim()) throw new Error('Title required');
+                await createJob(selectedCommunity.id, { title: jobTitle, description: content, budget: jobBudget ? parseFloat(jobBudget) : null });
             } else if (creationType === 'market') {
-                if (!marketTitle.trim()) throw new Error('Item name is required');
-                await createMarketplaceListing(selectedCommunity.id, {
-                    title: marketTitle, description: content,
-                    price: marketPrice ? parseFloat(marketPrice) : 0,
-                    image_url: media_urls[0]
-                });
+                if (!marketTitle.trim()) throw new Error('Item name required');
+                await createMarketplaceListing(selectedCommunity.id, { title: marketTitle, description: content, price: marketPrice ? parseFloat(marketPrice) : 0, image_url: media_urls[0] });
             } else if (creationType === 'poll') {
-                if (!pollQuestion.trim()) throw new Error('Poll question is required');
-                const validOptions = pollOptions.filter(o => o.trim());
-                if (validOptions.length < 2) throw new Error('At least 2 options required');
-                await createPoll(selectedCommunity.id, {
-                    question: pollQuestion.trim(),
-                    options: validOptions.map(o => o.trim()),
-                });
+                if (!pollQuestion.trim()) throw new Error('Poll question required');
+                const valid = pollOptions.filter(o => o.trim());
+                if (valid.length < 2) throw new Error('At least 2 options required');
+                await createPoll(selectedCommunity.id, { question: pollQuestion.trim(), options: valid.map(o => o.trim()) });
             }
-            
-            if (!(creationType === 'post' && params.edit === 'true' && params.postId)) {
-                DeviceEventEmitter.emit('postCreated');
-            }
-
+            if (!(creationType === 'post' && params.edit === 'true' && params.postId)) DeviceEventEmitter.emit('postCreated');
             DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'success' });
         } catch (e: any) {
-            console.error('Upload failed:', e);
-            DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'error', message: e.message || 'Failed to upload' });
+            DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'error', message: e.message || 'Upload failed' });
         }
     };
 
-    const TYPES: { key: typeof creationType, icon: string, label: string }[] = [
-        { key: 'post', icon: 'document-text-outline', label: t('post_tab') },
-        { key: 'poll', icon: 'stats-chart-outline', label: t('poll_tab') },
-    ];
-
-    const formatSmartDate = (date: Date) => {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const isToday = date.toDateString() === now.toDateString();
-        const isTomorrow = date.toDateString() === tomorrow.toDateString();
-
-        const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-        if (isToday) return `${t('today')}, ${time}`;
-        if (isTomorrow) return `${t('tomorrow')}, ${time}`;
-
-        // If within the next 7 days, show day name
-        const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > 0 && diffDays < 7) {
-            return `${date.toLocaleDateString([], { weekday: 'short' })}, ${time}`;
-        }
-
-        return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
-    };
-
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        if (Platform.OS === 'android') {
-            setShowDatePicker(false);
-            if (selectedDate) setEventDate(selectedDate);
-            return;
-        }
-        if (selectedDate) setEventDate(selectedDate);
-    };
-
-    const handleInputChange = (text: string, field: 'content' | 'description' | 'poll') => {
+    const handleInputChange = (text: string, field: 'content' | 'poll') => {
         if (field === 'content') setContent(text);
-        else if (field === 'poll') setPollQuestion(text);
-
-        // Detect tagging in current field
+        else setPollQuestion(text);
         const lastWord = text.split(/\s/).pop();
-        if (lastWord?.startsWith('@')) {
-            setTaggingSearch(lastWord.substring(1));
-            setTaggingRefInput(field);
-        } else {
-            setTaggingSearch(null);
-            setTaggingRefInput(null);
-        }
+        if (lastWord?.startsWith('@')) { setTaggingSearch(lastWord.substring(1)); setTaggingRefInput(field); }
+        else { setTaggingSearch(null); setTaggingRefInput(null); }
     };
 
     const handleSelectTag = (username: string) => {
-        const currentVal = taggingRefInput === 'poll' ? pollQuestion : content;
-        const parts = currentVal.split(' ');
-        parts.pop();
-        const newVal = parts.join(' ') + (parts.length > 0 ? ' ' : '') + '@' + username + ' ';
-        
-        if (taggingRefInput === 'poll') setPollQuestion(newVal);
-        else setContent(newVal);
-        
-        setTaggingSearch(null);
-        setTaggingRefInput(null);
+        const cur = taggingRefInput === 'poll' ? pollQuestion : content;
+        const parts = cur.split(' '); parts.pop();
+        const val = parts.join(' ') + (parts.length ? ' ' : '') + '@' + username + ' ';
+        if (taggingRefInput === 'poll') setPollQuestion(val); else setContent(val);
+        setTaggingSearch(null); setTaggingRefInput(null);
     };
 
-    const filteredMembers = taggingSearch !== null 
+    const filteredMembers = taggingSearch !== null
         ? members.filter(m => {
-            const search = taggingSearch.toLowerCase();
-            const username = m.profiles?.username?.toLowerCase() || '';
-            const name = m.profiles?.name?.toLowerCase() || '';
-            return username.includes(search) || name.includes(search);
-        }).slice(0, 8)
+            const s = taggingSearch.toLowerCase();
+            return m.profiles?.username?.toLowerCase().includes(s) || m.profiles?.name?.toLowerCase().includes(s);
+        }).slice(0, 6)
         : [];
 
+    const formatDate = (d: Date) => {
+        const now = new Date(), tom = new Date(now); tom.setDate(tom.getDate() + 1);
+        const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (d.toDateString() === now.toDateString()) return `Today, ${time}`;
+        if (d.toDateString() === tom.toDateString()) return `Tomorrow, ${time}`;
+        return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+    };
+
+    const TYPES: { key: CreationType; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+        { key: 'post', icon: 'create-outline', label: 'Post' },
+        { key: 'poll', icon: 'bar-chart-outline', label: 'Poll' },
+    ];
+
+    const isEditing = params.edit === 'true';
+    const canPost = content.trim().length > 0 || (creationType === 'poll' && pollQuestion.trim().length > 0) || attachments.length > 0;
+    const communityName = selectedCommunity?.is_official
+        ? (selectedCommunity.universities?.name || 'University Feed')
+        : (selectedCommunity?.name?.replace(/ community/gi, '') || 'Select');
+
+    // Colors
+    const bg = colors.background;
+    const textPrimary = colors.black;
+    const textMuted = colors.gray400;
+    const border = colors.border;
+    const surface = colors.surface;
+    const accent = colors.text; // typically black/near-black
+    const threadLineColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <View style={[styles.header, { borderBottomColor: colors.border }]}>
-                    <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-                        <Text style={[styles.cancelText, { color: colors.gray500 }]}>{t('cancel_label')}</Text>
+        <KeyboardAvoidingView 
+            style={{ flex: 1, backgroundColor: bg }} 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        >
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+
+                {/* ── Header ── */}
+                <View style={[S.header, { borderBottomColor: border }]}>
+                    <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={S.headerSide}>
+                        <Text style={[S.headerCancel, { color: textMuted }]}>Cancel</Text>
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: colors.black }]}>
-                        {params.edit === 'true' ? t('header_edit') : t('header_new')} {
-                            creationType === 'study' ? t('mini_community') : 
-                            creationType === 'market' ? t('listing_label') : 
-                            creationType === 'event' ? t('event_tab') :
-                            creationType === 'job' ? t('job_tab') :
-                            creationType === 'poll' ? t('poll_tab') :
-                            t('post_tab')
-                        }
-                    </Text>
-                    <TouchableOpacity
-                        style={[
-                            styles.postBtn, 
-                            { 
-                                backgroundColor: colors.text, 
-                                opacity: (content.trim().length > 0 || (creationType === 'poll' && pollQuestion.trim().length > 0)) && !posting ? 1 : 0.5 
-                            }
-                        ]}
-                        onPress={handlePost}
-                        disabled={posting || !(content.trim().length > 0 || (creationType === 'poll' && pollQuestion.trim().length > 0))}
-                        activeOpacity={0.7}
-                    >
-                        {posting ? (
-                            <ActivityIndicator size="small" color={colors.background} />
-                        ) : (
-                            <Text style={[styles.postBtnText, { color: colors.background }]}>
-                                {params.edit === 'true' ? t('save') : (creationType === 'post' ? t('share') : t('launch'))}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
 
-                {/* Community Selector */}
-                {!['study', 'story'].includes(creationType) && (
-                    <View style={[styles.selectorRow, !!params.communityId && { opacity: 0.7 }]}>
-                        <Text style={[styles.selectorLabel, { color: colors.gray400 }]}>{t('in_label')}</Text>
-                        {loading ? (
-                            <Skeleton width={120} height={32} borderRadius={16} />
-                        ) : (
-                            <TouchableOpacity
-                                style={[styles.selectorPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                                onPress={() => !params.communityId && setShowSelector(!showSelector)}
-                                disabled={!!params.communityId}
-                            >
-                                <Text style={[styles.selectorText, { color: colors.black }]}>{selectedCommunity?.is_official ? (selectedCommunity.universities?.name || 'University Feed') : (selectedCommunity?.name?.replace(/ community/gi, '') || 'Select')}</Text>
-                                {!params.communityId && <Ionicons name={showSelector ? 'chevron-up' : 'chevron-down'} size={14} color={colors.gray500} />}
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                )}
+                    {/* Type Pills (centered) */}
+                    {!isEditing && (
+                        <View style={S.typePills}>
+                            {TYPES.map(tp => {
+                                const active = creationType === tp.key;
+                                return (
+                                    <TouchableOpacity
+                                        key={tp.key}
+                                        onPress={() => setCreationType(tp.key)}
+                                        style={[S.pill, { backgroundColor: active ? accent : 'transparent', borderColor: active ? accent : border }]}
+                                    >
+                                        <Ionicons name={tp.icon} size={13} color={active ? bg : textMuted} />
+                                        <Text style={[S.pillLabel, { color: active ? bg : textMuted }]}>{tp.label}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
+                    {isEditing && <Text style={[S.headerTitle, { color: textPrimary }]}>Edit Post</Text>}
 
-                {showSelector && (
-                    <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <ScrollView style={{ maxHeight: 180 }}>
-                            {communities.map(c => (
-                                <TouchableOpacity
-                                    key={c.id}
-                                    style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
-                                    onPress={() => { 
-                                        setSelectedCommunity(c); 
-                                        setShowSelector(false); 
-                                        loadMembers(c.id);
-                                    }}
-                                >
-                                    <Text style={[styles.dropdownText, { color: colors.black }, selectedCommunity?.id === c.id && styles.dropdownTextActive]}>
-                                        {c.is_official ? (c.universities?.name || 'University Feed') : c.name?.replace(/ community/gi, '')}
-                                    </Text>
-                                    {selectedCommunity?.id === c.id && <Ionicons name="checkmark" size={16} color={colors.black} />}
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
-
-
-                <View style={[styles.typeBar, { borderBottomColor: colors.border }, params.edit === 'true' && { opacity: 0.5 }]}>
-                    {TYPES.map(t => (
+                    <View style={S.headerSide}>
                         <TouchableOpacity
-                            key={t.key}
-                            style={[styles.typeBtn, { backgroundColor: colors.gray100 }, creationType === t.key && { backgroundColor: colors.black }]}
-                            onPress={() => !params.edit && setCreationType(t.key)}
-                            disabled={!!params.edit}
+                            style={[S.postBtn, { backgroundColor: canPost && !posting ? accent : textMuted }]}
+                            onPress={handlePost}
+                            disabled={!canPost || posting}
+                            activeOpacity={0.8}
                         >
-                            <Ionicons name={t.icon as any} size={16} color={creationType === t.key ? colors.white : colors.gray600} />
-                            {creationType === t.key && <Text style={[styles.typeLabel, { color: colors.white }]}>{t.label}</Text>}
+                            {posting
+                                ? <ActivityIndicator size="small" color={bg} />
+                                : <Text style={[S.postBtnText, { color: bg }]}>
+                                    {isEditing ? 'Save' : (creationType === 'post' || creationType === 'poll') ? 'Post' : 'Launch'}
+                                </Text>
+                            }
                         </TouchableOpacity>
-                    ))}
+                    </View>
                 </View>
 
-                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+                {/* ── Community chip ── */}
+                {!['study', 'story'].includes(creationType) && (
+                    <View style={[S.communityRow, { borderBottomColor: border }]}>
+                        <Ionicons name="people-outline" size={14} color={textMuted} />
+                        {loading
+                            ? <Skeleton width={100} height={22} borderRadius={11} />
+                            : (
+                                <TouchableOpacity
+                                    style={[S.communityChip, { borderColor: border }]}
+                                    onPress={() => !params.communityId && toggleSelector(!showSelector)}
+                                    disabled={!!params.communityId}
+                                >
+                                    <Text style={[S.communityChipText, { color: textPrimary }]}>{communityName}</Text>
+                                    {!params.communityId && (
+                                        <Ionicons name={showSelector ? 'chevron-up' : 'chevron-down'} size={12} color={textMuted} />
+                                    )}
+                                </TouchableOpacity>
+                            )
+                        }
+                    </View>
+                )}
+
+                {/* ── Community Dropdown ── */}
+                {showSelector && (
+                    <Animated.View style={[S.dropdown, { backgroundColor: surface, borderColor: border, opacity: selectorAnim, transform: [{ translateY: selectorAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
+                        <ScrollView style={{ maxHeight: 180 }} bounces={false}>
+                            {communities.map(c => {
+                                const name = c.is_official ? (c.universities?.name || 'University Feed') : c.name?.replace(/ community/gi, '');
+                                const isActive = selectedCommunity?.id === c.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={c.id}
+                                        style={[S.dropdownItem, { borderBottomColor: border, backgroundColor: isActive ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)') : 'transparent' }]}
+                                        onPress={() => { setSelectedCommunity(c); toggleSelector(false); loadMembers(c.id); }}
+                                    >
+                                        <Text style={[S.dropdownText, { color: textPrimary, fontFamily: isActive ? fonts.semibold : fonts.regular }]}>{name}</Text>
+                                        {isActive && <Ionicons name="checkmark" size={15} color={accent} />}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+                    </Animated.View>
+                )}
+
+                {/* ── Body ── */}
+                <ScrollView 
+                    style={{ flex: 1 }} 
+                    keyboardShouldPersistTaps="handled" 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                >
+
+                    {/* POST */}
                     {creationType === 'post' && (
-                        <View style={{ flex: 1 }}>
-                            <TextInput style={[styles.mainInput, { color: colors.black }]} placeholder={t('post_placeholder')} placeholderTextColor={colors.gray400} multiline autoFocus value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                            {taggingSearch !== null && filteredMembers.length > 0 && (
-                                <View style={[styles.taggingList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                    {filteredMembers.map((item) => (
-                                        <TouchableOpacity 
-                                            key={item.profiles.id}
-                                            style={[styles.memberTag, { borderBottomColor: colors.border }]} 
-                                            onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}
-                                        >
-                                            {item.profiles.avatar_url ? (
-                                                <Image source={{ uri: item.profiles.avatar_url }} style={styles.tagAvatar} />
-                                            ) : (
-                                                <View style={[styles.tagAvatar, { backgroundColor: colors.gray200, justifyContent: 'center', alignItems: 'center' }]}>
-                                                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.gray600 }}>{item.profiles.name?.[0]?.toUpperCase() || '?'}</Text>
+                        <View style={S.composerRoot}>
+                            {/* Left column: avatar + thread line */}
+                            <View style={S.composerLeft}>
+                                <AvatarBlock 
+                                    uri={user?.profile?.avatar_url} 
+                                    letter={user?.profile?.name?.[0] || user?.name?.[0] || '?'} 
+                                    color={accent} 
+                                />
+                                {(content.length > 0 || attachments.length > 0) && <ThreadLine color={threadLineColor} />}
+                            </View>
+
+                            {/* Right column: input + media */}
+                            <View style={S.composerRight}>
+                                <TextInput
+                                    style={[S.mainInput, { color: textPrimary }]}
+                                    placeholder="What's on your mind?"
+                                    placeholderTextColor={textMuted}
+                                    multiline
+                                    autoFocus
+                                    value={content}
+                                    onChangeText={t => handleInputChange(t, 'content')}
+                                />
+
+                                {/* Tagging suggestions */}
+                                {taggingSearch !== null && filteredMembers.length > 0 && (
+                                    <View style={[S.taggingBox, { backgroundColor: surface, borderColor: border }]}>
+                                        {filteredMembers.map(item => (
+                                            <TouchableOpacity
+                                                key={item.profiles.id}
+                                                style={[S.tagRow, { borderBottomColor: border }]}
+                                                onPress={() => handleSelectTag(item.profiles.username || item.profiles.name?.replace(/\s/g, ''))}
+                                            >
+                                                {item.profiles.avatar_url
+                                                    ? <Image source={{ uri: item.profiles.avatar_url }} style={S.tagAvatar} />
+                                                    : <AvatarBlock size={30} letter={item.profiles.name?.[0] || '?'} color={accent} />
+                                                }
+                                                <View>
+                                                    <Text style={[S.tagName, { color: textPrimary }]}>{item.profiles.name}</Text>
+                                                    {item.profiles.username && <Text style={[S.tagHandle, { color: textMuted }]}>@{item.profiles.username}</Text>}
                                                 </View>
-                                            )}
-                                            <View>
-                                                <Text style={[styles.tagName, { color: colors.black }]}>{item.profiles.name}</Text>
-                                                {item.profiles.username && <Text style={[styles.tagUsername, { color: colors.gray400 }]}>@{item.profiles.username}</Text>}
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+
+                                {attachments.length > 0 && (
+                                    <View style={S.mediaGrid}>
+                                        {attachments.map((item, i) => (
+                                            <View key={i} style={[S.mediaCell, { backgroundColor: surface }]}>
+                                                {item.type === 'video'
+                                                    ? (item.thumbnail 
+                                                        ? <Image source={{ uri: item.thumbnail }} style={S.mediaImg} />
+                                                        : <View style={[S.mediaCell, { justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a1a1a' : '#f0f0f0' }]}>
+                                                            <Ionicons name="videocam" size={28} color={textMuted} />
+                                                          </View>
+                                                      )
+                                                    : <Image source={{ uri: item.uri }} style={S.mediaImg} />
+                                                }
+                                                {item.type === 'video' && (
+                                                    <View style={S.videoIconOverlay}>
+                                                        <Ionicons name="play-circle" size={24} color="#fff" />
+                                                    </View>
+                                                )}
+                                                <TouchableOpacity style={S.removeBtn} onPress={() => removeAttachment(i)}>
+                                                    <Ionicons name="close-circle" size={20} color={isDark ? '#fff' : '#000'} />
+                                                </TouchableOpacity>
                                             </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-                            {attachments.length > 0 && (
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
-                                    {attachments.map((item, index) => (
-                                        <View key={index} style={[styles.mediaThumbnail, { backgroundColor: colors.surface }]}>
-                                            <Image source={{ uri: item.uri }} style={styles.mediaImg} />
-                                            <TouchableOpacity style={[styles.removeBtn, { backgroundColor: colors.surface }]} onPress={() => removeAttachment(index)}><Ionicons name="close-circle" size={22} color={colors.black} /></TouchableOpacity>
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            )}
-                            <View style={[styles.toolbar, { borderTopColor: colors.border }]}>
-                                <TouchableOpacity style={styles.toolbarItem} onPress={pickMedia}><Ionicons name="images-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>{t('library_label')}</Text></TouchableOpacity>
-                                <TouchableOpacity style={styles.toolbarItem} onPress={takeMedia}><Ionicons name="camera-outline" size={22} color={colors.gray500} /><Text style={[styles.toolbarText, { color: colors.gray500 }]}>{t('camera_label')}</Text></TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
                         </View>
                     )}
 
-                    {creationType === 'study' && (
-                        <View style={styles.formSection}>
-                                <Text style={[styles.sectionHint, { color: colors.gray500 }]}>{t('mini_community_hint')}</Text>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('mini_community_name_placeholder')} placeholderTextColor={colors.gray400} value={studyTitle} onChangeText={setStudyTitle} />
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('subject_label')} placeholderTextColor={colors.gray400} value={studyTopic} onChangeText={setStudyTopic} />
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('schedule_goal_placeholder')} placeholderTextColor={colors.gray400} value={studySchedule} onChangeText={setStudySchedule} />
-                            <TextInput style={[styles.formInput, { height: 80, borderBottomWidth: 0, color: colors.black }]} placeholder={t('group_purpose_placeholder')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                    {/* POLL */}
+                    {creationType === 'poll' && (
+                        <View style={S.composerRoot}>
+                            <View style={S.composerLeft}>
+                                <AvatarBlock 
+                                    uri={user?.profile?.avatar_url} 
+                                    letter={user?.profile?.name?.[0] || user?.name?.[0] || '?'} 
+                                    color={accent} 
+                                />
+                                {pollQuestion.length > 0 && <ThreadLine color={threadLineColor} />}
+                            </View>
+                            <View style={[S.composerRight, { paddingBottom: spacing.xl }]}>
+                                <TextInput
+                                    style={[S.mainInput, { color: textPrimary }]}
+                                    placeholder="Ask a question…"
+                                    placeholderTextColor={textMuted}
+                                    multiline
+                                    autoFocus
+                                    value={pollQuestion}
+                                    onChangeText={t => handleInputChange(t, 'poll')}
+                                />
+                                {/* Poll options */}
+                                <View style={[S.pollCard, { borderColor: border, backgroundColor: surface }]}>
+                                    {pollOptions.map((opt, i) => (
+                                        <View key={i} style={[S.pollOptionRow, { borderBottomColor: i < pollOptions.length - 1 ? border : 'transparent' }]}>
+                                            <View style={[S.pollIndex, { borderColor: border }]}>
+                                                <Text style={[S.pollIndexText, { color: textMuted }]}>{String.fromCharCode(65 + i)}</Text>
+                                            </View>
+                                            <TextInput
+                                                style={[S.pollInput, { color: textPrimary }]}
+                                                placeholder={`Option ${i + 1}`}
+                                                placeholderTextColor={textMuted}
+                                                value={opt}
+                                                onChangeText={v => { const u = [...pollOptions]; u[i] = v; setPollOptions(u); }}
+                                            />
+                                            {pollOptions.length > 2 && (
+                                                <TouchableOpacity onPress={() => setPollOptions(p => p.filter((_, j) => j !== i))} hitSlop={8}>
+                                                    <Ionicons name="close" size={16} color={textMuted} />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                    ))}
+                                    {pollOptions.length < 6 && (
+                                        <TouchableOpacity style={S.addOption} onPress={() => setPollOptions(p => [...p, ''])}>
+                                            <Ionicons name="add" size={16} color={textMuted} />
+                                            <Text style={[S.addOptionText, { color: textMuted }]}>Add option</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
                         </View>
                     )}
 
+                    {/* EVENT */}
                     {creationType === 'event' && (
-                        <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('event_placeholder')} placeholderTextColor={colors.gray400} value={eventTitle} onChangeText={setEventTitle} />
-                            <TouchableOpacity style={[styles.datePickerBtn, { borderBottomColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
-                                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                                <Text style={[styles.datePickerText, { color: colors.black }]}>{formatSmartDate(eventDate)}</Text>
-                                <View style={[styles.changeTag, { backgroundColor: colors.surface }]}>
-                                    <Text style={[styles.changeLabel, { color: colors.gray600 }]}>{showDatePicker ? t('setting_time') : t('change')}</Text>
+                        <View style={[S.formCard, { borderColor: border }]}>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Event name</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary }]} placeholder="Give your event a title" placeholderTextColor={textMuted} value={eventTitle} onChangeText={setEventTitle} autoFocus />
+                            </View>
+                            <TouchableOpacity style={[S.formField, { borderBottomColor: border }]} onPress={() => setShowDatePicker(!showDatePicker)}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Date & time</Text>
+                                <View style={S.fieldRow}>
+                                    <Text style={[S.fieldValue, { color: textPrimary }]}>{formatDate(eventDate)}</Text>
+                                    <Ionicons name="calendar-outline" size={16} color={textMuted} />
                                 </View>
                             </TouchableOpacity>
                             {showDatePicker && (
-                                <View style={[styles.pickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                    <DateTimePicker 
-                                        value={eventDate} 
-                                        mode="datetime" 
-                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'} 
-                                        onChange={onDateChange} 
-                                        textColor={isDark ? '#FFFFFF' : '#000000'}
-                                    />
+                                <View style={[S.pickerWrap, { borderBottomColor: border }]}>
+                                    <DateTimePicker value={eventDate} mode="datetime" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { if (Platform.OS === 'android') setShowDatePicker(false); if (d) setEventDate(d); }} textColor={isDark ? '#fff' : '#000'} />
                                     {Platform.OS === 'ios' && (
-                                        <TouchableOpacity style={[styles.doneBtn, { backgroundColor: colors.black }]} onPress={() => setShowDatePicker(false)}>
-                                            <Text style={[styles.doneText, { color: colors.white }]}>{t('done_label')}</Text>
+                                        <TouchableOpacity style={[S.doneBtn, { backgroundColor: accent }]} onPress={() => setShowDatePicker(false)}>
+                                            <Text style={[S.doneBtnText, { color: bg }]}>Done</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
                             )}
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('location_label')} placeholderTextColor={colors.gray400} value={eventLocation} onChangeText={setEventLocation} />
-                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('description_label')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? t('image_selected') : t('add_event_banner')}</Text></TouchableOpacity>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Location</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary }]} placeholder="Where is it?" placeholderTextColor={textMuted} value={eventLocation} onChangeText={setEventLocation} />
+                            </View>
+                            <View style={[S.formField, { borderBottomColor: 'transparent' }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Description</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary, minHeight: 80 }]} placeholder="What's happening?" placeholderTextColor={textMuted} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            </View>
+                            <TouchableOpacity style={[S.bannerPicker, { borderColor: border, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]} onPress={pickMedia}>
+                                <Ionicons name="image-outline" size={18} color={textMuted} />
+                                <Text style={[S.bannerText, { color: textMuted }]}>{attachments.length > 0 ? '✓ Banner selected' : 'Add event banner'}</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
 
+                    {/* JOB */}
                     {creationType === 'job' && (
-                        <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('job_title')} placeholderTextColor={colors.gray400} value={jobTitle} onChangeText={setJobTitle} />
-                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder={t('budget')} placeholderTextColor={colors.gray400} value={jobBudget} onChangeText={setJobBudget} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 120, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('details')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                        </View>
-                    )}
-
-                    {creationType === 'market' && (
-                        <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('what_selling_placeholder')} placeholderTextColor={colors.gray400} value={marketTitle} onChangeText={setMarketTitle} />
-                            <View style={[styles.curRow, { borderBottomColor: colors.border }]}><Text style={[styles.cur, { color: colors.black }]}>$</Text><TextInput style={[styles.formInput, { flex: 1, borderBottomWidth: 0, color: colors.black }]} placeholder={t('price_label')} placeholderTextColor={colors.gray400} value={marketPrice} onChangeText={setMarketPrice} keyboardType="numeric" /></View>
-                            <TextInput style={[styles.formInput, { height: 100, color: colors.black, borderBottomColor: colors.border }]} placeholder={t('tell_more_placeholder')} placeholderTextColor={colors.gray400} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
-                            <TouchableOpacity style={[styles.mediaPicker, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={pickMedia}><Ionicons name="image-outline" size={18} color={colors.gray400} /><Text style={[styles.mediaPickerText, { color: colors.gray500 }]}>{attachments.length > 0 ? t('image_selected') : t('add_problem_photo')}</Text></TouchableOpacity>
-                        </View>
-                    )}
-
-                    {creationType === 'poll' && (
-                        <View style={styles.formSection}>
-                            <TextInput style={[styles.formInput, { color: colors.black, borderBottomColor: colors.border }]} placeholder={t('poll_question_placeholder')} placeholderTextColor={colors.gray400} value={pollQuestion} onChangeText={t => handleInputChange(t, 'poll')} autoFocus />
-                            {pollOptions.map((opt, i) => (
-                                <View key={i} style={styles.pollOptionRow}>
-                                    <View style={[styles.pollDot, { backgroundColor: colors.gray300 }]} />
-                                    <TextInput
-                                        style={[styles.formInput, { flex: 1, marginBottom: 0, color: colors.black, borderBottomColor: colors.border }]}
-                                        placeholder={`${t('option_label')} ${i + 1}`}
-                                        placeholderTextColor={colors.gray400}
-                                        value={opt}
-                                        onChangeText={text => {
-                                            const updated = [...pollOptions];
-                                            updated[i] = text;
-                                            setPollOptions(updated);
-                                        }}
-                                    />
-                                    {pollOptions.length > 2 && (
-                                        <TouchableOpacity onPress={() => setPollOptions(prev => prev.filter((_, j) => j !== i))} hitSlop={8}>
-                                            <Ionicons name="close-circle" size={20} color={colors.gray300} />
-                                        </TouchableOpacity>
-                                    )}
+                        <View style={[S.formCard, { borderColor: border }]}>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Role / Title</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary }]} placeholder="What's the job?" placeholderTextColor={textMuted} value={jobTitle} onChangeText={setJobTitle} autoFocus />
+                            </View>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Budget (USD)</Text>
+                                <View style={S.fieldRow}>
+                                    <Text style={[S.currencySign, { color: textPrimary }]}>$</Text>
+                                    <TextInput style={[S.fieldInput, { color: textPrimary, flex: 1 }]} placeholder="0.00" placeholderTextColor={textMuted} keyboardType="numeric" value={jobBudget} onChangeText={setJobBudget} />
                                 </View>
-                            ))}
-                            {pollOptions.length < 6 && (
-                                <TouchableOpacity style={styles.addOptionBtn} onPress={() => setPollOptions(prev => [...prev, ''])}>
-                                    <Ionicons name="add-circle-outline" size={18} color={colors.gray500} />
-                                    <Text style={[styles.addOptionText, { color: colors.gray500 }]}>{t('add_option_label')}</Text>
-                                </TouchableOpacity>
-                            )}
+                            </View>
+                            <View style={[S.formField, { borderBottomColor: 'transparent' }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Details</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary, minHeight: 100 }]} placeholder="Describe the work, skills needed…" placeholderTextColor={textMuted} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            </View>
                         </View>
                     )}
+
+                    {/* MARKET */}
+                    {creationType === 'market' && (
+                        <View style={[S.formCard, { borderColor: border }]}>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Item name</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary }]} placeholder="What are you selling?" placeholderTextColor={textMuted} value={marketTitle} onChangeText={setMarketTitle} autoFocus />
+                            </View>
+                            <View style={[S.formField, { borderBottomColor: border }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Price (USD)</Text>
+                                <View style={S.fieldRow}>
+                                    <Text style={[S.currencySign, { color: textPrimary }]}>$</Text>
+                                    <TextInput style={[S.fieldInput, { color: textPrimary, flex: 1 }]} placeholder="0.00" placeholderTextColor={textMuted} keyboardType="numeric" value={marketPrice} onChangeText={setMarketPrice} />
+                                </View>
+                            </View>
+                            <View style={[S.formField, { borderBottomColor: 'transparent' }]}>
+                                <Text style={[S.fieldLabel, { color: textMuted }]}>Description</Text>
+                                <TextInput style={[S.fieldInput, { color: textPrimary, minHeight: 80 }]} placeholder="Condition, details, how to pick up…" placeholderTextColor={textMuted} multiline value={content} onChangeText={t => handleInputChange(t, 'content')} />
+                            </View>
+                            <TouchableOpacity style={[S.bannerPicker, { borderColor: border, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }]} onPress={pickMedia}>
+                                <Ionicons name="image-outline" size={18} color={textMuted} />
+                                <Text style={[S.bannerText, { color: textMuted }]}>{attachments.length > 0 ? '✓ Photo selected' : 'Add a photo'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                 </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+
+                {/* ── Toolbar (post/poll only) ── */}
+                {['post', 'poll'].includes(creationType) && (
+                    <View style={[S.toolbar, { borderTopColor: border, backgroundColor: bg }]}>
+                        {creationType === 'post' && (
+                            <>
+                                <TouchableOpacity style={S.toolbarBtn} onPress={pickMedia}>
+                                    <Ionicons name="images-outline" size={22} color={textMuted} />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={S.toolbarBtn} onPress={takeMedia}>
+                                    <Ionicons name="camera-outline" size={22} color={textMuted} />
+                                </TouchableOpacity>
+                            </>
+                        )}
+                        <View style={{ flex: 1 }} />
+                        <Text style={[S.charCount, { color: (creationType === 'poll' ? pollQuestion.length : content.length) > 450 ? '#ef4444' : textMuted }]}>
+                            {500 - (creationType === 'poll' ? pollQuestion.length : content.length)}
+                        </Text>
+                    </View>
+                )}
+
+            </SafeAreaView>
+        </KeyboardAvoidingView>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14, borderBottomWidth: 0.5 },
-    cancelText: { fontFamily: fonts.regular, fontSize: 15 },
-    headerTitle: { fontFamily: fonts.semibold, fontSize: 16 },
-    postBtn: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: radii.full },
-    postBtnText: { fontFamily: fonts.semibold, fontSize: 13 },
-    selectorRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 12, gap: 8 },
-    selectorLabel: { fontFamily: fonts.regular, fontSize: 13 },
-    selectorPill: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, gap: 4 },
-    selectorText: { fontFamily: fonts.semibold, fontSize: 13 },
-    dropdown: { marginHorizontal: spacing.lg, borderRadius: radii.md, borderWidth: 1, overflow: 'hidden', marginBottom: 8 },
-    dropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    dropdownText: { fontFamily: fonts.regular, fontSize: 14 },
-    dropdownTextActive: { fontFamily: fonts.semibold },
-    typeBar: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 10, gap: 8, borderBottomWidth: 0.5 },
-    typeBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.full, gap: 5 },
-    typeLabel: { fontFamily: fonts.semibold, fontSize: 12 },
-    mainInput: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, fontFamily: fonts.regular, fontSize: 17, textAlignVertical: 'top', minHeight: 120 },
-    mediaScroll: { maxHeight: 160, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
-    mediaThumbnail: { width: 120, height: 140, marginRight: 8, borderRadius: radii.md, overflow: 'hidden' },
-    mediaImg: { width: '100%', height: '100%' },
-    removeBtn: { position: 'absolute', top: 6, right: 6, borderRadius: 11 },
-    toolbar: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 18, borderTopWidth: 0.5, gap: 24 },
-    toolbarItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    toolbarText: { fontFamily: fonts.regular, fontSize: 14 },
-    formSection: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-    formInput: { borderBottomWidth: 0.5, paddingVertical: 14, fontFamily: fonts.regular, fontSize: 15, marginBottom: 4 },
-    datePickerBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, borderBottomWidth: 0.5 },
-    datePickerText: { fontFamily: fonts.semibold, fontSize: 16, flex: 1 },
-    changeTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    changeLabel: { fontFamily: fonts.bold, fontSize: 11, textTransform: 'uppercase' },
-    pickerContainer: { borderRadius: 12, marginTop: 8, padding: 10, borderWidth: 1 },
-    doneBtn: { paddingVertical: 12, alignItems: 'center', borderRadius: 10, marginTop: 10 },
-    doneText: { fontFamily: fonts.bold, fontSize: 14 },
-    curRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, marginBottom: 4 },
-    cur: { fontFamily: fonts.bold, fontSize: 17, marginRight: 4 },
-    sectionHint: { fontFamily: fonts.regular, fontSize: 13, marginBottom: 12, lineHeight: 18 },
-    mediaPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: radii.sm, marginTop: spacing.md, borderWidth: 1 },
-    mediaPickerText: { fontFamily: fonts.regular, fontSize: 13 },
-    pollOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-    pollDot: { width: 8, height: 8, borderRadius: 4 },
-    addOptionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 14 },
-    addOptionText: { fontFamily: fonts.medium, fontSize: 14 },
-    taggingList: {
-        marginHorizontal: spacing.lg,
-        marginTop: -16,
-        maxHeight: 220,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 3,
-    },
-    memberTag: {
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
+    root: { flex: 1 },
+
+    // Header
+    header: {
         flexDirection: 'row',
-        padding: 12,
         alignItems: 'center',
-        gap: 12,
-        borderBottomWidth: 0.5,
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    tagAvatar: { width: 32, height: 32, borderRadius: 16 },
-    tagName: { fontFamily: fonts.bold, fontSize: 14 },
-    tagUsername: { fontFamily: fonts.regular, fontSize: 12 },
-    storyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-    liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
-    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
-    liveText: { fontFamily: fonts.bold, color: '#DC2626', fontSize: 10, textTransform: 'uppercase' },
-    locationStatus: { fontFamily: fonts.medium, fontSize: 12 },
+    headerSide: { minWidth: 70, alignItems: 'flex-start' },
+    headerCancel: { fontFamily: fonts.regular, fontSize: 15 },
+    headerTitle: { fontFamily: fonts.semibold, fontSize: 16 },
+    typePills: { flexDirection: 'row', gap: 6 },
+    pill: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingHorizontal: 12, paddingVertical: 6,
+        borderRadius: radii.full, borderWidth: 1,
+    },
+    pillLabel: { fontFamily: fonts.semibold, fontSize: 12 },
+    postBtn: {
+        paddingHorizontal: 18, paddingVertical: 8,
+        borderRadius: radii.full, alignSelf: 'flex-end',
+    },
+    postBtnText: { fontFamily: fonts.bold, fontSize: 13 },
+
+    // Community row
+    communityRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    communityChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingHorizontal: 10, paddingVertical: 4,
+        borderRadius: radii.full, borderWidth: StyleSheet.hairlineWidth,
+    },
+    communityChipText: { fontFamily: fonts.semibold, fontSize: 13 },
+
+    // Dropdown
+    dropdown: {
+        marginHorizontal: 16, borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: 2,
+    },
+    dropdownItem: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    dropdownText: { fontSize: 14 },
+
+    // Composer (Threads-style)
+    composerRoot: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 16 },
+    composerLeft: { width: 44, alignItems: 'center', marginRight: 12 },
+    composerRight: { flex: 1, paddingBottom: spacing.xl },
+    mainInput: {
+        fontFamily: fonts.regular, fontSize: 16,
+        lineHeight: 22, textAlignVertical: 'top',
+        minHeight: 40, paddingTop: 2,
+    },
+
+    // Media
+    mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+    mediaCell: { width: 100, height: 110, borderRadius: 10, overflow: 'hidden' },
+    mediaImg: { width: '100%', height: '100%' },
+    removeBtn: { position: 'absolute', top: 5, right: 5, zIndex: 10 },
+    videoIconOverlay: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.2)',
+    },
+
+    // Tagging
+    taggingBox: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: 8 },
+    tagRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+    tagAvatar: { width: 30, height: 30, borderRadius: 15 },
+    tagName: { fontFamily: fonts.semibold, fontSize: 13 },
+    tagHandle: { fontFamily: fonts.regular, fontSize: 12 },
+
+    // Poll
+    pollCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: 12 },
+    pollOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+    pollIndex: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
+    pollIndexText: { fontFamily: fonts.bold, fontSize: 11 },
+    pollInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15 },
+    addOption: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 14 },
+    addOptionText: { fontFamily: fonts.medium, fontSize: 14 },
+
+    // Form card (event / job / market)
+    formCard: {
+        marginHorizontal: 16, marginTop: 16,
+        borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden',
+        marginBottom: spacing.xl,
+    },
+    formField: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+    fieldLabel: { fontFamily: fonts.medium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    fieldInput: { fontFamily: fonts.regular, fontSize: 15, paddingTop: 2 },
+    fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    fieldValue: { fontFamily: fonts.semibold, fontSize: 15, flex: 1 },
+    currencySign: { fontFamily: fonts.bold, fontSize: 16 },
+    bannerPicker: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 12, padding: 14, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
+    bannerText: { fontFamily: fonts.regular, fontSize: 13 },
+    pickerWrap: { borderBottomWidth: StyleSheet.hairlineWidth, padding: 8 },
+    doneBtn: { marginHorizontal: 12, marginBottom: 8, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+    doneBtnText: { fontFamily: fonts.bold, fontSize: 14 },
+
+    // Toolbar
+    toolbar: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 8, paddingVertical: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    toolbarBtn: { padding: 8, borderRadius: 8 },
+    charCount: { fontFamily: fonts.regular, fontSize: 13, paddingHorizontal: 12 },
 });

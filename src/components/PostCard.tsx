@@ -33,11 +33,117 @@ const formatMetricCount = (value: number) => {
     return String(value);
 };
 
+const formatDuration = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+const CarouselVideoItem = ({ url, width, height, isVisible = true }: { url: string, width: number, height: number, isVisible?: boolean }) => {
+    const { colors: themeColors } = useTheme();
+    const player = useVideoPlayer(url);
+    const [isMuted, setIsMuted] = useState(true);
+    const [duration, setDuration] = useState<number | null>(null);
+    const [showDuration, setShowDuration] = useState(false);
+    const opacity = useRef(new Animated.Value(0)).current;
+    const durationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    
+    useEffect(() => {
+        if (player) {
+            player.pause(); // Explicitly start paused
+            player.loop = true;
+            player.muted = isMuted;
+
+            // Get duration
+            const checkDuration = () => {
+                if (player.duration > 0) {
+                    setDuration(player.duration);
+                    setShowDuration(true);
+                    Animated.timing(opacity, {
+                        toValue: 1,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }).start();
+
+                    durationTimerRef.current = setTimeout(() => {
+                        Animated.timing(opacity, {
+                            toValue: 0,
+                            duration: 500,
+                            useNativeDriver: true,
+                        }).start(() => setShowDuration(false));
+                    }, 4000);
+                } else {
+                    setTimeout(checkDuration, 500);
+                }
+            };
+            checkDuration();
+        }
+        return () => {
+            if (durationTimerRef.current) clearTimeout(durationTimerRef.current);
+        };
+    }, [player]);
+
+    // Play/pause based on visibility
+    useEffect(() => {
+        if (!player) return;
+        if (isVisible) {
+            player.play();
+        } else {
+            player.pause();
+        }
+        
+        return () => {
+            if (player) player.pause();
+        };
+    }, [isVisible, player]);
+
+    useEffect(() => {
+        if (player) {
+            player.muted = isMuted;
+        }
+    }, [isMuted]);
+
+    const toggleMute = (e: any) => {
+        e.stopPropagation();
+        setIsMuted(!isMuted);
+    };
+
+    return (
+        <View style={{ width, height, backgroundColor: themeColors.elevated }}>
+            <VideoView 
+                player={player} 
+                style={{ width: '100%', height: '100%' }} 
+                contentFit="cover"
+                nativeControls={false}
+            />
+            {showDuration && duration && (
+                <Animated.View style={[styles.durationBadge, { opacity }]}>
+                    <Text style={styles.durationText}>{formatDuration(duration)}</Text>
+                </Animated.View>
+            )}
+            <TouchableOpacity 
+                style={styles.muteBtn} 
+                onPress={toggleMute}
+                activeOpacity={0.7}
+            >
+                <Ionicons 
+                    name={isMuted ? "volume-mute" : "volume-high"} 
+                    size={12} 
+                    color="white" 
+                />
+            </TouchableOpacity>
+        </View>
+    );
+};
+
 // MediaGrid
-const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, postId, post }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string, post: any }) => {
+const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, postId, post, isVisible = true }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string, post: any, isVisible?: boolean }) => {
     const { colors: themeColors } = useTheme();
     const scrollX = useRef(new Animated.Value(0)).current;
     
+    const [activeIndex, setActiveIndex] = useState(0);
+
     // Calculate width: screen width - left column (avatar+gap) - card padding
     const containerWidth = width - (spacing.lg * 2) - 44 - 12;
     const itemWidth = containerWidth * 0.92; // "Big half" / mostly full width
@@ -49,37 +155,54 @@ const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, pos
         onImagePress(index);
     };
 
-    const renderItem = ({ item, index }: { item: string, index: number }) => (
-        <TouchableOpacity 
-            activeOpacity={0.9} 
-            onPress={() => handlePress(index)}
-            style={{
-                width: media.length === 1 ? containerWidth : itemWidth,
-                height: 320,
-                marginRight: index === media.length - 1 ? 0 : gap,
-                borderRadius: 12,
-                overflow: 'hidden',
-                backgroundColor: themeColors.elevated,
-            }}
-        >
-            <Image source={{ uri: item }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
-            {types[index] === 'video' && (
-                <View style={styles.videoOverlay}>
-                    <Ionicons name="play-circle" size={40} color="rgba(255,255,255,0.9)" />
-                </View>
-            )}
-            {media.length > 1 && (
-                <View style={styles.carouselBadge}>
-                    <Text style={styles.carouselBadgeText}>{index + 1}/{media.length}</Text>
-                </View>
-            )}
-        </TouchableOpacity>
-    );
+    const onViewableItemsChanged = ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (viewableItems.length > 0) {
+            setActiveIndex(viewableItems[0].index ?? 0);
+        }
+    };
+
+    const viewabilityConfig = {
+        itemVisiblePercentThreshold: 70
+    };
+
+    const renderItem = ({ item, index }: { item: string, index: number }) => {
+        const itemW = media.length === 1 ? containerWidth : itemWidth;
+        const itemH = 380;
+        const isItemVisible = isVisible && index === activeIndex;
+
+        return (
+            <TouchableOpacity 
+                activeOpacity={0.9} 
+                onPress={() => handlePress(index)}
+                style={{
+                    width: itemW,
+                    height: itemH,
+                    marginRight: index === media.length - 1 ? 0 : gap,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    backgroundColor: themeColors.elevated,
+                }}
+            >
+                {types[index] === 'video' ? (
+                    <CarouselVideoItem url={item} width={itemW} height={itemH} isVisible={isItemVisible} />
+                ) : (
+                    <Image source={{ uri: item }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                )}
+                
+                {media.length > 1 && (
+                    <View style={styles.carouselBadge}>
+                        <Text style={styles.carouselBadgeText}>{index + 1}/{media.length}</Text>
+                    </View>
+                )}
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={{ marginTop: 10 }}>
             <FlatList
                 data={media}
+                extraData={{ isVisible, activeIndex }}
                 renderItem={renderItem}
                 keyExtractor={(_, i) => i.toString()}
                 horizontal
@@ -93,6 +216,8 @@ const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, pos
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: false }
                 )}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
             />
             
             {media.length > 1 && (
@@ -124,10 +249,15 @@ const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, pos
 // ─── MediaViewerItem ───
 const MediaViewerItem = ({ url, type }: { url: string, type: string }) => {
     if (type === 'video') {
-        const player = useVideoPlayer(url, p => {
-            p.loop = true;
-            p.play();
-        });
+        const player = useVideoPlayer(url);
+        
+        useEffect(() => {
+            if (player) {
+                player.loop = true;
+                player.play();
+            }
+        }, [player]);
+
         return (
             <View style={styles.viewerPage}>
                 <VideoView 
@@ -238,7 +368,7 @@ const AnimatedStatNumber = ({ value, style }: { value: number; style: any }) => 
 };
 
 // ─── PostCard ───
-function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNavigation = false, hideCommunity = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, onSaveChange?: (id: string, isSaved: boolean) => void, hideNavigation?: boolean, hideCommunity?: boolean }) {
+function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNavigation = false, hideCommunity = false, isVisible = true }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, onSaveChange?: (id: string, isSaved: boolean) => void, hideNavigation?: boolean, hideCommunity?: boolean, isVisible?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
     const { t, language } = useLanguage();
@@ -760,7 +890,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
                     {/* Media */}
                     {media.length > 0 && (
-                        <MediaCarousel media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} post={post} />
+                        <MediaCarousel media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} post={post} isVisible={isVisible} />
                     )}
 
                     {/* metrics are shown in post header; hide here to avoid duplication */}
@@ -1370,5 +1500,42 @@ const styles = StyleSheet.create({
         width: 1,
         height: 16,
         backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    muteBtn: {
+        position: 'absolute',
+        bottom: 10,
+        right: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    videoOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.1)',
+    },
+    durationBadge: {
+        position: 'absolute',
+        bottom: 10,
+        left: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    durationText: {
+        color: 'white',
+        fontFamily: fonts.bold,
+        fontSize: 11,
     },
 });

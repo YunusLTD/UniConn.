@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, StyleSheet, Text, TouchableOpacity, DeviceEventEmitter, Animated } from 'react-native';
+import { View, FlatList, StyleSheet, Text, TouchableOpacity, DeviceEventEmitter, Animated, ViewToken } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts } from '../../src/constants/theme';
@@ -334,16 +334,45 @@ export default function HomeScreen() {
         setPosts(prev => prev.filter(item => item.id !== id));
     };
 
-    const renderItem = ({ item }: { item: any }) => {
+    const [visiblePostIds, setVisiblePostIds] = useState<Set<string>>(new Set());
+    const [isFocused, setIsFocused] = useState(true);
+
+    const viewabilityConfig = useRef({ 
+        itemVisiblePercentThreshold: 90,
+        minimumViewTime: 100 
+    }).current;
+
+    const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        if (viewableItems.length > 0) {
+            // Twitter style: play the most visible item
+            let bestItem = viewableItems[0];
+            viewableItems.forEach(v => {
+                if ((v.itemVisiblePercent || 0) > (bestItem.itemVisiblePercent || 0)) {
+                    bestItem = v;
+                }
+            });
+
+            if (bestItem.item) {
+                const itemKey = `${bestItem.item.feed_type}_${bestItem.item.id}`;
+                setVisiblePostIds(new Set([itemKey]));
+            }
+        } else {
+            setVisiblePostIds(new Set());
+        }
+    }).current;
+
+    const renderItem = useCallback(({ item }: { item: any }) => {
         const type = String(item.feed_type || '').toLowerCase();
+        const itemKey = `${item.feed_type}_${item.id}`;
+        const isItemVisible = isFocused && visiblePostIds.has(itemKey);
         switch (type) {
             case 'event': return <EventCard event={item} onDelete={handleItemDelete} />;
             case 'poll': return <PollCard poll={item} onDelete={handleItemDelete} />;
             case 'job': return <JobCard job={item} onDelete={handleItemDelete} />;
             case 'market': return <MarketCard item={item} onDelete={handleItemDelete} />;
-            default: return <PostCard post={item} onDelete={handleItemDelete} />;
+            default: return <PostCard post={item} onDelete={handleItemDelete} isVisible={isItemVisible} />;
         }
-    };
+    }, [isFocused, visiblePostIds]);
 
     const renderStoriesHeader = () => {
         if (loadingStories && stories.length === 0) {
@@ -407,7 +436,11 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
+            setIsFocused(true);
             reset();
+            return () => {
+                setIsFocused(false);
+            };
         }, [reset])
     );
 
@@ -415,6 +448,7 @@ export default function HomeScreen() {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
                 data={posts}
+                extraData={{ visiblePostIds, isFocused }}
                 keyExtractor={item => `${item.feed_type}_${item.id}`}
                 renderItem={renderItem}
                 onScroll={onScroll}
@@ -438,6 +472,8 @@ export default function HomeScreen() {
                     ) : null
                 }
                 showsVerticalScrollIndicator={false}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 ListEmptyComponent={
                     loading && posts.length === 0 ? (
