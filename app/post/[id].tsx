@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image as RNImage, Alert, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack, useRouter, useNavigation } from 'expo-router';
@@ -17,6 +17,8 @@ import {
     getCommentTotalFromResponse,
 } from '../../src/utils/postCommentCount';
 import { applyPostMetricsChange, POST_METRICS_CHANGED_EVENT } from '../../src/utils/postMetrics';
+import { hapticLight } from '../../src/utils/haptics';
+import { MessageItemSkeleton } from '../../src/components/ShadowLoader';
 
 function timeAgo(dateStr: string, t: (key: any) => string) {
     const d = new Date(dateStr);
@@ -43,12 +45,28 @@ export default function PostScreen() {
     const { colors, isDark } = useTheme();
     const { t } = useLanguage();
     const { user } = useAuth();
-    const { id } = useLocalSearchParams();
+    const params = useLocalSearchParams();
+    const { id } = params;
     const postId = Array.isArray(id) ? id[0] : id;
     const router = useRouter();
-    const [post, setPost] = useState<any>(null);
-    const [comments, setComments] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    // Initialize post from params if available to show it immediately
+    const initialPost = useMemo(() => {
+        if (params.post && typeof params.post === 'string') {
+            try {
+                return JSON.parse(params.post);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }, [params.post]);
+
+    const [post, setPost] = useState<any>(initialPost);
+    const [commentTree, setCommentTree] = useState<any[]>([]);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [loading, setLoading] = useState(!initialPost);
+    const [commentsLoading, setCommentsLoading] = useState(true);
     const [newComment, setNewComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [replyingTo, setReplyingTo] = useState<{ id: string, name: string } | null>(null);
@@ -59,16 +77,19 @@ export default function PostScreen() {
     const loadData = async () => {
         if (!postId) {
             setLoading(false);
+            setCommentsLoading(false);
             return;
         }
 
         try {
+            // Fetch post and comments in parallel
             const [postRes, commentRes] = await Promise.all([
                 getPost(postId),
                 getComments(postId),
             ]);
-            const totalComments = getCommentTotalFromResponse(commentRes);
+
             if (postRes?.data) {
+                const totalComments = getCommentTotalFromResponse(commentRes);
                 setPost(applyPostCommentCountChange(postRes.data, { postId: postRes.data.id, count: totalComments }));
                 loadMembers(postRes.data.community_id);
 
@@ -83,12 +104,18 @@ export default function PostScreen() {
                         DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, metricsPayload);
                     }
                 }
+            } else if (!post) {
+                setPost(null);
             }
-            if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+
+            if (commentRes?.data) {
+                setCommentTree(buildCommentTree(commentRes.data));
+            }
         } catch (e) {
             console.log('Error loading post', e);
         } finally {
             setLoading(false);
+            setCommentsLoading(false);
         }
     };
 
@@ -107,24 +134,40 @@ export default function PostScreen() {
 
     useEffect(() => { loadData(); }, [id, user?.id]);
 
+    const toggleExpand = (id: string) => {
+        setExpandedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const getFlattenedVisible = useMemo(() => {
+        const result: any[] = [];
+        const process = (nodes: any[], depth = 0) => {
+            nodes.forEach(node => {
+                result.push({ ...node, depth });
+                if (expandedIds.has(node.id) && node.children && node.children.length > 0) {
+                    process(node.children, depth + 1);
+                }
+            });
+        };
+        process(commentTree);
+        return result;
+    }, [commentTree, expandedIds]);
+
     // view count is shown just under the post text in PostCard for post detail view
     const navigation = useNavigation();
 
     useEffect(() => {
         if (!post) return;
-        const count = Number(post.view_count || 0);
-        const countLabel = count === 1 ? `${count} view` : `${formatMetricCount(count)} views`;
         navigation.setOptions({
-            headerTitle: () => (
-                <View style={{ flexDirection: 'column' }}>
-                    <Text style={{ fontFamily: fonts.semibold, fontSize: 16, color: colors.black }}>{t('post_header')}</Text>
-                    <Text style={{ color: colors.gray500, fontFamily: fonts.medium, fontSize: 12, marginTop: 2 }}>{countLabel}</Text>
-                </View>
-            ),
+            headerTitle: t('post_header')
         });
-    }, [navigation, post, colors]);
+    }, [navigation, post]);
 
-    const buildCommentList = (flatComments: any[]) => {
+    const buildCommentTree = (flatComments: any[]) => {
         const map = new Map();
         const roots: any[] = [];
         flatComments.forEach(c => map.set(c.id, { ...c, children: [] }));
@@ -132,32 +175,20 @@ export default function PostScreen() {
             if (c.parent_id) {
                 const parent = map.get(c.parent_id);
                 if (parent) parent.children.push(map.get(c.id));
-                else roots.push(map.get(c.id)); // Orphaned reply, treat as root
+                else roots.push(map.get(c.id));
             } else {
                 roots.push(map.get(c.id));
             }
         });
 
-        // Sort children and roots so newest comments appear first
-        for (const node of map.values()) {
-            if (node.children && node.children.length) {
-                node.children.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            }
-        }
-        roots.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-        const flattenTree = (nodes: any[], depth = 0): any[] => {
-            const result: any[] = [];
+        const sortNodes = (nodes: any[]) => {
+            nodes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             nodes.forEach(n => {
-                result.push({ ...n, depth });
-                if (n.children && n.children.length) {
-                    result.push(...flattenTree(n.children, depth + 1));
-                }
+                if (n.children?.length) sortNodes(n.children);
             });
-            return result;
         };
-
-        return flattenTree(roots);
+        sortNodes(roots);
+        return roots;
     };
 
     const renderContentWithMentions = (content: string) => {
@@ -188,15 +219,57 @@ export default function PostScreen() {
         const parentId = replyingTo?.id;
         
         hapticLight();
-        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
+        DeviceEventEmitter.emit('action_status', { 
+            id: actionId, 
+            type: 'send', 
+            status: 'processing',
+            title: t('replying') || 'Replying...' 
+        });
         
+        // Optimistic Comment Object
+        const optimisticComment = {
+            id: 'temp-' + Date.now(),
+            content: commentContent,
+            created_at: new Date().toISOString(),
+            user_id: user?.id,
+            parent_id: parentId,
+            profiles: {
+                name: user?.name || user?.profile?.name || user?.email?.split('@')[0] || 'Me',
+                avatar_url: user?.profile?.avatar_url,
+            },
+            children: []
+        };
+
+        // Apply Optimistic Update
+        setCommentTree(prev => {
+            if (!parentId) return [optimisticComment, ...prev];
+            
+            const newTree = JSON.parse(JSON.stringify(prev));
+            const addToParent = (nodes: any[]): boolean => {
+                for (let node of nodes) {
+                    if (node.id === parentId) {
+                        node.children = [optimisticComment, ...(node.children || [])];
+                        return true;
+                    }
+                    if (node.children?.length && addToParent(node.children)) return true;
+                }
+                return false;
+            };
+            addToParent(newTree);
+            return newTree;
+        });
+
+        if (parentId) {
+            setExpandedIds(prev => new Set(prev).add(parentId));
+        }
+
         setNewComment('');
         setReplyingTo(null);
 
         try {
             await addComment(postId, commentContent, parentId);
             const commentRes = await getComments(postId);
-            if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+            if (commentRes?.data) setCommentTree(buildCommentTree(commentRes.data));
             const nextCount = getCommentTotalFromResponse(commentRes);
             const payload = { postId, count: nextCount };
             const nextInteractionCount = Number(post?.interaction_count || 0) + 1;
@@ -212,10 +285,18 @@ export default function PostScreen() {
                 postId,
                 interaction_count: nextInteractionCount,
             });
-            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
+            DeviceEventEmitter.emit('action_status', { 
+                id: actionId, 
+                type: 'send', 
+                status: 'success',
+                title: t('replied') || 'Replied' 
+            });
         } catch (e: any) {
             console.error('Add comment error:', e);
             DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: e.message || 'Failed to post' });
+            // Refresh tree to remove optimistic comment on error
+            const commentRes = await getComments(postId);
+            if (commentRes?.data) setCommentTree(buildCommentTree(commentRes.data));
         }
     };
 
@@ -241,7 +322,7 @@ export default function PostScreen() {
                     try {
                         await deleteComment(postId, commentId);
                         const commentRes = await getComments(postId);
-                        if (commentRes?.data) setComments(buildCommentList(commentRes.data));
+                        if (commentRes?.data) setCommentTree(buildCommentTree(commentRes.data));
                         const nextCount = getCommentTotalFromResponse(commentRes);
                         const payload = { postId, count: nextCount };
                         const nextInteractionCount = Math.max(0, Number(post?.interaction_count || 0) - 1);
@@ -312,24 +393,37 @@ export default function PostScreen() {
                 </View>
             ) : (
                 <FlatList
-                    data={comments}
+                    data={commentsLoading ? [] : getFlattenedVisible}
                     keyExtractor={item => item.id.toString()}
                     showsVerticalScrollIndicator={false}
-                    renderItem={({ item }) => {
+                    renderItem={({ item, index }) => {
                         const initial = item.profiles?.name?.[0]?.toUpperCase() || '?';
-                        const marginLeft = Math.min(item.depth * 32, 64); // Cap indent
+                        const isLast = index === getFlattenedVisible.length - 1;
+                        const isExpanded = expandedIds.has(item.id);
+                        const hasChildren = item.children && item.children.length > 0;
+                        const hasNextInThread = !isLast && getFlattenedVisible[index + 1].depth >= item.depth;
+                        const paddingLeft = spacing.lg + Math.min(item.depth * 32, 64);
+
                         return (
-                            <View style={[styles.commentCard, { paddingLeft: spacing.lg + marginLeft, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-                                <TouchableOpacity
-                                    onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}
-                                    style={[styles.commentAvatar, { backgroundColor: colors.background }, item.depth > 0 && { width: 24, height: 24, borderRadius: 12 }]}
-                                >
-                                    {item.profiles?.avatar_url ? (
-                                        <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.commentAvatarImg} />
-                                    ) : (
-                                        <Text style={[styles.commentAvatarText, { color: colors.gray600 }, item.depth > 0 && { fontSize: 10 }]}>{initial}</Text>
-                                    )}
-                                </TouchableOpacity>
+                            <View style={[styles.commentCard, { paddingLeft, backgroundColor: colors.surface }]}>
+                                <View style={styles.commentLeftCol}>
+                                    <TouchableOpacity
+                                        onPress={() => item.user_id && router.push(`/user/${item.user_id}`)}
+                                        style={[
+                                            styles.commentAvatar, 
+                                            { backgroundColor: colors.elevated }, 
+                                            item.depth > 0 && { width: 24, height: 24, borderRadius: 12, marginTop: 4 }
+                                        ]}
+                                    >
+                                        {item.profiles?.avatar_url ? (
+                                            <RNImage source={{ uri: item.profiles.avatar_url }} style={styles.commentAvatarImg} />
+                                        ) : (
+                                            <Text style={[styles.commentAvatarText, { color: colors.gray600 }, item.depth > 0 && { fontSize: 10 }]}>{initial}</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                    {(hasNextInThread || (hasChildren && !isExpanded)) && <View style={[styles.commentThreadLine, { backgroundColor: colors.border }]} />}
+                                </View>
+                                
                                 <TouchableOpacity 
                                     style={styles.commentBody} 
                                     onLongPress={() => item.user_id === user?.id && handleDeleteComment(item.id)}
@@ -341,17 +435,29 @@ export default function PostScreen() {
                                             <Text style={[styles.commentAuthor, { color: colors.black }]}>{item.profiles?.name || t('unknown_user')}</Text>
                                         </TouchableOpacity>
                                         <Text style={[styles.commentTime, { color: colors.gray400 }]}>{timeAgo(item.created_at, t)}</Text>
-                                        {!!item.is_edited && (
-                                            <Text style={[styles.commentTime, { color: colors.gray400 }]}>· ({t('edited_label')})</Text>
-                                        )}
                                     </View>
-                                    <Text style={[styles.commentContent, { color: colors.gray700 }]}>
+                                    <Text style={[styles.commentContent, { color: colors.black }]}>
                                         {renderContentWithMentions(item.content)}
                                     </Text>
                                     <View style={styles.commentActions}>
-                                        <TouchableOpacity onPress={() => handleReply(item.id, item.profiles?.name || t('unknown_user'))}>
-                                            <Text style={[styles.replyBtnText, { color: colors.gray500 }]}>{t('reply')}</Text>
+                                        <TouchableOpacity 
+                                            style={[styles.commentActionBtn, { backgroundColor: colors.elevated }]} 
+                                            onPress={() => handleReply(item.id, item.profiles?.name || t('unknown_user'))}
+                                        >
+                                            <Ionicons name="chatbubble-outline" size={12} color={colors.gray500} />
+                                            <Text style={[styles.replyBtnText, { color: colors.gray600 }]}>{t('reply')}</Text>
                                         </TouchableOpacity>
+
+                                        {hasChildren && (
+                                            <TouchableOpacity 
+                                                style={[styles.commentActionBtn, { backgroundColor: colors.elevated }]} 
+                                                onPress={() => toggleExpand(item.id)}
+                                            >
+                                                <Text style={[styles.replyBtnText, { color: colors.gray600 }]}>
+                                                    {isExpanded ? t('hide_replies') : `${item.children.length} ${item.children.length === 1 ? t('reply') : t('replies')}`}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
                                 </TouchableOpacity>
                             </View>
@@ -362,15 +468,22 @@ export default function PostScreen() {
                             <PostCard post={post} hideNavigation={true} />
                             <View style={[styles.repliesHeader, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
                                 <Text style={[styles.repliesLabel, { color: colors.gray500 }]}>
-                                    {comments.length > 0 ? `${comments.length} ${comments.length === 1 ? t('reply') : t('replies')}` : t('replies')}
+                                    {getFlattenedVisible.length > 0 ? `${getFlattenedVisible.length} ${getFlattenedVisible.length === 1 ? t('reply') : t('replies')}` : t('replies')}
                                 </Text>
                             </View>
+                            {commentsLoading && (
+                                <View style={{ paddingBottom: 10 }}>
+                                    {[1, 2, 3].map(i => <MessageItemSkeleton key={i} />)}
+                                </View>
+                            )}
                         </>
                     }
                     ListEmptyComponent={
-                        <View style={styles.emptyComments}>
-                            <Text style={[styles.emptyText, { color: colors.gray400 }]}>{t('no_replies_yet')}</Text>
-                        </View>
+                        !commentsLoading ? (
+                            <View style={styles.emptyComments}>
+                                <Text style={[styles.emptyText, { color: colors.gray400 }]}>{t('no_replies_yet')}</Text>
+                            </View>
+                        ) : null
                     }
                 />
             )}
@@ -452,10 +565,14 @@ const styles = StyleSheet.create({
     },
     commentCard: {
         flexDirection: 'row',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: 14,
-        borderBottomWidth: 0.5,
+        paddingRight: spacing.lg,
+        paddingTop: 12,
+        paddingBottom: 4,
         gap: 12,
+    },
+    commentLeftCol: {
+        alignItems: 'center',
+        width: 32,
     },
     commentAvatar: {
         width: 32,
@@ -463,13 +580,24 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 2,
+        zIndex: 1,
+    },
+    commentThreadLine: {
+        width: 1.5,
+        flex: 1,
+        marginTop: 4,
+        borderRadius: 1,
     },
     commentAvatarText: {
         fontFamily: fonts.semibold,
         fontSize: 12,
     },
-    commentBody: { flex: 1 },
+    commentBody: { 
+        flex: 1,
+        paddingBottom: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
+    },
     commentHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -477,25 +605,34 @@ const styles = StyleSheet.create({
     },
     commentAuthor: {
         fontFamily: fonts.semibold,
-        fontSize: 13,
+        fontSize: 14,
     },
     commentTime: {
         fontFamily: fonts.regular,
-        fontSize: 11,
+        fontSize: 12,
     },
     commentContent: {
         fontFamily: fonts.regular,
-        fontSize: 14,
+        fontSize: 15,
         lineHeight: 20,
-        marginTop: 3,
+        marginTop: 4,
     },
     commentActions: {
-        marginTop: 6,
+        marginTop: 10,
         flexDirection: 'row',
+        gap: 12,
+    },
+    commentActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
     },
     replyBtnText: {
         fontFamily: fonts.semibold,
-        fontSize: 12,
+        fontSize: 11,
     },
     emptyComments: {
         alignItems: 'center',

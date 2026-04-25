@@ -54,11 +54,9 @@ export default function StudyScreen() {
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            loadQuestions(1, true);
-        }, [activeSubject])
-    );
+    useEffect(() => {
+        loadQuestions(1, true);
+    }, [activeSubject]);
 
     const handleRefresh = () => {
         setRefreshing(true);

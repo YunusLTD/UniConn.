@@ -178,22 +178,20 @@ export default function ProfileScreen() {
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            loadProfileData();
-            if (activeTabRef.current !== 'settings') {
-                loadTabContent(activeTabRef.current);
-            }
-            // Load pending requests for the banner
-            const loadRequestData = async () => {
-                try {
-                    const reqRes = await getFriendRequests();
-                    if (reqRes?.data) setPendingRequests(reqRes.data.length || 0);
-                } catch (e) { /* ignore */ }
-            };
-            loadRequestData();
-        }, [])
-    );
+    useEffect(() => {
+        loadProfileData();
+        if (activeTabRef.current !== 'settings') {
+            loadTabContent(activeTabRef.current);
+        }
+        // Load pending requests for the banner
+        const loadRequestData = async () => {
+            try {
+                const reqRes = await getFriendRequests();
+                if (reqRes?.data) setPendingRequests(reqRes.data.length || 0);
+            } catch (e) { /* ignore */ }
+        };
+        loadRequestData();
+    }, []);
 
     useEffect(() => {
         activeTabRef.current = activeTab;

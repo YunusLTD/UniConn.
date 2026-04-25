@@ -68,24 +68,18 @@ export default function ActivityScreen() {
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            let mounted = true;
+    useEffect(() => {
+        loadData(filter);
 
-            // Load fresh notifications when entering the tab (respect current filter)
-            loadData(filter);
-
-            return () => {
-                mounted = false;
-                // Mark everything as read silently in the background ONLY when leaving the screen
-                markAllAsRead().then(() => {
-                    refreshUnreadCount();
-                }).catch((e) => {
-                    console.log('[Activity] Error marking as read on leave', e);
-                });
-            };
-        }, [])
-    );
+        return () => {
+            // Mark everything as read silently in the background ONLY when leaving the screen
+            markAllAsRead().then(() => {
+                refreshUnreadCount();
+            }).catch((e) => {
+                console.log('[Activity] Error marking as read on leave', e);
+            });
+        };
+    }, []);
 
     const handleSelectFilter = async (key: string) => {
         setFilter(key);

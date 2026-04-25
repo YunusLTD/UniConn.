@@ -18,6 +18,9 @@ import { formatTimeAgo } from '../utils/localization';
 import { hapticLight, hapticMedium, hapticSuccess, hapticError } from '../utils/haptics';
 import { POST_METRICS_CHANGED_EVENT } from '../utils/postMetrics';
 import PostShareModal from './PostShareModal';
+import { StatusBar } from 'expo-status-bar';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 const GRID_GAP = 2;
@@ -31,7 +34,7 @@ const formatMetricCount = (value: number) => {
 };
 
 // MediaGrid
-const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, postId }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string }) => {
+const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, postId, post }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string, post: any }) => {
     const { colors: themeColors } = useTheme();
     const scrollX = useRef(new Animated.Value(0)).current;
     
@@ -43,11 +46,7 @@ const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, pos
     if (!media || media.length === 0) return null;
 
     const handlePress = (index: number) => {
-        if (!hideNavigation) {
-            router.push(`/post/${postId}`);
-        } else {
-            onImagePress(index);
-        }
+        onImagePress(index);
     };
 
     const renderItem = ({ item, index }: { item: string, index: number }) => (
@@ -389,6 +388,51 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
         setShareModalVisible(true);
     };
 
+    const handleSaveMedia = async () => {
+        const currentUrl = media[viewerIndex];
+        if (!currentUrl) return;
+
+        Alert.alert(
+            t('save_media_title') || 'Save to Gallery',
+            t('save_media_confirm') || 'Would you like to save this media to your device?',
+            [
+                { text: t('cancel_label'), style: 'cancel' },
+                {
+                    text: t('save_label'),
+                    onPress: async () => {
+                        hapticLight();
+                        try {
+                            const { status } = await MediaLibrary.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                showToast(t('permission_denied_gallery'), 'error');
+                                return;
+                            }
+
+                            showToast(t('saving_media'), 'info');
+
+                            const fileExt = currentUrl.split('.').pop()?.split('?')[0] || 'jpg';
+                            const filename = `${FileSystem.cacheDirectory}${Date.now()}.${fileExt}`;
+
+                            const downloadRes = await FileSystem.downloadAsync(currentUrl, filename);
+                            
+                            if (downloadRes.status === 200) {
+                                await MediaLibrary.saveToLibraryAsync(downloadRes.uri);
+                                hapticSuccess();
+                                showToast(t('media_saved_success'), 'success');
+                            } else {
+                                throw new Error('Download failed');
+                            }
+                        } catch (error) {
+                            console.error('Save media error:', error);
+                            hapticError();
+                            showToast(t('media_save_failed'), 'error');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleSaveToggle = async () => {
         hapticLight();
         setActionVisible(false);
@@ -430,8 +474,8 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
     const actionOptions: ActionOption[] = [
         { label: isSaved ? 'Unsave' : t('save'), icon: isSaved ? 'bookmark' : 'bookmark-outline', onPress: handleSaveToggle },
-        { label: t('share_option'), icon: ICONS.share, onPress: handleShare },
-        { label: t('report_option'), icon: ICONS.report, onPress: handleReport },
+        { label: t('share_option'), icon: 'paper-plane-outline', onPress: handleShare },
+        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
     ];
 
     if (isOwner) {
@@ -696,7 +740,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
                     {/* Content */}
                     <TouchableOpacity
-                        onPress={() => router.push(`/post/${post.id}`)}
+                        onPress={() => router.push({ pathname: `/post/${post.id}`, params: { post: JSON.stringify(post) } })}
                         activeOpacity={0.8}
                         disabled={hideNavigation}
                     >
@@ -716,7 +760,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
                     {/* Media */}
                     {media.length > 0 && (
-                        <MediaCarousel media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} />
+                        <MediaCarousel media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} post={post} />
                     )}
 
                     {/* metrics are shown in post header; hide here to avoid duplication */}
@@ -767,7 +811,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/post/${post.id}`)} hitSlop={6} disabled={hideNavigation}>
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push({ pathname: `/post/${post.id}`, params: { post: JSON.stringify(post) } })} hitSlop={6} disabled={hideNavigation}>
                             <Ionicons name="chatbubble-outline" size={16} color={themeColors.gray500} />
                             {commentCount > 0 && (
                                 <AnimatedStatNumber
@@ -815,40 +859,118 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                 onRequestClose={() => setViewerVisible(false)}
             >
                 <View style={styles.viewerContainer}>
+                    <StatusBar hidden />
                     <SafeAreaView style={styles.viewerSafeArea}>
                         <View style={styles.viewerHeader}>
-                            <TouchableOpacity onPress={() => setViewerVisible(false)} style={styles.viewerClose}>
-                                <Ionicons name="close" size={28} color="white" />
-                            </TouchableOpacity>
+                            <View style={{ width: 40 }} />
+
                             {media.length > 1 && (
                                 <Text style={styles.viewerCount}>{viewerIndex + 1} / {media.length}</Text>
                             )}
+
+                            <TouchableOpacity onPress={() => setViewerVisible(false)} style={styles.viewerClose}>
+                                <Ionicons name="close" size={28} color="white" />
+                            </TouchableOpacity>
                         </View>
-                        <FlatList
-                            data={media}
-                            renderItem={({ item, index }) => (
-                                <MediaViewerItem url={item} type={media_types[index]} />
-                            )}
-                            keyExtractor={(_, i) => i.toString()}
-                            horizontal
-                            pagingEnabled
-                            initialScrollIndex={viewerIndex}
-                            getItemLayout={(_, index) => ({
-                                length: width,
-                                offset: width * index,
-                                index,
-                            })}
-                            onMomentumScrollEnd={(e) => {
-                                const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-                                setViewerIndex(newIndex);
-                            }}
-                            showsHorizontalScrollIndicator={false}
-                        />
+                        
+                        <View style={{ flex: 1 }}>
+                            <FlatList
+                                data={media}
+                                renderItem={({ item, index }) => (
+                                    <MediaViewerItem url={item} type={media_types[index]} />
+                                )}
+                                keyExtractor={(_, i) => i.toString()}
+                                horizontal
+                                pagingEnabled
+                                initialScrollIndex={viewerIndex}
+                                getItemLayout={(_, index) => ({
+                                    length: width,
+                                    offset: width * index,
+                                    index,
+                                    })}
+                                onMomentumScrollEnd={(e) => {
+                                    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+                                    setViewerIndex(newIndex);
+                                }}
+                                showsHorizontalScrollIndicator={false}
+                            />
+                        </View>
+
+                        {/* Viewer Footer */}
+                        <View style={styles.viewerFooter}>
+                            <View style={styles.viewerStatsRow}>
+                                {/* Upvote */}
+                                <TouchableOpacity style={styles.viewerStatItem} onPress={() => handleVote(1)}>
+                                    <Ionicons 
+                                        name={myVote === 1 ? "arrow-up-circle" : "arrow-up-circle-outline"} 
+                                        size={22} 
+                                        color={myVote === 1 ? "#00A3FF" : "white"} 
+                                    />
+                                    <Text style={[styles.viewerStatText, myVote === 1 && { color: '#00A3FF' }]}>
+                                        {formatMetricCount(voteCount)}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Comment */}
+                                <TouchableOpacity 
+                                    style={styles.viewerStatItem} 
+                                    onPress={() => {
+                                        setViewerVisible(false);
+                                        router.push({ pathname: `/post/${post.id}`, params: { post: JSON.stringify(post) } });
+                                    }}
+                                >
+                                    <Ionicons name="chatbubble-outline" size={18} color="white" />
+                                    {commentCount > 0 && <Text style={styles.viewerStatText}>{formatMetricCount(commentCount)}</Text>}
+                                </TouchableOpacity>
+
+                                {/* Repost */}
+                                <TouchableOpacity style={styles.viewerStatItem} onPress={handleRepost}>
+                                    <Image 
+                                        source={ICONS.send} 
+                                        style={[styles.viewerIcon, { tintColor: hasReposted ? "#00A3FF" : "white" }]} 
+                                    />
+                                    {repostCount > 0 && (
+                                        <Text style={[styles.viewerStatText, hasReposted && { color: '#00A3FF' }]}>
+                                            {formatMetricCount(repostCount)}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                {/* Share */}
+                                <TouchableOpacity style={styles.viewerStatItem} onPress={handleShare}>
+                                    <Image 
+                                        source={ICONS.attachment} 
+                                        style={[styles.viewerIcon, { tintColor: "white", width: 22, height: 22 }]} 
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </SafeAreaView>
+
+                    {/* Interaction Modals inside Viewer */}
+                    <ActionModal
+                        visible={actionVisible}
+                        onClose={() => setActionVisible(false)}
+                        options={actionOptions}
+                        title={t('post_options_title')}
+                    />
+
+                    <ActionModal
+                        visible={reportReasonVisible}
+                        onClose={() => setReportReasonVisible(false)}
+                        options={reportOptions}
+                        title={t('why_reporting_title')}
+                    />
+
+                    <PostShareModal
+                        visible={shareModalVisible}
+                        onClose={() => setShareModalVisible(false)}
+                        post={post}
+                    />
                 </View>
             </Modal>
 
-            {/* Actions Bottom Sheet */}
+            {/* Interaction Modals for Feed */}
             <ActionModal
                 visible={actionVisible}
                 onClose={() => setActionVisible(false)}
@@ -856,7 +978,6 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                 title={t('post_options_title')}
             />
 
-            {/* Report Reasons Sheet */}
             <ActionModal
                 visible={reportReasonVisible}
                 onClose={() => setReportReasonVisible(false)}
@@ -1160,24 +1281,31 @@ const styles = StyleSheet.create({
     viewerContainer: {
         ...StyleSheet.absoluteFillObject,
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.95)',
+        backgroundColor: '#000000',
     },
     viewerSafeArea: {
         flex: 1,
     },
     viewerHeader: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        position: 'relative',
+        paddingTop: spacing.xxl,
+        paddingBottom: spacing.md,
+        zIndex: 20,
+    },
+    viewerHeaderBtn: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     viewerClose: {
-        position: 'absolute',
-        right: spacing.lg,
-        top: spacing.xxl + spacing.lg,
-        zIndex: 10,
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     viewerCount: {
         fontFamily: fonts.semibold,
@@ -1205,5 +1333,42 @@ const styles = StyleSheet.create({
     menuBtn: {
         padding: 4,
         marginLeft: 8,
+    },
+    viewerFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xl,
+        paddingBottom: spacing.xl + 20,
+        paddingTop: 20,
+    },
+    viewerStatsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 28,
+        gap: 18,
+    },
+    viewerStatItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    viewerStatText: {
+        color: 'white',
+        fontFamily: fonts.semibold,
+        fontSize: 13,
+    },
+    viewerIcon: {
+        width: 20,
+        height: 20,
+        resizeMode: 'contain',
+    },
+    viewerDivider: {
+        width: 1,
+        height: 16,
+        backgroundColor: 'rgba(255,255,255,0.2)',
     },
 });

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../src/context/ThemeContext';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { hapticLight } from '../../src/utils/haptics';
 
 const TYPES = [
     { key: 'course', label: 'Course', icon: 'book-outline' as const },

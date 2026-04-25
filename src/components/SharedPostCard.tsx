@@ -65,7 +65,7 @@ export default function SharedPostCard({ postId, isMine }: SharedPostCardProps) 
                     borderColor: isMine ? 'rgba(255,255,255,0.2)' : themeColors.border
                 }
             ]}
-            onPress={() => router.push(`/post/${postId}`)}
+            onPress={() => router.push({ pathname: `/post/${postId}`, params: { post: JSON.stringify(post) } })}
             activeOpacity={0.8}
         >
             <View style={styles.header}>

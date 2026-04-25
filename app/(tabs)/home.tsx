@@ -205,24 +205,13 @@ export default function HomeScreen() {
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            const triggerProgressiveFill = async () => {
-                // Kick off 3 items + stories immediately (parallel)
-                loadFeed(true, 3);
-                loadStories();
-
-                // Then fetch 5 more to fill the screen (AFTER exactly 100ms)
-                // Note: Progressive fill depends on having the cursor from the first batch,
-                // but since it's hard to pass cursor synchronously here, we'll let handleLoadMore handle it.
-                setTimeout(() => {
-                    // Just a placeholder to trigger a slightly delayed second wave if needed
-                }, 100);
-            };
-
-            triggerProgressiveFill();
-        }, [])
-    );
+    useEffect(() => {
+        const triggerProgressiveFill = async () => {
+            loadFeed(true, 3);
+            loadStories();
+        };
+        triggerProgressiveFill();
+    }, []);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('postCreated', () => {
