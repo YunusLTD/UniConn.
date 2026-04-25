@@ -163,7 +163,7 @@ export default function CreatePostModal() {
         const type = creationType === 'market' ? 'market' : 'post';
         
         // Immediate UI feedback
-        DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'uploading' });
+        DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'uploading' });
         router.back();
 
         try {
@@ -226,10 +226,10 @@ export default function CreatePostModal() {
                 DeviceEventEmitter.emit('postCreated');
             }
 
-            DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'success' });
+            DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'success' });
         } catch (e: any) {
             console.error('Upload failed:', e);
-            DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'error', message: e.message || 'Failed to upload' });
+            DeviceEventEmitter.emit('action_status', { id: uploadId, type, status: 'error', message: e.message || 'Failed to upload' });
         }
     };
 

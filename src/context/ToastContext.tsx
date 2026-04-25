@@ -51,31 +51,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <ToastContext.Provider value={{ showToast }}>
             {children}
-            {visible && (
-                <View style={styles.absoluteWrap} pointerEvents="box-none">
-                    <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
-                        <Animated.View
-                            style={[
-                                styles.toast,
-                                {
-                                    transform: [{ translateY }],
-                                    backgroundColor: colors.surface,
-                                    borderColor: colors.border
-                                }
-                            ]}
-                        >
-                            <TouchableOpacity onPress={hideToast} activeOpacity={0.9} style={styles.content}>
-                                <View style={[styles.indicator, { backgroundColor: typeColor(options.type, colors) }]} />
-                                <View style={styles.textWrap}>
-                                    {options.title && <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>{options.title}</Text>}
-                                    <Text numberOfLines={2} style={[styles.message, { color: colors.gray500 }]}>{options.message}</Text>
-                                </View>
-                                <Ionicons name="close" size={16} color={colors.gray400} />
-                            </TouchableOpacity>
-                        </Animated.View>
-                    </SafeAreaView>
-                </View>
-            )}
         </ToastContext.Provider>
     );
 };

@@ -10,9 +10,10 @@ const { width } = Dimensions.get('window');
 
 interface UploadStatusEvent {
     id: string;
-    type: 'post' | 'story' | 'market';
-    status: 'uploading' | 'success' | 'error';
+    type: 'post' | 'story' | 'market' | 'delete' | 'send' | 'repost' | 'save' | 'unsave';
+    status: 'uploading' | 'success' | 'error' | 'processing';
     message?: string;
+    title?: string;
 }
 
 const UploadProgressBanner: React.FC = () => {
@@ -24,7 +25,7 @@ const UploadProgressBanner: React.FC = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        const listener = DeviceEventEmitter.addListener('upload_status', (event: UploadStatusEvent) => {
+        const listener = DeviceEventEmitter.addListener('action_status', (event: UploadStatusEvent) => {
             setUpload(event);
             
             // Clear any existing timeout
@@ -32,7 +33,7 @@ const UploadProgressBanner: React.FC = () => {
                 clearTimeout(timeoutRef.current);
             }
 
-            if (event.status === 'uploading') {
+            if (event.status === 'uploading' || event.status === 'processing') {
                 // Show banner
                 Animated.parallel([
                     Animated.spring(translateY, {
@@ -80,10 +81,18 @@ const UploadProgressBanner: React.FC = () => {
     const isError = upload.status === 'error';
     
     // Determine text
-    let statusText = t('status_uploading') || 'Uploading...';
-    if (isSuccess) statusText = t('success') || 'Success';
-    if (isError) statusText = t('upload_failed') || 'Upload Failed';
-    if (upload.message) statusText = upload.message;
+    const isProcessing = upload.status === 'uploading' || upload.status === 'processing';
+    let statusText = '';
+    
+    if (isProcessing) {
+        if (upload.type === 'delete') statusText = t('deleting_indicator');
+        else if (upload.type === 'send') statusText = t('sending_indicator');
+        else statusText = t('status_uploading');
+    } else if (isSuccess) {
+        statusText = t('success');
+    } else if (isError) {
+        statusText = upload.message || t('error');
+    }
 
     return (
         <Animated.View 
@@ -98,8 +107,8 @@ const UploadProgressBanner: React.FC = () => {
             ]}
         >
             <View style={styles.content}>
-                {upload.status === 'uploading' ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
+                {isProcessing ? (
+                    <ActivityIndicator size="small" color={isDark ? '#FFF' : '#000'} />
                 ) : isSuccess ? (
                     <View style={[styles.iconWrap, { backgroundColor: '#10B981' }]}>
                         <Ionicons name="checkmark" size={12} color="#FFF" />
@@ -112,7 +121,15 @@ const UploadProgressBanner: React.FC = () => {
                 
                 <View style={styles.textContainer}>
                     <Text style={[styles.title, { color: isDark ? '#FFF' : '#000' }]} numberOfLines={1}>
-                        {upload.type === 'story' ? (t('status_new_title') || 'New Moment') : (t('post_header') || 'Post')}
+                        {upload.title || (
+                            upload.type === 'story' ? t('status_new_title') :
+                            upload.type === 'post' ? t('post_header') :
+                            upload.type === 'delete' ? t('delete_label') :
+                            upload.type === 'send' ? t('send_label') :
+                            upload.type === 'repost' ? t('reposted_label') :
+                            upload.type === 'save' || upload.type === 'unsave' ? t('save_label') :
+                            t('post_header')
+                        )}
                     </Text>
                     <Text style={[styles.statusText, { color: isDark ? colors.gray400 : colors.gray500 }]} numberOfLines={1}>
                         {statusText}

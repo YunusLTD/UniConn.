@@ -54,8 +54,15 @@ export default function PostShareModal({ visible, onClose, post }: PostShareModa
 
     const handleShare = async (friendId: string) => {
         if (sentIds.has(friendId)) return;
-        setSendingId(friendId);
+        
+        const actionId = Math.random().toString(36).substring(7);
+        const { DeviceEventEmitter } = require('react-native');
+        
         hapticLight();
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
+        
+        // Immediate close as requested
+        onClose();
 
         try {
             const convRes = await createConversation({ type: 'direct', participant_ids: [friendId] });
@@ -63,14 +70,13 @@ export default function PostShareModal({ visible, onClose, post }: PostShareModa
                 const shareText = `Check out this post: https://uni-platform.app/post/${post.id}\n\n${post.content?.substring(0, 50) || ''}...`;
                 await sendMessage(convRes.data.id, shareText);
                 
-                hapticSuccess();
-                setSentIds(prev => new Set(prev).add(friendId));
+                DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
+            } else {
+                throw new Error('Failed to create conversation');
             }
-        } catch (e) {
-            hapticError();
+        } catch (e: any) {
             console.error('Failed to share post', e);
-        } finally {
-            setSendingId(null);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: e.message || 'Failed to share' });
         }
     };
 

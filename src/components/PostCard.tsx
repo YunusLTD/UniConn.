@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Clipboard, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -366,16 +366,19 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     };
 
     const handleDelete = () => {
-        Alert.alert('Delete Post', 'Remove this post permanently?', [
-            { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('delete_label') || 'Delete Post', t('clear_history_confirm')?.replace('{{count}}', '1') || 'Remove this post permanently?', [
+            { text: t('cancel_label') || 'Cancel', style: 'cancel' },
             {
-                text: 'Delete', style: 'destructive',
+                text: t('delete_label') || 'Delete', style: 'destructive',
                 onPress: async () => {
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
                     try {
                         await deletePost(post.id);
                         if (onDelete) onDelete(post.id);
-                    } catch (e) {
-                        Alert.alert('Error', 'Failed to delete post.');
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
+                    } catch (e: any) {
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: e.message || 'Failed to delete' });
                     }
                 }
             }
@@ -391,9 +394,12 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
         setActionVisible(false);
         const previousValue = isSaved;
         const optimisticValue = !previousValue;
+        const actionId = Math.random().toString(36).substring(7);
+        const type = optimisticValue ? 'save' : 'unsave';
 
         setIsSaved(optimisticValue);
         if (onSaveChange) onSaveChange(post.id, optimisticValue);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type, status: 'processing' });
 
         try {
             const res = previousValue ? await unsavePost(post.id) : await savePost(post.id);
@@ -403,15 +409,11 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
             setIsSaved(serverValue);
             if (onSaveChange) onSaveChange(post.id, serverValue);
-            showToast({
-                title: t('success'),
-                message: serverValue ? 'Post saved' : 'Post removed from saved',
-                type: 'success'
-            });
-        } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type, status: 'success' });
+        } catch (e: any) {
             setIsSaved(previousValue);
             if (onSaveChange) onSaveChange(post.id, previousValue);
-            Alert.alert('Error', previousValue ? 'Failed to unsave post.' : 'Failed to save post.');
+            DeviceEventEmitter.emit('action_status', { id: actionId, type, status: 'error', message: e.message || 'Failed to save' });
         }
     };
 
@@ -453,7 +455,6 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     ];
 
     useEffect(() => {
-        const { DeviceEventEmitter } = require('react-native');
         const sub = DeviceEventEmitter.addListener('postVoted', (data: any) => {
             if (data.postId === post.id) {
                 setMyVote(data.myVote);
@@ -502,7 +503,6 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
         setVoteCount(newVoteCount);
         setInteractionCount(nextInteractionCount);
 
-        const { DeviceEventEmitter } = require('react-native');
         DeviceEventEmitter.emit('postVoted', {
             postId: post.id,
             myVote: newVote,
@@ -554,35 +554,38 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
         const nextHasReposted = !hasReposted;
         const nextRepostCount = Math.max(0, repostCount + (nextHasReposted ? 1 : -1));
         const nextInteractionCount = Math.max(0, interactionCount + (nextHasReposted ? 1 : -1));
+        const actionId = Math.random().toString(36).substring(7);
 
         setHasReposted(nextHasReposted);
         setRepostCount(nextRepostCount);
         setInteractionCount(nextInteractionCount);
 
-        const { DeviceEventEmitter } = require('react-native');
         DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
             postId: post.id,
             repost_count: nextRepostCount,
             interaction_count: nextInteractionCount,
             has_reposted: nextHasReposted,
         });
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'repost', status: 'processing' });
 
         hapticLight();
 
         try {
             const res = await repostPost(post.id);
             if (res.data) {
-                setHasReposted(!!res.data.has_reposted);
+                const finalHasReposted = !!res.data.has_reposted;
+                setHasReposted(finalHasReposted);
                 setRepostCount(res.data.repost_count ?? nextRepostCount);
                 setInteractionCount(res.data.interaction_count ?? nextInteractionCount);
                 DeviceEventEmitter.emit(POST_METRICS_CHANGED_EVENT, {
                     postId: post.id,
                     repost_count: res.data.repost_count ?? nextRepostCount,
                     interaction_count: res.data.interaction_count ?? nextInteractionCount,
-                    has_reposted: !!res.data.has_reposted,
+                    has_reposted: finalHasReposted,
                 });
+                DeviceEventEmitter.emit('action_status', { id: actionId, type: 'repost', status: 'success' });
             }
-        } catch (e) {
+        } catch (e: any) {
             setHasReposted(hasReposted);
             setRepostCount(repostCount);
             setInteractionCount(interactionCount);
@@ -592,6 +595,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                 interaction_count: interactionCount,
                 has_reposted: hasReposted,
             });
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'repost', status: 'error', message: e.message || 'Failed' });
             console.error('Repost error', e);
         } finally {
             setIsReposting(false);
@@ -950,6 +954,9 @@ const styles = StyleSheet.create({
     dot: {
         fontFamily: fonts.regular,
         fontSize: 12,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     time: {
         fontFamily: fonts.regular,
@@ -974,13 +981,6 @@ const styles = StyleSheet.create({
     communityBadgeText: {
         fontFamily: fonts.medium,
         fontSize: 10,
-    },
-    youBadge: {
-        backgroundColor: 'rgba(0,163,255,0.08)',
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderRadius: 4,
-        marginLeft: 4,
     },
     youBadgeText: {
         fontFamily: fonts.bold,
@@ -1062,11 +1062,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 10,
         gap: 6,
-    },
-    dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
     },
     gridItem: {
         position: 'relative',
@@ -1198,13 +1193,6 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         backgroundColor: '#000',
-    },
-    youBadge: {
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 10,
-        marginLeft: 2,
     },
     youText: {
         fontFamily: fonts.medium,

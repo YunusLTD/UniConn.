@@ -74,7 +74,21 @@ export default function CreateCommunityScreen() {
 
     const handleAction = async () => {
         if (!name.trim()) return Alert.alert(t('error'), 'Community name is required');
-        setLoading(true);
+        
+        const actionId = Math.random().toString(36).substring(7);
+        const actionType = isEdit ? 'post' : 'post'; // Reusing 'post' logic for banner title or we could add 'community'
+        
+        hapticLight();
+        DeviceEventEmitter.emit('action_status', { 
+            id: actionId, 
+            type: 'post', 
+            status: 'processing',
+            title: isEdit ? t('header_edit') : t('header_new')
+        });
+        
+        // Immediate close
+        router.back();
+
         try {
             let imageUrl = image;
             // Only upload if it's a local file (starting with file://)
@@ -95,17 +109,16 @@ export default function CreateCommunityScreen() {
 
             if (isEdit) {
                 await updateCommunity(id as string, data);
-                Alert.alert(t('success'), 'Community updated successfully');
                 DeviceEventEmitter.emit('communityUpdated');
             } else {
                 await createCommunity(data as any);
                 DeviceEventEmitter.emit('communityCreated');
             }
-            router.back();
+            
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'post', status: 'success' });
         } catch (e: any) {
-            Alert.alert(t('error'), e.message);
-        } finally {
-            setLoading(false);
+            console.error('Community action failed:', e);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'post', status: 'error', message: e.message || 'Failed' });
         }
     };
 

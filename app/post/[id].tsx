@@ -182,11 +182,19 @@ export default function PostScreen() {
 
     const handleAddComment = async () => {
         if (!newComment.trim() || !postId) return;
-        setSubmitting(true);
+        
+        const actionId = Math.random().toString(36).substring(7);
+        const commentContent = newComment;
+        const parentId = replyingTo?.id;
+        
+        hapticLight();
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
+        
+        setNewComment('');
+        setReplyingTo(null);
+
         try {
-            await addComment(postId, newComment, replyingTo?.id);
-            setNewComment('');
-            setReplyingTo(null);
+            await addComment(postId, commentContent, parentId);
             const commentRes = await getComments(postId);
             if (commentRes?.data) setComments(buildCommentList(commentRes.data));
             const nextCount = getCommentTotalFromResponse(commentRes);
@@ -204,11 +212,10 @@ export default function PostScreen() {
                 postId,
                 interaction_count: nextInteractionCount,
             });
-        } catch (e) {
-            console.log('Error adding comment', e);
-            alert(t('failed_to_post_comment'));
-        } finally {
-            setSubmitting(false);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
+        } catch (e: any) {
+            console.error('Add comment error:', e);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: e.message || 'Failed to post' });
         }
     };
 
@@ -228,6 +235,9 @@ export default function PostScreen() {
                 style: 'destructive', 
                 onPress: async () => {
                     if (!postId) return;
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
+
                     try {
                         await deleteComment(postId, commentId);
                         const commentRes = await getComments(postId);
@@ -247,8 +257,10 @@ export default function PostScreen() {
                             postId,
                             interaction_count: nextInteractionCount,
                         });
-                    } catch (e) {
-                        Alert.alert(t('error'), t('failed_to_delete_comment'));
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
+                    } catch (e: any) {
+                        console.error('Delete comment error:', e);
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: e.message || 'Failed' });
                     }
                 } 
             }

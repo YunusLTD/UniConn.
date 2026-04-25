@@ -123,7 +123,7 @@ export default function StoryUploadScreen() {
         const uploadId = Math.random().toString(36).substring(7);
         
         // Immediate UI feedback
-        DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'uploading' });
+        DeviceEventEmitter.emit('action_status', { id: uploadId, type: 'story', status: 'uploading' });
         router.back();
 
         try {
@@ -160,11 +160,11 @@ export default function StoryUploadScreen() {
 
             // Emit success events
             DeviceEventEmitter.emit('storyPosted');
-            DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'success' });
+            DeviceEventEmitter.emit('action_status', { id: uploadId, type: 'story', status: 'success' });
         } catch (e: any) {
             console.error('Story upload failed:', e);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'error', message: e.message || 'Failed to post story' });
+            DeviceEventEmitter.emit('action_status', { id: uploadId, type: 'story', status: 'error', message: e.message || 'Failed to post story' });
         }
     };
 
