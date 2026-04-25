@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors, fonts, spacing, radii } from '../../src/constants/theme';
 import { submitVerification } from '../../src/api/users';
 import { useAuth } from '../../src/context/AuthContext';
-import { apiFetch } from '../../src/api/client';
+import { uploadSingleMedia } from '../../src/api/upload';
 import { useLanguage } from '../../src/context/LanguageContext';
 
 export default function VerificationUploadScreen() {
@@ -44,37 +44,16 @@ export default function VerificationUploadScreen() {
 
         setLoading(true);
         try {
-            // First upload the image if we had an S3 integration or local endpoint
-            // For MVP let's assume `upload` route exists. We'll use a mocked flow if it doesn't, 
-            // but we'll try to use a real upload.
-
-            let uploadedUrl = 'placeholder_url';
-
-            try {
-                const formData = new FormData();
-                formData.append('files', {
-                    uri: imageUri,
-                    name: `id_${Date.now()}.jpg`,
-                    type: 'image/jpeg',
-                } as any);
-
-                // Assuming /upload/image exists and works publicly or authenticated
-                const uploadRes = await apiFetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (uploadRes?.data?.[0]?.url) {
-                    uploadedUrl = uploadRes.data[0].url;
-                }
-            } catch (e) {
-                console.log('Upload failed, using placeholder', e);
+            const uploadedMedia = await uploadSingleMedia(imageUri, 'image');
+            if (!uploadedMedia?.url) {
+                throw new Error(t('upload_failed'));
             }
 
             const res = await submitVerification({
                 university_id: params.university_id as string,
                 department: params.department as string,
                 year_of_study: yearOfStudy,
-                student_id_url: uploadedUrl
+                student_id_url: uploadedMedia.url
             });
 
             if (res.status === 'success' && token) {

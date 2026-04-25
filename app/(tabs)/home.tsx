@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fonts } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
-import { getFeed } from '../../src/api/feed';
+import { getFeedCore, enrichFeed } from '../../src/api/feed';
 import PostCard from '../../src/components/PostCard';
 import EventCard from '../../src/components/EventCard';
 import PollCard from '../../src/components/PollCard';
@@ -32,7 +32,7 @@ export default function HomeScreen() {
     const [loading, setLoading] = useState(false);
     const [loadingStories, setLoadingStories] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [page, setPage] = useState(1);
+    const [cursor, setCursor] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [viewerVisible, setViewerVisible] = useState(false);
     const [initialStoryUserIndex, setInitialStoryUserIndex] = useState(0);
@@ -41,22 +41,146 @@ export default function HomeScreen() {
     const [showToast, setShowToast] = useState(false);
     const toastAnim = useRef(new Animated.Value(100)).current;
 
-    const loadFeed = async (pageNum = 1, isRefresh = false, batchSize = 15) => {
+    const loadFeed = async (isRefresh = false, batchSize = 15, currentCursor: string | null = null) => {
         try {
-            if (isRefresh && pageNum === 1) setLoading(true);
+            if (isRefresh) setLoading(true);
 
-            const response = await getFeed(pageNum, batchSize);
+            const targetCursor = isRefresh ? null : currentCursor;
+            const response = await getFeedCore(targetCursor || undefined, batchSize);
+
             if (response?.data) {
-                if (isRefresh && pageNum === 1) {
-                    setPosts(response.data);
-                } else {
-                    setPosts(prev => {
-                        const existingIds = new Set(prev.map(p => p.id));
-                        const newPosts = response.data.filter((p: any) => !existingIds.has(p.id));
-                        return [...prev, ...newPosts];
+                const newPosts = response.data;
+
+                // 1. Initial Render (Instant)
+                setPosts(prev => {
+                    const mappedNewPosts = newPosts.map((newP: any) => {
+                        const existingP = prev.find((p: any) => p.id === newP.id);
+                        if (existingP) {
+                            return {
+                                ...newP,
+                                profiles: existingP.profiles || newP.profiles,
+                                communities: existingP.communities || newP.communities,
+                                my_vote: existingP.my_vote !== undefined ? existingP.my_vote : newP.my_vote,
+                                has_reposted: existingP.has_reposted !== undefined ? existingP.has_reposted : newP.has_reposted,
+                                is_saved: existingP.is_saved !== undefined ? existingP.is_saved : newP.is_saved,
+                            };
+                        }
+                        return newP;
                     });
+
+                    if (isRefresh) {
+                        return mappedNewPosts;
+                    } else {
+                        const existingIds = new Set(prev.map((p: any) => p.id));
+                        const filtered = mappedNewPosts.filter((p: any) => !existingIds.has(p.id));
+                        return [...prev, ...filtered];
+                    }
+                });
+
+                if (newPosts.length > 0) {
+                    setCursor(newPosts[newPosts.length - 1].created_at);
                 }
-                setHasMore(response.data.length >= batchSize);
+                setHasMore(newPosts.length >= batchSize);
+
+                // 2. Hydration (Enrichment)
+                const pIds = newPosts.filter((p: any) => p.feed_type === 'post').map((p: any) => p.id);
+                const pollIds = newPosts.filter((p: any) => p.feed_type === 'poll').map((p: any) => p.id);
+                const eventIds = newPosts.filter((p: any) => p.feed_type === 'event').map((p: any) => p.id);
+                const allIds = newPosts.map((p: any) => p.id);
+
+                const userIds = [...new Set(newPosts.map((p: any) => p.user_id).filter(Boolean))] as string[];
+                const commIds = [...new Set(newPosts.map((p: any) => p.community_id).filter(Boolean))] as string[];
+
+                if (allIds.length > 0) {
+                    enrichFeed(pIds, userIds, commIds, pollIds, eventIds).then(enrichRes => {
+                        if (!enrichRes) return;
+                        const profilesMap = Object.fromEntries(enrichRes.profiles?.map((p: any) => [p.id, p]) || []);
+                        const commsMap = Object.fromEntries(enrichRes.communities?.map((c: any) => [c.id, c]) || []);
+                        const votesMap = Object.fromEntries(enrichRes.myVotes?.map((v: any) => [v.post_id, v.value]) || []);
+                        const repostsSet = new Set(enrichRes.myReposts?.map((r: any) => r.post_id) || []);
+                        const savesSet = new Set(enrichRes.mySaves?.map((s: any) => s.post_id) || []);
+                        
+                        // Poll data
+                        const pollOptionsMap = enrichRes.pollOptions?.reduce((acc: any, opt: any) => {
+                            if (!acc[opt.poll_id]) acc[opt.poll_id] = [];
+                            acc[opt.poll_id].push(opt);
+                            return acc;
+                        }, {});
+                        const myPollVotesMap = Object.fromEntries(enrichRes.myPollVotes?.map((v: any) => [v.poll_id, v.option_id]) || []);
+                        const pollCountsMap = Object.fromEntries(enrichRes.pollVotesCounts?.map((c: any) => [c.poll_id, c.vote_count]) || []);
+                        const pollOptionCountsMap = Object.fromEntries(enrichRes.pollOptionCounts?.map((c: any) => [c.option_id, c.votes_count]) || []);
+
+                        // Event data
+                        const eventInterestMap = Object.fromEntries(enrichRes.eventInterests?.map((i: any) => [i.event_id, i.status]) || []);
+                        const eventCountsMap = Object.fromEntries(enrichRes.eventInterestedCounts?.map((c: any) => [c.event_id, c.interest_count]) || []);
+
+                        // Content maps
+                        const postContentMap = Object.fromEntries(enrichRes.postData?.map((d: any) => [d.id, d]) || []);
+                        const pollContentMap = Object.fromEntries(enrichRes.pollData?.map((d: any) => [d.id, d]) || []);
+                        const eventContentMap = Object.fromEntries(enrichRes.eventData?.map((d: any) => [d.id, d]) || []);
+
+                        setPosts(prev => prev.map(p => {
+                            if (allIds.includes(p.id)) {
+                                const base = {
+                                    ...p,
+                                    profiles: p.is_anonymous ? { name: 'Anonymous Student', avatar_url: null } : (profilesMap[p.user_id] || p.profiles),
+                                    communities: commsMap[p.community_id] || p.communities,
+                                };
+
+                                if (p.feed_type === 'poll') {
+                                    const pollD = pollContentMap[p.id];
+                                    const rawOptions = pollOptionsMap?.[p.id] || [];
+                                    const enrichedOptions = rawOptions.map((opt: any) => ({
+                                        ...opt,
+                                        votes_count: pollOptionCountsMap[opt.id] || 0
+                                    }));
+
+                                    return {
+                                        ...base,
+                                        question: pollD?.question || p.content,
+                                        options: enrichedOptions,
+                                        my_vote: myPollVotesMap[p.id] || null,
+                                        vote_count: pollCountsMap[p.id] || 0,
+                                    };
+                                }
+                                
+                                if (p.feed_type === 'event') {
+                                    const eventD = eventContentMap[p.id];
+                                    return {
+                                        ...base,
+                                        title: eventD?.title || p.content,
+                                        description: eventD?.description || p.description,
+                                        start_time: eventD?.start_time || p.start_time,
+                                        end_time: eventD?.end_time || p.end_time,
+                                        image_url: eventD?.image_url || p.image_url,
+                                        location: eventD?.location || p.location,
+                                        is_interested: eventInterestMap[p.id] === 'going',
+                                        interested_count: eventCountsMap[p.id] || 0,
+                                    };
+                                }
+
+                                const postD = postContentMap[p.id];
+                                return {
+                                    ...base,
+                                    content: postD?.content || p.content,
+                                    image_url: postD?.image_url || p.image_url,
+                                    media_urls: postD?.media_urls || p.media_urls,
+                                    media_types: postD?.media_types || p.media_types,
+                                    type: postD?.type || p.type,
+                                    comments_count: postD?.comments_count || p.comments_count,
+                                    vote_count: postD?.vote_count || p.vote_count,
+                                    repost_count: postD?.repost_count || p.repost_count,
+                                    view_count: postD?.view_count || p.view_count,
+                                    interaction_count: postD?.interaction_count || p.interaction_count,
+                                    my_vote: votesMap[p.id] || null,
+                                    has_reposted: repostsSet.has(p.id),
+                                    is_saved: savesSet.has(p.id),
+                                };
+                            }
+                            return p;
+                        }));
+                    }).catch(e => console.error('Enrichment failed', e));
+                }
             }
             return response;
         } catch (e) {
@@ -85,13 +209,14 @@ export default function HomeScreen() {
         useCallback(() => {
             const triggerProgressiveFill = async () => {
                 // Kick off 3 items + stories immediately (parallel)
-                loadFeed(1, true, 3);
+                loadFeed(true, 3);
                 loadStories();
 
                 // Then fetch 5 more to fill the screen (AFTER exactly 100ms)
-                setTimeout(async () => {
-                    await loadFeed(1, false, 5);
-                    setPage(1);
+                // Note: Progressive fill depends on having the cursor from the first batch,
+                // but since it's hard to pass cursor synchronously here, we'll let handleLoadMore handle it.
+                setTimeout(() => {
+                    // Just a placeholder to trigger a slightly delayed second wave if needed
                 }, 100);
             };
 
@@ -102,26 +227,26 @@ export default function HomeScreen() {
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('postCreated', () => {
             setRefreshing(true);
-            loadFeed(1, true);
+            loadFeed(true);
         });
 
         const storySub = DeviceEventEmitter.addListener('storyPosted', () => {
             loadStories();
             // Show Success Toast
             setShowToast(true);
-            Animated.spring(toastAnim, { 
-                toValue: 0, 
-                tension: 80, 
-                friction: 12, 
-                useNativeDriver: true 
+            Animated.spring(toastAnim, {
+                toValue: 0,
+                tension: 80,
+                friction: 12,
+                useNativeDriver: true
             }).start();
-            
+
             // Hide after 3s
             setTimeout(() => {
-                Animated.timing(toastAnim, { 
-                    toValue: 100, 
-                    duration: 500, 
-                    useNativeDriver: true 
+                Animated.timing(toastAnim, {
+                    toValue: 100,
+                    duration: 500,
+                    useNativeDriver: true
                 }).start(() => {
                     setShowToast(false);
                 });
@@ -205,16 +330,13 @@ export default function HomeScreen() {
 
     const handleRefresh = () => {
         setRefreshing(true);
-        setPage(1);
-        loadFeed(1, true);
+        loadFeed(true);
         loadStories();
     };
 
     const handleLoadMore = () => {
         if (!loading && hasMore && posts.length > 0) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            loadFeed(nextPage, false, 5);
+            loadFeed(false, 5, cursor);
         }
     };
 
@@ -406,7 +528,8 @@ const styles = StyleSheet.create({
         fontSize: 15,
     },
     storiesContainer: {
-        paddingVertical: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.sm,
         borderBottomWidth: 0.5,
     },
     storiesList: {

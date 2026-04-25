@@ -17,3 +17,9 @@ export const uploadFile = async (communityId: string, formData: FormData) => {
     if (!response.ok) throw new Error('File upload failed');
     return await response.json();
 };
+
+export const deleteFile = async (id: string) => {
+    return await apiFetch(`/files/${id}`, {
+        method: 'DELETE',
+    });
+};

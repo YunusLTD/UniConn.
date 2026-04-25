@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, DeviceEventEmitter, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, DeviceEventEmitter, Alert, Dimensions } from 'react-native';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -28,7 +28,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { useDialog } from '../../src/context/DialogContext';
 import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
+import { ICONS } from '../../src/constants/icons';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
+import BottomSheet from '../../src/components/BottomSheet';
+import ActionModal from '../../src/components/ActionModal';
 
 
 type ContentTabType = 'posts' | 'marketplace' | 'polls' | 'events' | 'study';
@@ -412,12 +415,13 @@ export default function ProfileScreen() {
                             {profile?.bio || 'Add a bio to tell students about yourself'}
                         </Text>
 
+
                                 {((profile?.show_hometown !== false && profile?.hometown) || (profile?.show_age !== false && profile?.age) || (profile?.show_relationship !== false && profile?.relationship_status)) && (
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: spacing.lg }} style={{ marginTop: 12, marginLeft: -spacing.lg, paddingLeft: spacing.lg }}>
                                         {profile?.show_hometown !== false && profile?.hometown && (
                                             <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                                 <View style={[styles.detailIconBox, { backgroundColor: '#3B82F6' }]}>
-                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=CZM3HWxN9R21&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                                    <Image source={ICONS.location.white} style={{ width: 12, height: 12 }} />
                                                 </View>
                                                 <Text style={[styles.detailCardText, { color: colors.black }]}>{profile.hometown}</Text>
                                             </View>
@@ -425,7 +429,7 @@ export default function ProfileScreen() {
                                         {profile?.show_age !== false && profile?.age && (
                                             <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                                 <View style={[styles.detailIconBox, { backgroundColor: '#A855F7' }]}>
-                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=vQsmg1r5VYrR&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                                    <Image source={ICONS.age.white} style={{ width: 12, height: 12 }} />
                                                 </View>
                                                 <Text style={[styles.detailCardText, { color: colors.black }]}>
                                                     {language === 'tr'
@@ -439,7 +443,7 @@ export default function ProfileScreen() {
                                         {profile?.show_relationship !== false && profile?.relationship_status && (
                                             <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                                 <View style={[styles.detailIconBox, { backgroundColor: '#EC4899' }]}>
-                                                    <Image source={{ uri: 'https://img.icons8.com/?size=100&id=RLESleVyTJxh&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                                    <Image source={ICONS.marital.white} style={{ width: 12, height: 12 }} />
                                                 </View>
                                                 <Text style={[styles.detailCardText, { color: colors.black }]}>
                                                     {getRelationshipStatusLabel(profile.relationship_status, language)}
@@ -653,47 +657,40 @@ export default function ProfileScreen() {
             )}
 
             {/* Legal Data Management Modal */}
-            <Modal visible={showLegalModal.visible} transparent animationType="fade" onRequestClose={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{showLegalModal.type === 'privacy' ? t('privacy_policy') : t('terms_of_use')}</Text>
-                            <TouchableOpacity onPress={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            <Text style={[styles.legalText, { color: colors.gray600 }]}>
-                                {showLegalModal.type === 'privacy'
-                                    ? t('privacy_desc')
-                                    : t('terms_desc')}
-                            </Text>
-                        </ScrollView>
-                    </View>
+            <BottomSheet visible={showLegalModal.visible} onClose={() => setShowLegalModal({ ...showLegalModal, visible: false })}>
+                <Text style={[styles.modalTitle, { color: colors.black, marginBottom: 16 }]}>{showLegalModal.type === 'privacy' ? t('privacy_policy') : t('terms_of_use')}</Text>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Dimensions.get('window').height * 0.5 }}>
+                    <Text style={[styles.legalText, { color: colors.gray600, fontSize: 14, lineHeight: 20 }]}>
+                        {showLegalModal.type === 'privacy'
+                            ? t('privacy_desc')
+                            : t('terms_desc')}
+                    </Text>
+                </ScrollView>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%', height: 50 }]} 
+                    onPress={() => setShowLegalModal({ ...showLegalModal, visible: false })}
+                >
+                    <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
                 </TouchableOpacity>
-            </Modal>
+            </BottomSheet>
 
             {/* Rank Modal */}
-            <Modal visible={showRankModal} transparent animationType="fade" onRequestClose={() => setShowRankModal(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRankModal(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('campus_rank_label')}</Text>
-                            <TouchableOpacity onPress={() => setShowRankModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-                            <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
-                            <Text style={[styles.statNumber, { fontSize: 32, color: '#E11D48', marginBottom: spacing.md }]}>#{profile?.campus_rank}</Text>
-                            <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600 }]}>
-                                {t('campus_rank_self_body')
-                                    .replace('{{university}}', t('campus_rank_university_generic'))}
-                            </Text>
-                        </View>
-                    </View>
+            <BottomSheet visible={showRankModal} onClose={() => setShowRankModal(false)}>
+                <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                    <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
+                    <Text style={[styles.statNumber, { fontSize: 32, color: '#E11D48', marginBottom: spacing.md }]}>#{profile?.campus_rank}</Text>
+                    <Text style={[styles.legalText, { textAlign: 'center', color: colors.gray600, fontSize: 15, lineHeight: 22 }]}>
+                        {t('campus_rank_self_body')
+                            .replace('{{university}}', t('campus_rank_university_generic'))}
+                    </Text>
+                </View>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%', height: 50 }]} 
+                    onPress={() => setShowRankModal(false)}
+                >
+                    <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
                 </TouchableOpacity>
-            </Modal>
+            </BottomSheet>
 
             <ProfileQRModal
                 visible={showQRModal}
@@ -714,94 +711,51 @@ export default function ProfileScreen() {
                 onClose={() => setViewerVisible(false)} 
             />
 
-            {/* Theme Selection Modal */}
-            <Modal visible={showThemeModal} transparent animationType="fade" onRequestClose={() => setShowThemeModal(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowThemeModal(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('select_theme')}</Text>
-                            <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ gap: 8 }}>
-                            {(['light', 'dark', 'system'] as const).map(m => (
-                                <TouchableOpacity 
-                                    key={m} 
-                                    style={[styles.selectorItem, theme === m && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.black }]} 
-                                    onPress={() => { setTheme(m); setShowThemeModal(false); }}
-                                >
-                                    <Ionicons 
-                                        name={m === 'light' ? 'sunny-outline' : m === 'dark' ? 'moon-outline' : 'phone-portrait-outline'} 
-                                        size={20} color={colors.black} 
-                                    />
-                                    <Text style={[styles.selectorText, { color: colors.black }]}>{getThemeLabel(m)}</Text>
-                                    {theme === m && <Ionicons name="checkmark-circle" size={20} color="#00A3FF" />}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+            {/* Theme Selection */}
+            <ActionModal
+                visible={showThemeModal}
+                onClose={() => setShowThemeModal(false)}
+                title={t('select_theme')}
+                options={[
+                    { label: t('theme_light'), icon: 'sunny-outline', onPress: () => { setTheme('light'); setShowThemeModal(false); } },
+                    { label: t('theme_dark'), icon: 'moon-outline', onPress: () => { setTheme('dark'); setShowThemeModal(false); } },
+                    { label: t('theme_system'), icon: 'phone-portrait-outline', onPress: () => { setTheme('system'); setShowThemeModal(false); } },
+                ]}
+            />
 
-            {/* Language Selection Modal */}
-            <Modal visible={showLanguageModal} transparent animationType="fade" onRequestClose={() => setShowLanguageModal(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLanguageModal(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('language')}</Text>
-                            <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ gap: 8 }}>
-                            {(['en', 'tr', 'ka'] as const).map(l => (
-                                <TouchableOpacity 
-                                    key={l} 
-                                    style={[styles.selectorItem, language === l && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderColor: colors.black }]} 
-                                    onPress={() => { setLanguage(l); setShowLanguageModal(false); }}
-                                >
-                                    <Text style={{ fontSize: 18 }}>{l === 'en' ? '🇺🇸' : l === 'tr' ? '🇹🇷' : '🇬🇪'}</Text>
-                                    <Text style={[styles.selectorText, { color: colors.black }]}>{l === 'en' ? t('lang_en') : l === 'tr' ? t('lang_tr') : t('lang_ka')}</Text>
-                                    {language === l && <Ionicons name="checkmark-circle" size={20} color="#00A3FF" />}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+            {/* Language Selection */}
+            <ActionModal
+                visible={showLanguageModal}
+                onClose={() => setShowLanguageModal(false)}
+                title={t('language')}
+                options={[
+                    { label: t('lang_en'), icon: 'language-outline', onPress: () => { setLanguage('en'); setShowLanguageModal(false); } },
+                    { label: t('lang_tr'), icon: 'language-outline', onPress: () => { setLanguage('tr'); setShowLanguageModal(false); } },
+                    { label: t('lang_ka'), icon: 'language-outline', onPress: () => { setLanguage('ka'); setShowLanguageModal(false); } },
+                ]}
+            />
 
             {/* UniScore Explanation Modal */}
-            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: isDark ? colors.gray700 : colors.black }]}>{t('uniscore_label')}</Text>
-                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
-                                <Ionicons name="close" size={24} color={isDark ? colors.gray700 : colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-                            <LinearGradient
-                                colors={['#A154F2', '#3B82F6']}
-                                style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
-                            >
-                                <Ionicons name="flash" size={32} color="#FFFFFF" />
-                            </LinearGradient>
-                            <Text style={[styles.modalTitle, { fontSize: 24, marginBottom: spacing.sm, color: isDark ? '#3B82F6' : colors.black }]}>{profile?.user_score || 0}</Text>
-                            <Text style={[styles.legalText, { textAlign: 'center', color: isDark ? colors.black : colors.gray600 }]}>
-                                {t('uniscore_body')}
-                            </Text>
-                        </View>
-                        <TouchableOpacity 
-                            style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%' }]} 
-                            onPress={() => setShowUniScoreModal(false)}
-                        >
-                            <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
-                        </TouchableOpacity>
-                    </View>
+            <BottomSheet visible={showUniScoreModal} onClose={() => setShowUniScoreModal(false)}>
+                <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                    <LinearGradient
+                        colors={['#A154F2', '#3B82F6']}
+                        style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
+                    >
+                        <Ionicons name="flash" size={32} color="#FFFFFF" />
+                    </LinearGradient>
+                    <Text style={[styles.modalTitle, { fontSize: 28, marginBottom: spacing.sm, color: colors.black }]}>{profile?.user_score || 0}</Text>
+                    <Text style={[styles.legalText, { textAlign: 'center', color: colors.black, fontSize: 16, lineHeight: 24 }]}>
+                        {t('uniscore_body')}
+                    </Text>
+                </View>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%', height: 50 }]} 
+                    onPress={() => setShowUniScoreModal(false)}
+                >
+                    <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
                 </TouchableOpacity>
-            </Modal>
+            </BottomSheet>
         </SafeAreaView>
     );
 }

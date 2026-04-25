@@ -10,6 +10,7 @@ import { submitReport } from '../api/reports';
 import ActionModal, { ActionOption } from './ActionModal';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useLanguage } from '../context/LanguageContext';
+import { ICONS } from '../constants/icons';
 
 interface MarketCardProps {
     item: any;
@@ -80,14 +81,14 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
         }
     };
 
+
     const actionOptions: ActionOption[] = [
-        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
-        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
-        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: ICONS.share, onPress: handleShare },
+        { label: t('report_option'), icon: ICONS.report, onPress: handleReport },
     ];
 
     if (isOwner) {
-        actionOptions.unshift({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift({ label: t('delete_label'), icon: ICONS.delete, onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [

@@ -8,42 +8,44 @@ import { useTheme } from '../../src/context/ThemeContext';
 import { useNotifications } from '../../src/context/NotificationContext';
 import { hapticLight, hapticSelection } from '../../src/utils/haptics';
 import { useLanguage } from '../../src/context/LanguageContext';
+import BottomSheet from '../../src/components/BottomSheet';
+import UploadProgressBanner from '../../src/components/UploadProgressBanner';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_BAR_WIDTH = SCREEN_WIDTH * 0.94;
 const TAB_HEIGHT = 60;
 const PILL_SPACING = 20;
 
+import { ICONS } from '../../src/constants/icons';
+
 function getIcons(isDark: boolean) {
-    const black = isDark ? 'FFFFFF' : '000000';
-    const gray = isDark ? '8E8E93' : '8E8E93';
     return {
         home: {
-            active: `https://img.icons8.com/?size=100&id=Gc9qmZNN9yFN&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=100&id=Gc9qmZNN9yFN&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.home.white : ICONS.tabs.home.black,
+            inactive: ICONS.tabs.home.gray
         },
         community: {
-            active: `https://img.icons8.com/?size=150&id=111487&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=150&id=111487&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.explore.white : ICONS.tabs.explore.black,
+            inactive: ICONS.tabs.explore.gray
         },
         heart: {
-            active: `https://img.icons8.com/?size=100&id=85038&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=100&id=85038&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.marketplace.white : ICONS.tabs.marketplace.black,
+            inactive: ICONS.tabs.marketplace.gray
         },
         market: {
-            active: `https://img.icons8.com/?size=100&id=rh2XLtRql4uV&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=100&id=rh2XLtRql4uV&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.study.white : ICONS.tabs.study.black,
+            inactive: ICONS.tabs.study.gray
         },
         profile: {
-            active: `https://img.icons8.com/?size=100&id=YXG86oegZMMh&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=100&id=YXG86oegZMMh&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.pulse.white : ICONS.tabs.pulse.black,
+            inactive: ICONS.tabs.pulse.gray
         },
         study: {
-            active: `https://img.icons8.com/?size=100&id=6895&format=png&color=${black}`,
-            inactive: `https://img.icons8.com/?size=100&id=6895&format=png&color=${gray}`
+            active: isDark ? ICONS.tabs.profile.white : ICONS.tabs.profile.black,
+            inactive: ICONS.tabs.profile.gray
         },
-        chat: `https://img.icons8.com/?size=100&id=7859&format=png&color=${black}`,
-        add: `https://img.icons8.com/?size=100&id=84061&format=png&color=${black}`,
+        chat: isDark ? ICONS.tabs.chat.white : ICONS.tabs.chat.black,
+        add: isDark ? ICONS.tabs.add.white : ICONS.tabs.add.black,
     };
 }
 
@@ -53,15 +55,15 @@ export default function TabLayout() {
     const { t } = useLanguage();
     const { activityUnreadCount, messageUnreadCount, pulseUnreadCount } = useNotifications();
     const [showCreateMenu, setShowCreateMenu] = useState(false);
-    const ICONS = getIcons(isDark);
+    const tabIcons = getIcons(isDark);
 
     function TabIcon({ name, focused, badgeCount }: { name: keyof ReturnType<typeof getIcons>; focused: boolean; badgeCount?: number }) {
-        const icon = ICONS[name] as any;
-        const url = typeof icon === 'string' ? icon : (focused ? icon.active : icon.inactive);
+        const icon = tabIcons[name] as any;
+        const url = focused ? icon.active : icon.inactive;
         return (
             <View style={s.iconWrap}>
                 <Image
-                    source={{ uri: url }}
+                    source={url}
                     style={{
                         width: 22,
                         height: 22,
@@ -84,82 +86,100 @@ export default function TabLayout() {
             TAB_ROUTES.includes(r.name) && descriptors[r.key].options.href !== null
         );
 
-        const totalTabs = visibleRoutes.length;
-        const tabWidth = TAB_BAR_WIDTH / totalTabs;
-
         // Find current active index in our filtered list
         const activeVisibleIndex = visibleRoutes.findIndex((r: any) => r.name === state.routes[state.index].name);
-        const translateX = useRef(new Animated.Value(0)).current;
 
-        useEffect(() => {
-            if (activeVisibleIndex !== -1) {
-                Animated.spring(translateX, {
-                    toValue: activeVisibleIndex * tabWidth,
-                    useNativeDriver: true,
-                    tension: 40,
-                    friction: 8,
-                }).start();
-            }
-        }, [activeVisibleIndex]);
+        const isIOS = Platform.OS === 'ios';
+
+        const renderTabBarContent = () => (
+            <>
+                {visibleRoutes.map((route: any, index: number) => {
+                    const isFocused = visibleRoutes[activeVisibleIndex]?.name === route.name;
+
+                    const onPress = () => {
+                        if (!isFocused) hapticSelection();
+                        const event = navigation.emit({
+                            type: 'tabPress',
+                            target: route.key,
+                            canPreventDefault: true,
+                        });
+
+                        if (!isFocused && !event.defaultPrevented) {
+                            navigation.navigate(route.name);
+                        }
+                    };
+
+                    let iconName: keyof ReturnType<typeof getIcons>;
+                    if (route.name === 'home') iconName = 'home';
+                    else if (route.name === 'communities') iconName = 'community';
+                    else if (route.name === 'marketplace') iconName = 'market';
+                    else if (route.name === 'study') iconName = 'study';
+                    else if (route.name === 'profile') iconName = 'profile';
+                    else return null;
+
+                    return (
+                        <TouchableOpacity
+                            key={route.key}
+                            onPress={onPress}
+                            style={s.tabItem}
+                            activeOpacity={0.7}
+                        >
+                            <TabIcon name={iconName} focused={isFocused} />
+                            <Text
+                                numberOfLines={1}
+                                style={[
+                                    s.tabLabel,
+                                    {
+                                        color: isFocused ? colors.black : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)'),
+                                    }
+                                ]}
+                            >
+                                {descriptors[route.key].options.title}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </>
+        );
 
         return (
             <View style={s.tabBarContainer}>
-                <View style={[s.tabBarShadow, { shadowColor: isDark ? '#000' : colors.gray400 }]} />
-                <View
-                    style={[
-                        s.tabBar,
-                        {
-                            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.98)' : 'rgba(255, 255, 255, 0.96)',
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
-                        }
-                    ]}
-                >
-                    {visibleRoutes.map((route: any, index: number) => {
-                        const isFocused = visibleRoutes[activeVisibleIndex]?.name === route.name;
-
-                        const onPress = () => {
-                            if (!isFocused) hapticSelection();
-                            const event = navigation.emit({
-                                type: 'tabPress',
-                                target: route.key,
-                                canPreventDefault: true,
-                            });
-
-                            if (!isFocused && !event.defaultPrevented) {
-                                navigation.navigate(route.name);
-                            }
-                        };
-
-                        let iconName: keyof ReturnType<typeof getIcons>;
-                        if (route.name === 'home') iconName = 'home';
-                        else if (route.name === 'communities') iconName = 'community';
-                        else if (route.name === 'marketplace') iconName = 'market';
-                        else if (route.name === 'study') iconName = 'study';
-                        else if (route.name === 'profile') iconName = 'profile';
-                        else return null;
-
-                        return (
-                            <TouchableOpacity
-                                key={route.key}
-                                onPress={onPress}
-                                style={s.tabItem}
-                                activeOpacity={0.7}
-                            >
-                                <TabIcon name={iconName} focused={isFocused} />
-                                <Text
-                                    numberOfLines={1}
-                                    style={[
-                                        s.tabLabel,
-                                        {
-                                            color: isFocused ? colors.black : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)'),
-                                        }
-                                    ]}
-                                >
-                                    {descriptors[route.key].options.title}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
+                <View style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: isDark ? 0.6 : 0.15,
+                    shadowRadius: 20,
+                    elevation: 20,
+                    borderRadius: TAB_HEIGHT / 2,
+                }}>
+                    {isIOS ? (
+                        <BlurView
+                            intensity={85}
+                            tint={isDark ? 'dark' : 'light'}
+                            style={[
+                                s.tabBar,
+                                {
+                                    backgroundColor: isDark ? 'rgba(30, 30, 30, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.4)',
+                                    borderWidth: 1,
+                                }
+                            ]}
+                        >
+                            {renderTabBarContent()}
+                        </BlurView>
+                    ) : (
+                        <View
+                            style={[
+                                s.tabBar,
+                                {
+                                    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.98)' : 'rgba(255, 255, 255, 0.96)',
+                                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                                }
+                            ]}
+                        >
+                            {renderTabBarContent()}
+                        </View>
+                    )}
                 </View>
             </View>
         );
@@ -188,7 +208,7 @@ export default function TabLayout() {
                 }}
                 hitSlop={8}
             >
-                <Image source={{ uri: `https://img.icons8.com/?size=100&id=33452&format=png&color=${isDark ? '000000' : 'FFFFFF'}` }} style={{ width: 16, height: 16 }} />
+                <Image source={isDark ? ICONS.pulse.black : ICONS.pulse.white} style={{ width: 16, height: 16 }} />
                 <Text
                     numberOfLines={1}
                     style={{ fontFamily: fonts.bold, fontSize: 11, color: isDark ? '#000000' : '#FFFFFF' }}
@@ -205,10 +225,10 @@ export default function TabLayout() {
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => { hapticLight(); setShowCreateMenu(true); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.add }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.add} style={{ width: 24, height: 24 }} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { hapticLight(); router.push('/activity'); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.heart.inactive }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.heart.inactive} style={{ width: 24, height: 24 }} />
                 {activityUnreadCount > 0 && (
                     <View style={[s.badge, { top: 2, right: 2, borderColor: colors.surface }]}>
                         <Text style={[s.badgeText, { color: '#FFFFFF' }]}>
@@ -218,7 +238,7 @@ export default function TabLayout() {
                 )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { hapticLight(); router.push('/messages'); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.chat }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.chat} style={{ width: 24, height: 24 }} />
                 {messageUnreadCount > 0 && (
                     <View style={[s.badge, { borderColor: colors.surface }]}>
                         <Text style={[s.badgeText, { color: '#FFFFFF' }]}>
@@ -234,10 +254,10 @@ export default function TabLayout() {
     const defaultHeaderRight = () => (
         <View style={[s.headerRight, { marginRight: spacing.lg }]}>
             <TouchableOpacity onPress={() => { hapticLight(); setShowCreateMenu(true); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.add }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.add} style={{ width: 24, height: 24 }} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { hapticLight(); router.push('/activity'); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.heart.inactive }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.heart.inactive} style={{ width: 24, height: 24 }} />
                 {activityUnreadCount > 0 && (
                     <View style={[s.badge, { top: 2, right: 2, borderColor: colors.surface }]}>
                         <Text style={[s.badgeText, { color: '#FFFFFF' }]}>
@@ -247,7 +267,7 @@ export default function TabLayout() {
                 )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { hapticLight(); router.push('/messages'); }} style={s.headerBtn} hitSlop={8}>
-                <Image source={{ uri: ICONS.chat }} style={{ width: 24, height: 24 }} />
+                <Image source={tabIcons.chat} style={{ width: 24, height: 24 }} />
                 {messageUnreadCount > 0 && (
                     <View style={[s.badge, { borderColor: colors.surface }]}>
                         <Text style={[s.badgeText, { color: '#FFFFFF' }]}>
@@ -322,78 +342,66 @@ export default function TabLayout() {
             </Tabs>
 
             {/* Create Menu — Bottom Sheet Style */}
-            <Modal
-                transparent
-                visible={showCreateMenu}
-                animationType="slide"
-                onRequestClose={() => setShowCreateMenu(false)}
-            >
-                <Pressable
-                    style={s.overlay}
-                    onPress={() => setShowCreateMenu(false)}
+            <BottomSheet visible={showCreateMenu} onClose={() => setShowCreateMenu(false)}>
+                <Text style={[s.sheetTitle, { color: colors.black }]}>{t('create')}</Text>
+
+                <TouchableOpacity
+                    style={[s.sheetOption, { borderTopColor: colors.border }]}
+                    onPress={() => handleCreateAction('/create-post')}
                 >
-                    <View style={[s.sheet, { backgroundColor: colors.surface }]}>
-                        <View style={[s.sheetHandle, { backgroundColor: colors.gray300 }]} />
-                        <Text style={[s.sheetTitle, { color: colors.black }]}>{t('create')}</Text>
-
-                        <TouchableOpacity
-                            style={[s.sheetOption, { borderTopColor: colors.border }]}
-                            onPress={() => handleCreateAction('/create-post')}
-                        >
-                            <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                <Ionicons name="document-text-outline" size={24} color={colors.black} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_post')}</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('share_with_campus')}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[s.sheetOption, { borderTopColor: colors.border }]}
-                            onPress={() => handleCreateAction('/events/create')}
-                        >
-                            <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                <Ionicons name="calendar-outline" size={24} color={colors.black} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_event')}</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('organize_activities')}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[s.sheetOption, { borderTopColor: colors.border }]}
-                            onPress={() => handleCreateAction('/marketplace/create')}
-                        >
-                            <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                <Ionicons name="cart-outline" size={24} color={colors.black} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('sell_request')}</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('list_on_market')}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[s.sheetOption, { borderTopColor: colors.border }]}
-                            onPress={() => handleCreateAction('/study/create')}
-                        >
-                            <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                                <Ionicons name="school-outline" size={24} color={colors.black} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[s.sheetLabel, { color: colors.black }]}>{t('ask_question')}</Text>
-                                <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('get_homework_help')}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
-                        </TouchableOpacity>
+                    <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Ionicons name="document-text-outline" size={24} color={colors.black} />
                     </View>
-                </Pressable>
-            </Modal>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_post')}</Text>
+                        <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('share_with_campus')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[s.sheetOption, { borderTopColor: colors.border }]}
+                    onPress={() => handleCreateAction('/events/create')}
+                >
+                    <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Ionicons name="calendar-outline" size={24} color={colors.black} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[s.sheetLabel, { color: colors.black }]}>{t('new_event')}</Text>
+                        <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('organize_activities')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[s.sheetOption, { borderTopColor: colors.border }]}
+                    onPress={() => handleCreateAction('/marketplace/create')}
+                >
+                    <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Ionicons name="cart-outline" size={24} color={colors.black} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[s.sheetLabel, { color: colors.black }]}>{t('sell_request')}</Text>
+                        <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('list_on_market')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[s.sheetOption, { borderTopColor: colors.border, marginBottom: spacing.md }]}
+                    onPress={() => handleCreateAction('/study/create')}
+                >
+                    <View style={[s.sheetIcon, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Ionicons name="school-outline" size={24} color={colors.black} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[s.sheetLabel, { color: colors.black }]}>{t('ask_question')}</Text>
+                        <Text style={[s.sheetSub, { color: colors.gray500 }]}>{t('get_homework_help')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.gray400} />
+                </TouchableOpacity>
+            </BottomSheet>
+            <UploadProgressBanner />
         </View>
     );
 }
@@ -416,14 +424,14 @@ const s = StyleSheet.create({
     },
     tabBarShadow: {
         position: 'absolute',
-        width: TAB_BAR_WIDTH - 20,
-        height: TAB_HEIGHT - 6,
+        width: TAB_BAR_WIDTH,
+        height: TAB_HEIGHT,
         borderRadius: TAB_HEIGHT / 2,
         backgroundColor: 'transparent',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.12,
-        shadowRadius: 14,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+        elevation: 20,
     },
     tabBar: {
         flexDirection: 'row',

@@ -6,34 +6,30 @@
     "scheme": "uniconnect",
     "plugins": [
       "expo-router",
-      "expo-font",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/android-icon-monochrome.png",
-          "backgroundColor": "#FFFFFF",
-          "dark": {
-            "image": "./assets/android-icon-monochrome.png",
-            "backgroundColor": "#000000"
-          },
-          "imageWidth": 120
-        }
-      ]
+      "expo-font"
     ],
     "orientation": "portrait",
-    "icon": "./assets/favicon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/android-icon-monochrome.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF",
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#000000",
       "dark": {
-        "image": "./assets/android-icon-monochrome.png",
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
         "backgroundColor": "#000000"
       }
     },
+    "router": {
+      "enableNativeTabs": true
+    },
     "ios": {
-      "supportsTablet": true
+      "buildSettings": {
+        "iOSUseFrameworks": true
+      },
+      "supportsTablet": true,
+      "bundleIdentifier": "com.naiye.uniconn"
     },
     "android": {
       "adaptiveIcon": {

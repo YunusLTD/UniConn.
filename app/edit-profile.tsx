@@ -4,11 +4,11 @@ import { spacing, fonts, radii } from '../src/constants/theme';
 import { useTheme } from '../src/context/ThemeContext';
 import { useAuth } from '../src/context/AuthContext';
 import { getProfile, updateProfile } from '../src/api/users';
+import { uploadSingleMedia } from '../src/api/upload';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { apiFetch } from '../src/api/client';
 import ActionModal from '../src/components/ActionModal';
 import { useLanguage } from '../src/context/LanguageContext';
 import { buildYearOptions, getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../src/utils/localization';
@@ -93,24 +93,9 @@ export default function EditProfileScreen() {
     const uploadImage = async (uri: string) => {
         setUploading(true);
         try {
-            const formData = new FormData();
-            const fileName = uri.split('/').pop() || 'avatar.jpg';
-            const match = /\.(\w+)$/.exec(fileName);
-            const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-            formData.append('files', {
-                uri,
-                name: fileName,
-                type,
-            } as any);
-
-            const res = await apiFetch('/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (res?.data?.[0]?.url) {
-                const newUrl = res.data[0].url;
+            const uploadedMedia = await uploadSingleMedia(uri, 'image');
+            if (uploadedMedia?.url) {
+                const newUrl = uploadedMedia.url;
                 setAvatarUrl(newUrl);
             }
         } catch (e: any) {

@@ -217,20 +217,25 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ visible, stories: allUsers = 
         togglePause(false);
     };
 
-    const handleDeleteStory = async () => {
+    const handleDeleteStory = () => {
         if (!currentStory?.id) return;
-        try {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            await deleteStory(currentStory.id);
-            DeviceEventEmitter.emit('storyDeleted');
-            if (userStories.length === 1) {
-                onClose();
-            } else {
-                nextStory();
-            }
-        } catch (e) {
-            console.log('Failed to delete story', e);
+        
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        
+        const storyId = currentStory.id;
+        
+        // Optimistically update UI immediately
+        DeviceEventEmitter.emit('storyDeleted', storyId);
+        if (userStories.length === 1) {
+            onClose();
+        } else {
+            nextStory();
         }
+
+        // Perform actual deletion in background
+        deleteStory(storyId).catch(e => {
+            console.log('Failed to delete story', e);
+        });
     };
 
     const handleReportStory = () => {

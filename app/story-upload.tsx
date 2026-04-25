@@ -19,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useLanguage } from '../src/context/LanguageContext';
 import { useTheme } from '../src/context/ThemeContext';
+import BottomSheet from '../src/components/BottomSheet';
 
 const { width, height } = Dimensions.get('window');
 
@@ -118,7 +119,13 @@ export default function StoryUploadScreen() {
         if (mode === 'text' && !textStatus.trim()) return;
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        setLoading(true);
+        
+        const uploadId = Math.random().toString(36).substring(7);
+        
+        // Immediate UI feedback
+        DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'uploading' });
+        router.back();
+
         try {
             let finalMediaUrl = '';
             let finalMediaType = 'text';
@@ -151,14 +158,13 @@ export default function StoryUploadScreen() {
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Emit event and close immediately
+            // Emit success events
             DeviceEventEmitter.emit('storyPosted');
-            router.back();
+            DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'success' });
         } catch (e: any) {
+            console.error('Story upload failed:', e);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert(t('error'), e.message || t('setup_something_went_wrong'));
-        } finally {
-            setLoading(false);
+            DeviceEventEmitter.emit('upload_status', { id: uploadId, type: 'story', status: 'error', message: e.message || 'Failed to post story' });
         }
     };
 
@@ -390,43 +396,36 @@ export default function StoryUploadScreen() {
                         </SafeAreaView>
                     </TouchableWithoutFeedback>
 
-                    {/* Mention Modal */}
-                    <Modal visible={showMentionModal} transparent animationType="slide" onRequestClose={() => setShowMentionModal(false)}>
-                        <View style={styles.mentionModalOverlay}>
-                            <View style={styles.mentionSheet}>
-                                <View style={styles.sheetHandle} />
-                                <Text style={styles.sheetTitle}>{t('status_mention_title')}</Text>
-                                <Ionicons 
-                                    name="close" 
-                                    size={24} 
-                                    color="white" 
-                                    style={styles.sheetCloseBtn} 
-                                    onPress={() => setShowMentionModal(false)}
-                                />
-                                
-                                {friendsLoading ? (
-                                    <ActivityIndicator size="small" color="#fff" style={{ marginTop: 20 }} />
-                                ) : friends.length === 0 ? (
-                                    <Text style={styles.noFriendsText}>{t('status_mention_empty')}</Text>
-                                ) : (
-                                    <FlatList
-                                        data={friends}
-                                        keyExtractor={item => item.id}
-                                        style={{ maxHeight: height * 0.5 }}
-                                        renderItem={({ item }) => {
-                                            const user = item.friend || item.user;
-                                            return (
-                                                <TouchableOpacity style={styles.friendRow} onPress={() => selectMention(item)}>
-                                                    <Image source={{ uri: user?.avatar_url }} style={styles.friendAvatar} />
-                                                    <Text style={styles.friendName}>{user?.name} <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>@{user?.username}</Text></Text>
-                                                </TouchableOpacity>
-                                            );
-                                        }}
-                                    />
-                                )}
-                            </View>
-                        </View>
-                    </Modal>
+                    {/* Mention Bottom Sheet */}
+                    <BottomSheet visible={showMentionModal} onClose={() => setShowMentionModal(false)}>
+                        <Text style={[styles.sheetTitle, { color: colors.black }]}>{t('status_mention_title')}</Text>
+                        
+                        {friendsLoading ? (
+                            <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+                        ) : friends.length === 0 ? (
+                            <Text style={[styles.noFriendsText, { color: colors.gray500 }]}>{t('status_mention_empty')}</Text>
+                        ) : (
+                            <FlatList
+                                data={friends}
+                                keyExtractor={item => item.id}
+                                style={{ maxHeight: height * 0.4 }}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => {
+                                    const user = item.friend || item.user;
+                                    return (
+                                        <TouchableOpacity style={styles.friendRow} onPress={() => selectMention(item)}>
+                                            <Image source={{ uri: user?.avatar_url }} style={styles.friendAvatar} />
+                                            <View>
+                                                <Text style={[styles.friendName, { color: colors.black }]}>{user?.name}</Text>
+                                                <Text style={{ color: colors.gray500, fontSize: 13, fontFamily: fonts.regular }}>@{user?.username}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                }}
+                            />
+                        )}
+                        <View style={{ height: spacing.xl }} />
+                    </BottomSheet>
                 </KeyboardAvoidingView>
             </View>
         );

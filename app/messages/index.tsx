@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, TextInput, Alert } from 'react-native';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getConversations } from '../../src/api/messages';
 import { useAuth } from '../../src/context/AuthContext';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { deleteConversation } from '../../src/api/messages';
 import ActionModal from '../../src/components/ActionModal';
 import { chatStore } from '../../src/chat/chatStore';
 import { drainOutbox } from '../../src/chat/chatSync';
+import { hapticSelection } from '../../src/utils/haptics';
 
 const stripLegacyGroupChatSuffix = (value: string) =>
     value
@@ -69,6 +70,9 @@ export default function MessagesScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [longPressedConv, setLongPressedConv] = useState<any>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [clearing, setClearing] = useState(false);
     const router = useRouter();
     const { user, onlineUsers } = useAuth();
     const { colors, isDark } = useTheme();
@@ -139,6 +143,7 @@ export default function MessagesScreen() {
 
     const filteredConversations = safeConversations.filter(conv => {
         if (!conv || typeof conv !== 'object') return false;
+        if (!conv.last_message) return false; // Do not show cleared/empty chats
         if (!searchQuery.trim()) return true;
         const otherParticipant = conv.participants?.find((p: any) => p.user_id !== user?.id);
         const name = String(conv.type === 'direct' ? (otherParticipant?.profiles?.name || '') : (conv.name || ''));
@@ -158,6 +163,48 @@ export default function MessagesScreen() {
         } catch (e) {
             console.log('Error deleting conversation', e);
         }
+    };
+
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleClearSelected = async () => {
+        if (selectedIds.size === 0) return;
+        
+        Alert.alert(
+            t('clear_history') || 'Clear History',
+            t('clear_history_confirm', { count: selectedIds.size }) || `Are you sure you want to clear the history of ${selectedIds.size} chat(s)?`,
+            [
+                { text: t('cancel_label') || 'Cancel', style: 'cancel' },
+                { 
+                    text: t('clear') || 'Clear', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        setClearing(true);
+                        try {
+                            const ids = Array.from(selectedIds);
+                            await Promise.all(ids.map(async (id) => {
+                                await deleteConversation(id);
+                                await chatStore.clearConversation(id);
+                            }));
+                            setConversations(prev => normalizeConversationList(prev.filter(c => !ids.includes(c?.id))));
+                            setSelectedIds(new Set());
+                            setIsEditing(false);
+                        } catch (e) {
+                            console.log('Error deleting conversations', e);
+                        } finally {
+                            setClearing(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const content = loading ? (
@@ -206,14 +253,29 @@ export default function MessagesScreen() {
                         style={[styles.card, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
                         onPress={() => {
                             if (!conversationId) return;
-                            router.push({
-                                pathname: '/chat/[id]',
-                                params: { id: conversationId }
-                            });
+                            if (isEditing) {
+                                toggleSelection(conversationId);
+                            } else {
+                                router.push({
+                                    pathname: '/chat/[id]',
+                                    params: { id: conversationId }
+                                });
+                            }
                         }}
-                        onLongPress={() => item.type === 'direct' && setLongPressedConv(item)}
+                        delayLongPress={200}
+                        onLongPress={() => {
+                            if (!isEditing) {
+                                hapticSelection();
+                                setLongPressedConv(item);
+                            }
+                        }}
                         activeOpacity={0.7}
                     >
+                        {isEditing && (
+                            <View style={[styles.checkbox, { borderColor: selectedIds.has(conversationId) ? '#00A3FF' : colors.gray300, backgroundColor: selectedIds.has(conversationId) ? '#00A3FF' : 'transparent' }]}>
+                                {selectedIds.has(conversationId) && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                            </View>
+                        )}
                         <View>
                             <View style={[styles.avatar, { backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.border }]}>
                                 {avatarUrl ? (
@@ -287,17 +349,55 @@ export default function MessagesScreen() {
                 headerBackTitle: '',
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.black,
-                headerShadowVisible: false
+                headerShadowVisible: false,
+                headerRight: () => filteredConversations.length > 0 ? (
+                    <View style={{ marginRight: 4 }}>
+                        <TouchableOpacity style={{ backgroundColor: 'transparent', padding: 4 }} onPress={() => { setIsEditing(!isEditing); setSelectedIds(new Set()); }} hitSlop={10}>
+                            {isEditing ? (
+                                <Text style={{ color: '#00A3FF', fontFamily: fonts.semibold, fontSize: 16 }}>
+                                    {t('done_label') || 'Done'}
+                                </Text>
+                            ) : (
+                                <Feather name="more-horizontal" size={24} color={colors.black} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                ) : null
             }} />
             {content}
             
-            <TouchableOpacity
-                style={[styles.fab, { backgroundColor: isDark ? '#262626' : colors.primary, bottom: Math.max(insets.bottom + spacing.md, 20) }]}
-                onPress={() => router.push('/friends/list')}
-                accessibilityLabel={t('start_new_message')}
-            >
-                <Ionicons name="add" size={28} color="#fff" />
-            </TouchableOpacity>
+            {!isEditing && (
+                <TouchableOpacity
+                    style={[styles.fab, { backgroundColor: isDark ? '#262626' : colors.primary, bottom: Math.max(insets.bottom + spacing.md, 20) }]}
+                    onPress={() => router.push('/friends/list')}
+                    accessibilityLabel={t('start_new_message')}
+                >
+                    <Ionicons name="add" size={28} color="#fff" />
+                </TouchableOpacity>
+            )}
+
+            {isEditing && (
+                <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 20) }]}>
+                    <Text style={[styles.selectionText, { color: colors.black }]}>
+                        {selectedIds.size > 0 
+                            ? t('items_selected', { count: selectedIds.size }) || `${selectedIds.size} selected`
+                            : t('none_selected') || 'None selected'}
+                    </Text>
+                    <TouchableOpacity 
+                        style={[styles.clearBtn, { opacity: (clearing || selectedIds.size === 0) ? 0.5 : 1 }]}
+                        onPress={handleClearSelected}
+                        disabled={clearing || selectedIds.size === 0}
+                    >
+                        {clearing ? (
+                            <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                            <Text style={styles.clearBtnText}>
+                                {t('delete_label') || 'Delete'} {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
             
             <ActionModal
                 visible={!!longPressedConv}
@@ -408,4 +508,41 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         elevation: 5,
     },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.lg,
+        paddingTop: 16,
+        borderTopWidth: 0.5,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    selectionText: { fontFamily: fonts.semibold, fontSize: 16 },
+    clearBtn: {
+        backgroundColor: '#EF4444',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+    },
+    clearBtnText: {
+        color: '#FFF',
+        fontFamily: fonts.bold,
+        fontSize: 14,
+    }
 });

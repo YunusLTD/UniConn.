@@ -158,7 +158,14 @@ export default function CreatePostModal() {
 
     const handlePost = async () => {
         if (!selectedCommunity && !['study'].includes(creationType)) return Alert.alert(t('error'), 'Please select a community.');
-        setPosting(true);
+        
+        const uploadId = Math.random().toString(36).substring(7);
+        const type = creationType === 'market' ? 'market' : 'post';
+        
+        // Immediate UI feedback
+        DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'uploading' });
+        router.back();
+
         try {
             let media_urls: string[] = [];
             let media_types: string[] = [];
@@ -184,8 +191,6 @@ export default function CreatePostModal() {
                     await createPost(selectedCommunity.id, { content: content.trim(), media_urls, media_types });
                 }
             } else if (creationType === 'study') {
-                // For study, we use createStudyQuestion from src/api/study.ts
-                // Fallback to normal post if no specific study title/subject logic here
                 await createPost(selectedCommunity?.id || 'public', { content: content.trim(), media_urls, media_types });
             } else if (creationType === 'event') {
                 if (!eventTitle.trim()) throw new Error('Title is required');
@@ -216,13 +221,15 @@ export default function CreatePostModal() {
                     options: validOptions.map(o => o.trim()),
                 });
             }
+            
             if (!(creationType === 'post' && params.edit === 'true' && params.postId)) {
                 DeviceEventEmitter.emit('postCreated');
             }
-            router.back();
+
+            DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'success' });
         } catch (e: any) {
-            Alert.alert(t('error'), e.message || 'Failed to create');
-            setPosting(false);
+            console.error('Upload failed:', e);
+            DeviceEventEmitter.emit('upload_status', { id: uploadId, type, status: 'error', message: e.message || 'Failed to upload' });
         }
     };
 

@@ -18,6 +18,7 @@ import MarketCard from '../../src/components/MarketCard';
 import ActionModal from '../../src/components/ActionModal';
 import StudyCard from '../../src/components/StudyCard';
 import JobCard from '../../src/components/JobCard';
+import { ICONS } from '../../src/constants/icons';
 import { useToast } from '../../src/context/ToastContext';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { getUserStories } from '../../src/api/stories';
@@ -27,6 +28,7 @@ import { useLanguage } from '../../src/context/LanguageContext';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 import { POST_METRICS_CHANGED_EVENT, applyPostMetricsChange } from '../../src/utils/postMetrics';
 import { getDepartmentLabel, getRelationshipStatusLabel, getYearOfStudyLabel } from '../../src/utils/localization';
+import BottomSheet from '../../src/components/BottomSheet';
 
 type TabType = 'posts' | 'marketplace' | 'polls' | 'events' | 'study';
 
@@ -537,10 +539,11 @@ export default function UserProfileScreen() {
 
                         {((profile?.show_hometown !== false && profile?.hometown) || (profile?.show_age !== false && profile?.age) || (profile?.show_relationship !== false && profile?.relationship_status)) && (
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: spacing.lg }} style={{ marginTop: 12, marginLeft: -spacing.lg, paddingLeft: spacing.lg }}>
+
                                 {profile?.show_hometown !== false && profile?.hometown && (
                                     <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                         <View style={[styles.detailIconBox, { backgroundColor: '#3B82F6' }]}>
-                                            <Image source={{ uri: 'https://img.icons8.com/?size=100&id=CZM3HWxN9R21&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                            <Image source={ICONS.location.white} style={{ width: 12, height: 12 }} />
                                         </View>
                                         <Text style={[styles.detailCardText, { color: colors.black }]}>{profile.hometown}</Text>
                                     </View>
@@ -548,7 +551,7 @@ export default function UserProfileScreen() {
                                 {profile?.show_age !== false && profile?.age && (
                                     <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                         <View style={[styles.detailIconBox, { backgroundColor: '#A855F7' }]}>
-                                            <Image source={{ uri: 'https://img.icons8.com/?size=100&id=vQsmg1r5VYrR&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                            <Image source={ICONS.age.white} style={{ width: 12, height: 12 }} />
                                         </View>
                                         <Text style={[styles.detailCardText, { color: colors.black }]}>
                                             {language === 'tr'
@@ -562,7 +565,7 @@ export default function UserProfileScreen() {
                                 {profile?.show_relationship !== false && profile?.relationship_status && (
                                     <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                                         <View style={[styles.detailIconBox, { backgroundColor: '#EC4899' }]}>
-                                            <Image source={{ uri: 'https://img.icons8.com/?size=100&id=RLESleVyTJxh&format=png&color=FFFFFF' }} style={{ width: 12, height: 12 }} />
+                                            <Image source={ICONS.marital.white} style={{ width: 12, height: 12 }} />
                                         </View>
                                         <Text style={[styles.detailCardText, { color: colors.black }]}>
                                             {getRelationshipStatusLabel(profile.relationship_status, language)}
@@ -731,27 +734,23 @@ export default function UserProfileScreen() {
             </Modal>
 
             {/* Rank Modal */}
-            <Modal visible={showRankModal} transparent animationType="fade" onRequestClose={() => setShowRankModal(false)}>
-                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowRankModal(false)}>
-                    <View style={{ backgroundColor: colors.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24, minHeight: 400 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.black }}>{t('campus_rank_label')}</Text>
-                            <TouchableOpacity onPress={() => setShowRankModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-                            <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 32, color: '#E11D48', marginBottom: spacing.md }}>#{profile?.campus_rank}</Text>
-                            <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.gray600, textAlign: 'center', lineHeight: 20 }}>
-                                {t('campus_rank_other_body')
-                                    .replace('{{name}}', profile?.name || t('user_fallback'))
-                                    .replace('{{university}}', t('campus_rank_university_generic'))}
-                            </Text>
-                        </View>
-                    </View>
+            <BottomSheet visible={showRankModal} onClose={() => setShowRankModal(false)}>
+                <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                    <Ionicons name="medal" size={48} color="#E11D48" style={{ marginBottom: spacing.sm }} />
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 32, color: '#E11D48', marginBottom: spacing.md }}>#{profile?.campus_rank}</Text>
+                    <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: colors.black, textAlign: 'center', lineHeight: 22 }}>
+                        {t('campus_rank_other_body')
+                            .replace('{{name}}', profile?.name || t('user_fallback'))
+                            .replace('{{university}}', t('campus_rank_university_generic'))}
+                    </Text>
+                </View>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%', height: 50 }]} 
+                    onPress={() => setShowRankModal(false)}
+                >
+                    <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
                 </TouchableOpacity>
-            </Modal>
+            </BottomSheet>
 
             <StoryViewer
                 visible={viewerVisible}
@@ -761,36 +760,26 @@ export default function UserProfileScreen() {
             />
 
             {/* UniScore Explanation Modal */}
-            <Modal visible={showUniScoreModal} transparent animationType="fade" onRequestClose={() => setShowUniScoreModal(false)}>
-                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowUniScoreModal(false)}>
-                    <View style={{ backgroundColor: colors.surface, padding: spacing.xl, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: isDark ? colors.gray700 : colors.black }}>{t('uniscore_label')}</Text>
-                            <TouchableOpacity onPress={() => setShowUniScoreModal(false)}>
-                                <Ionicons name="close" size={24} color={isDark ? colors.gray700 : colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-                            <LinearGradient
-                                colors={['#A154F2', '#3B82F6']}
-                                style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
-                            >
-                                <Ionicons name="flash" size={32} color="#FFFFFF" />
-                            </LinearGradient>
-                            <Text style={{ fontFamily: fonts.bold, fontSize: 24, color: colors.black, marginBottom: spacing.sm }}>{profile?.user_score || 0}</Text>
-                            <Text style={{ fontFamily: fonts.regular, fontSize: 15, color: isDark ? colors.black : colors.gray600, textAlign: 'center', lineHeight: 22 }}>
-                                {t('uniscore_body')}
-                            </Text>
-                        </View>
-                        <TouchableOpacity 
-                            style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%' }]} 
-                            onPress={() => setShowUniScoreModal(false)}
-                        >
-                            <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
-                        </TouchableOpacity>
-                    </View>
+            <BottomSheet visible={showUniScoreModal} onClose={() => setShowUniScoreModal(false)}>
+                <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                    <LinearGradient
+                        colors={['#A154F2', '#3B82F6']}
+                        style={{ width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md }}
+                    >
+                        <Ionicons name="flash" size={32} color="#FFFFFF" />
+                    </LinearGradient>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 28, color: colors.black, marginBottom: spacing.sm }}>{profile?.user_score || 0}</Text>
+                    <Text style={{ fontFamily: fonts.regular, fontSize: 16, color: colors.black, textAlign: 'center', lineHeight: 24 }}>
+                        {t('uniscore_body')}
+                    </Text>
+                </View>
+                <TouchableOpacity 
+                    style={[styles.actionBtn, { backgroundColor: colors.black, marginTop: 24, width: '100%', height: 50 }]} 
+                    onPress={() => setShowUniScoreModal(false)}
+                >
+                    <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('profile_settings_close') || 'Close'}</Text>
                 </TouchableOpacity>
-            </Modal>
+            </BottomSheet>
         </View>
     );
 } const styles = StyleSheet.create({

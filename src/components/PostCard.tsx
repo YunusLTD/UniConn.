@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Alert, Modal, FlatList, Animated, Clipboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ICONS } from '../constants/icons';
+import { Skeleton } from './ShadowLoader';
 import { useRouter } from 'expo-router';
 import { votePost, deletePost, repostPost, savePost, unsavePost } from '../api/posts';
 import { submitReport } from '../api/reports';
@@ -29,9 +31,16 @@ const formatMetricCount = (value: number) => {
 };
 
 // MediaGrid
-const MediaGrid = ({ media, types, onImagePress, hideNavigation, router, postId }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string }) => {
-    const count = media.length;
-    if (count === 0) return null;
+const MediaCarousel = ({ media, types, onImagePress, hideNavigation, router, postId }: { media: string[], types: string[], onImagePress: (index: number) => void, hideNavigation: boolean, router: any, postId: string }) => {
+    const { colors: themeColors } = useTheme();
+    const scrollX = useRef(new Animated.Value(0)).current;
+    
+    // Calculate width: screen width - left column (avatar+gap) - card padding
+    const containerWidth = width - (spacing.lg * 2) - 44 - 12;
+    const itemWidth = containerWidth * 0.92; // "Big half" / mostly full width
+    const gap = 10;
+
+    if (!media || media.length === 0) return null;
 
     const handlePress = (index: number) => {
         if (!hideNavigation) {
@@ -41,65 +50,74 @@ const MediaGrid = ({ media, types, onImagePress, hideNavigation, router, postId 
         }
     };
 
-    const renderItem = (url: string, index: number, style: any) => (
-        <TouchableOpacity key={index} style={[styles.gridItem, style]} activeOpacity={0.9} onPress={() => handlePress(index)}>
-            <Image source={{ uri: url }} style={styles.gridImage} />
+    const renderItem = ({ item, index }: { item: string, index: number }) => (
+        <TouchableOpacity 
+            activeOpacity={0.9} 
+            onPress={() => handlePress(index)}
+            style={{
+                width: media.length === 1 ? containerWidth : itemWidth,
+                height: 320,
+                marginRight: index === media.length - 1 ? 0 : gap,
+                borderRadius: 12,
+                overflow: 'hidden',
+                backgroundColor: themeColors.elevated,
+            }}
+        >
+            <Image source={{ uri: item }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
             {types[index] === 'video' && (
                 <View style={styles.videoOverlay}>
-                    <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
+                    <Ionicons name="play-circle" size={40} color="rgba(255,255,255,0.9)" />
                 </View>
             )}
-            {count > 4 && index === 3 && (
-                <View style={styles.moreOverlay}>
-                    <Text style={styles.moreText}>+{count - 4}</Text>
+            {media.length > 1 && (
+                <View style={styles.carouselBadge}>
+                    <Text style={styles.carouselBadgeText}>{index + 1}/{media.length}</Text>
                 </View>
             )}
         </TouchableOpacity>
     );
 
-    if (count === 1) {
-        return (
-            <TouchableOpacity style={styles.singleContainer} activeOpacity={0.9} onPress={() => handlePress(0)}>
-                <Image source={{ uri: media[0] }} style={styles.singleImage} />
-                {types[0] === 'video' && (
-                    <View style={styles.videoOverlay}>
-                        <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
-                    </View>
-                )}
-            </TouchableOpacity>
-        );
-    }
-
-    if (count === 2) {
-        return (
-            <View style={[styles.gridRow, { height: 220 }]}>
-                {media.slice(0, 2).map((url, i) => renderItem(url, i, { flex: 1 }))}
-            </View>
-        );
-    }
-
-    if (count === 3) {
-        return (
-            <View style={[styles.gridRow, { height: 280 }]}>
-                {renderItem(media[0], 0, { flex: 2 })}
-                <View style={{ flex: 1, gap: GRID_GAP }}>
-                    {renderItem(media[1], 1, { flex: 1 })}
-                    {renderItem(media[2], 2, { flex: 1 })}
-                </View>
-            </View>
-        );
-    }
-
     return (
-        <View style={{ height: 280, gap: GRID_GAP }}>
-            <View style={[styles.gridRow, { flex: 1 }]}>
-                {renderItem(media[0], 0, { flex: 1 })}
-                {renderItem(media[1], 1, { flex: 1 })}
-            </View>
-            <View style={[styles.gridRow, { flex: 1 }]}>
-                {renderItem(media[2], 2, { flex: 1 })}
-                {renderItem(media[3], 3, { flex: 1 })}
-            </View>
+        <View style={{ marginTop: 10 }}>
+            <FlatList
+                data={media}
+                renderItem={renderItem}
+                keyExtractor={(_, i) => i.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={itemWidth + gap}
+                decelerationRate="fast"
+                snapToAlignment="start"
+                contentContainerStyle={{ paddingRight: media.length > 1 ? 20 : 0 }}
+                scrollEventThrottle={16}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: false }
+                )}
+            />
+            
+            {media.length > 1 && (
+                <View style={styles.dotContainer}>
+                    {media.map((_, i) => {
+                        const opacity = scrollX.interpolate({
+                            inputRange: [(i - 1) * (itemWidth + gap), i * (itemWidth + gap), (i + 1) * (itemWidth + gap)],
+                            outputRange: [0.3, 1, 0.3],
+                            extrapolate: 'clamp',
+                        });
+                        const scale = scrollX.interpolate({
+                            inputRange: [(i - 1) * (itemWidth + gap), i * (itemWidth + gap), (i + 1) * (itemWidth + gap)],
+                            outputRange: [0.8, 1.2, 0.8],
+                            extrapolate: 'clamp',
+                        });
+                        return (
+                            <Animated.View 
+                                key={i} 
+                                style={[styles.dot, { opacity, transform: [{ scale }], backgroundColor: themeColors.gray400 }]} 
+                            />
+                        );
+                    })}
+                </View>
+            )}
         </View>
     );
 };
@@ -221,7 +239,7 @@ const AnimatedStatNumber = ({ value, style }: { value: number; style: any }) => 
 };
 
 // ─── PostCard ───
-function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNavigation = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, onSaveChange?: (id: string, isSaved: boolean) => void, hideNavigation?: boolean }) {
+function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNavigation = false, hideCommunity = false }: { post: any, showDelete?: boolean, onDelete?: (id: string) => void, onSaveChange?: (id: string, isSaved: boolean) => void, hideNavigation?: boolean, hideCommunity?: boolean }) {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
     const { t, language } = useLanguage();
@@ -269,7 +287,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     const [actionVisible, setActionVisible] = useState(false);
     const [reportReasonVisible, setReportReasonVisible] = useState(false);
     const initials = (() => {
-        const name = post.profiles?.name || 'Anonymous';
+        const name = post.profiles?.name || '';
         const parts = name.split(' ').filter((p: string) => p.length > 0);
         if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
         return name.substring(0, 2).toUpperCase();
@@ -297,6 +315,21 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     const [isVoting, setIsVoting] = useState(false);
     const [isReposting, setIsReposting] = useState(false);
     const [shareModalVisible, setShareModalVisible] = useState(false);
+
+    // Hydration Animation
+    const [isHydrated, setIsHydrated] = useState(!!post.profiles?.name);
+    const hydratedAnim = useRef(new Animated.Value(post.profiles?.name ? 1 : 0)).current;
+
+    useEffect(() => {
+        if (post.profiles?.name && !isHydrated) {
+            setIsHydrated(true);
+            Animated.timing(hydratedAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [post.profiles?.name]);
 
     const isEdited = !!post.is_edited;
 
@@ -395,21 +428,20 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
     const actionOptions: ActionOption[] = [
         { label: isSaved ? 'Unsave' : t('save'), icon: isSaved ? 'bookmark' : 'bookmark-outline', onPress: handleSaveToggle },
-        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
-        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
-        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: ICONS.share, onPress: handleShare },
+        { label: t('report_option'), icon: ICONS.report, onPress: handleReport },
     ];
 
     if (isOwner) {
         actionOptions.unshift(
-            { label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true }
+            { label: t('delete_label'), icon: ICONS.delete, onPress: handleDelete, destructive: true }
         );
         
         // 3-hour limit for editing posts
         const canEdit = new Date().getTime() - new Date(post.created_at).getTime() < 3 * 60 * 60 * 1000;
         if (canEdit) {
             actionOptions.unshift(
-                { label: t('edit_post_option'), icon: 'create-outline', onPress: handleEdit }
+                { label: t('edit_post_option'), icon: ICONS.edit, onPress: handleEdit }
             );
         }
     }
@@ -572,7 +604,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     const media_types = (post.media_types && post.media_types.length > 0)
         ? post.media_types
         : (post.image_url ? ['image'] : []);
-    const commentCount = Number(post.comments?.[0]?.count || 0);
+    const commentCount = Number(post.comments_count || post.comments?.[0]?.count || 0);
 
     return (
         <View style={[styles.card, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
@@ -586,8 +618,10 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                     >
                         {post.profiles?.avatar_url ? (
                             <Image source={{ uri: post.profiles.avatar_url }} style={styles.avatarImg} />
-                        ) : (
+                        ) : post.profiles?.name ? (
                             <Text style={[styles.avatarText, { color: themeColors.gray500 }]}>{initials}</Text>
+                        ) : (
+                            <Skeleton width="100%" height="100%" borderRadius={20} />
                         )}
                     </TouchableOpacity>
                     <View style={[styles.threadLine, { backgroundColor: themeColors.border }]} />
@@ -611,36 +645,44 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                     {/* Author info */}
                     <View style={styles.authorRow}>
                         <View style={{ flex: 1 }}>
-                            <View style={styles.nameRow}>
-                                <TouchableOpacity 
-                                    onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}
-                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                                >
-                                    <Text style={[styles.name, { color: themeColors.black }]}>{post.profiles?.name || 'Anonymous'}</Text>
-                                    {!!(post.profiles?.is_admin || post.profiles?.name === 'UniConn Platform') && (
-                                        <MaterialCommunityIcons name="check-decagram" size={16} color="#00A3FF" />
-                                    )}
-                                </TouchableOpacity>
-                                {!!isOwner && (
-                                    <View style={[styles.youBadge, { backgroundColor: themeColors.elevated }]}>
-                                        <Text style={[styles.youText, { color: themeColors.blue }]}>{t('you_badge')}</Text>
+                            {!!post.profiles?.name ? (
+                                <Animated.View style={{ opacity: hydratedAnim }}>
+                                    <View style={styles.nameRow}>
+                                        <TouchableOpacity 
+                                            onPress={() => post.user_id && !post.is_anonymous && router.push(`/user/${post.user_id}`)}
+                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}
+                                        >
+                                            <Text style={[styles.name, { color: themeColors.black }]} numberOfLines={1}>{post.profiles.name}</Text>
+                                            {!!(post.profiles.is_admin || post.profiles.name === 'UniConn Platform') && (
+                                                <MaterialCommunityIcons name="check-decagram" size={15} color="#00A3FF" />
+                                            )}
+                                        </TouchableOpacity>
                                     </View>
-                                )}
-                                <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: themeColors.gray400 }]}>{formatTimeAgo(post.created_at, t, language, true)}</Text>
-                                {isEdited && (
-                                    <>
-                                        <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
-                                        <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11 }]}>{t('edited_label')}</Text>
-                                    </>
-                                )}
-                            </View>
-                            {!!post.communities?.name && (
-                                <Text style={[styles.communityTag, { color: themeColors.gray500 }]}>
-                                    {post.communities.is_official 
-                                        ? (post.universities?.name || post.communities.name.replace(/ community/gi, ''))
-                                        : post.communities.name.replace(/ community/gi, '')}
-                                </Text>
+                                    <View style={styles.metaRow}>
+                                        {!hideCommunity && !!post.communities?.name && (
+                                            <>
+                                                <Text style={[styles.communityName, { color: themeColors.gray500, flexShrink: 1 }]} numberOfLines={1}>
+                                                    {post.communities.is_official 
+                                                        ? (post.communities.universities?.name || post.communities.name.replace(/ community/gi, ''))
+                                                        : post.communities.name.replace(/ community/gi, '')}
+                                                </Text>
+                                                <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
+                                            </>
+                                        )}
+                                        <Text style={[styles.time, { color: themeColors.gray400 }]}>{formatTimeAgo(post.created_at, t, language, true)}</Text>
+                                        {isEdited && (
+                                            <>
+                                                <Text style={[styles.dot, { color: themeColors.gray400 }]}>·</Text>
+                                                <Text style={[styles.time, { color: themeColors.gray400, fontSize: 11 }]}>{t('edited_label')}</Text>
+                                            </>
+                                        )}
+                                    </View>
+                                </Animated.View>
+                            ) : (
+                                <View style={{ gap: 6, marginTop: 4 }}>
+                                    <Skeleton width="40%" height={12} borderRadius={6} />
+                                    <Skeleton width="20%" height={10} borderRadius={5} />
+                                </View>
                             )}
                         </View>
                         <TouchableOpacity onPress={handleMenu} hitSlop={8} style={styles.menuBtn}>
@@ -658,16 +700,19 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                             <Text style={[styles.content, { color: themeColors.black }, hideNavigation && styles.contentSmall]}> 
                                 {renderContentWithMentions(post.content)}
                             </Text>
-                        ) : null}
+                        ) : (
+                            <View style={{ gap: 8, marginTop: 10, marginBottom: 12 }}>
+                                <Skeleton width="100%" height={16} borderRadius={4} />
+                                <Skeleton width="80%" height={16} borderRadius={4} />
+                            </View>
+                        )}
                     </TouchableOpacity>
 
                     {/* view count displayed in header; removed from card to avoid duplication */}
 
                     {/* Media */}
                     {media.length > 0 && (
-                        <View style={[styles.mediaContainer, { backgroundColor: themeColors.elevated }]}>
-                            <MediaGrid media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} />
-                        </View>
+                        <MediaCarousel media={media} types={media_types} onImagePress={openViewer} hideNavigation={hideNavigation} router={router} postId={post.id} />
                     )}
 
                     {/* metrics are shown in post header; hide here to avoid duplication */}
@@ -682,7 +727,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                             >
                                 <Animated.View style={{ transform: [{ scale: upScale }] }}>
                                     <Image
-                                        source={{ uri: 'https://img.icons8.com/?size=100&id=101309&format=png&color=000000' }}
+                                        source={ICONS.camera}
                                         style={[
                                             styles.voteIcon,
                                             { tintColor: myVote === 1 ? themeColors.blue : themeColors.gray500 }
@@ -708,7 +753,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                             >
                                 <Animated.View style={{ transform: [{ scale: downScale }] }}>
                                     <Image
-                                        source={{ uri: 'https://img.icons8.com/?size=100&id=102257&format=png&color=000000' }}
+                                        source={ICONS.image}
                                         style={[
                                             styles.voteIcon,
                                             { tintColor: myVote === -1 ? themeColors.danger : themeColors.gray500 }
@@ -731,7 +776,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                         <TouchableOpacity style={styles.actionBtn} hitSlop={6} onPress={handleRepost} disabled={isReposting}>
                             <View style={styles.actionImageContainer}>
                                 <Image
-                                    source={{ uri: 'https://img.icons8.com/?size=100&id=qQuXyol28a94&format=png&color=000000' }}
+                                    source={ICONS.send}
                                     style={[styles.actionImage, { tintColor: hasReposted ? themeColors.blue : themeColors.gray500 }]}
                                 />
                             </View>
@@ -746,7 +791,7 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
                         <TouchableOpacity style={styles.actionBtn} hitSlop={6} onPress={handleShare}>
                             <View style={styles.actionImageContainer}>
                                 <Image
-                                    source={{ uri: 'https://img.icons8.com/?size=100&id=hUfhD6Fe5WgZ&format=png&color=000000' }}
+                                    source={ICONS.attachment}
                                     style={[styles.actionImage, { tintColor: themeColors.gray500, width: 22, height: 22 }]}
                                 />
                             </View>
@@ -895,6 +940,12 @@ const styles = StyleSheet.create({
     name: {
         fontFamily: fonts.semibold,
         fontSize: 14,
+        flexShrink: 1,
+    },
+    communityName: {
+        fontFamily: fonts.medium,
+        fontSize: 12,
+        flexShrink: 1,
     },
     dot: {
         fontFamily: fonts.regular,
@@ -904,10 +955,38 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         fontSize: 12,
     },
-    communityTag: {
-        fontFamily: fonts.regular,
-        fontSize: 11,
-        marginTop: 1,
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+        gap: 3,
+    },
+    communityBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+        borderWidth: 0.5,
+    },
+    communityBadgeText: {
+        fontFamily: fonts.medium,
+        fontSize: 10,
+    },
+    youBadge: {
+        backgroundColor: 'rgba(0,163,255,0.08)',
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+        marginLeft: 4,
+    },
+    youBadgeText: {
+        fontFamily: fonts.bold,
+        fontSize: 9,
+        color: '#00A3FF',
+        textTransform: 'uppercase',
     },
     content: {
         fontFamily: fonts.regular,
@@ -963,9 +1042,31 @@ const styles = StyleSheet.create({
         fontFamily: fonts.medium,
         fontSize: 12,
     },
-    gridRow: {
+    carouselBadge: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    carouselBadgeText: {
+        color: 'white',
+        fontSize: 10,
+        fontFamily: fonts.bold,
+    },
+    dotContainer: {
         flexDirection: 'row',
-        gap: GRID_GAP,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 10,
+        gap: 6,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     gridItem: {
         position: 'relative',

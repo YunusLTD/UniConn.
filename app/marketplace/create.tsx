@@ -9,6 +9,7 @@ import { useLanguage } from '../../src/context/LanguageContext';
 import { createMarketplaceListing } from '../../src/api/marketplace';
 import { uploadSingleMedia } from '../../src/api/upload';
 import { getMyCommunities } from '../../src/api/communities';
+import BottomSheet from '../../src/components/BottomSheet';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -246,38 +247,30 @@ export default function CreateListingScreen() {
                 </TouchableOpacity>
             </ScrollView>
 
-            <Modal visible={showCommModal} transparent animationType="slide" onRequestClose={() => setShowCommModal(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.black }]}>{t('community_hub')}</Text>
-                            <TouchableOpacity onPress={() => setShowCommModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.black} />
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={styles.commList}>
-                            {myCommunities.map(comm => (
-                                <TouchableOpacity 
-                                    key={comm.id} 
-                                    style={[styles.commOption, { borderBottomColor: colors.border }]}
-                                    onPress={() => {
-                                        setSelectedCommunityId(comm.id);
-                                        setShowCommModal(false);
-                                    }}
-                                >
-                                    <Text style={[
-                                        styles.commOptionText, { color: colors.black },
-                                        selectedCommunityId === comm.id && { color: "#00A3FF", fontFamily: fonts.bold }
-                                    ]}>
-                                        {comm.name}
-                                    </Text>
-                                    {selectedCommunityId === comm.id && <Ionicons name="checkmark" size={20} color="#00A3FF" />}
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
+            <BottomSheet visible={showCommModal} onClose={() => setShowCommModal(false)}>
+                <Text style={[styles.modalTitle, { color: colors.black, marginBottom: 20 }]}>{t('community_hub')}</Text>
+                <ScrollView style={styles.commList} showsVerticalScrollIndicator={false}>
+                    {myCommunities.map(comm => (
+                        <TouchableOpacity 
+                            key={comm.id} 
+                            style={[styles.commOption, { borderBottomColor: colors.border }]}
+                            onPress={() => {
+                                setSelectedCommunityId(comm.id);
+                                setShowCommModal(false);
+                            }}
+                        >
+                            <Text style={[
+                                styles.commOptionText, { color: colors.black },
+                                selectedCommunityId === comm.id && { color: "#00A3FF", fontFamily: fonts.bold }
+                            ]}>
+                                {comm.name}
+                            </Text>
+                            {selectedCommunityId === comm.id && <Ionicons name="checkmark" size={20} color="#00A3FF" />}
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+                <View style={{ height: spacing.xl }} />
+            </BottomSheet>
         </View>
     );
 }

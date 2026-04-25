@@ -10,6 +10,7 @@ import { submitReport } from '../api/reports';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTimeAgo } from '../utils/localization';
+import { ICONS } from '../constants/icons';
 
 interface StudyCardProps {
     question: any;
@@ -95,14 +96,14 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
         }
     };
 
+
     const actionOptions: ActionOption[] = [
-        { label: 'Share', icon: 'share-outline', onPress: handleShare },
-        { label: 'Copy Link', icon: 'link-outline', onPress: handleCopyLink },
-        { label: 'Report', icon: 'flag-outline', onPress: handleReport },
+        { label: 'Share', icon: ICONS.share, onPress: handleShare },
+        { label: 'Report', icon: ICONS.report, onPress: handleReport },
     ];
 
     if (isMe) {
-        actionOptions.unshift({ label: 'Delete', icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift({ label: 'Delete', icon: ICONS.delete, onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [

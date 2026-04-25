@@ -8,12 +8,14 @@ import { getPulse, getPulseComments, addPulseComment, deletePulse } from '../../
 import { useLanguage } from '../../src/context/LanguageContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { createPulseAliasSeed, getPulseAlias } from '../../src/utils/pulseAlias';
+import { ICONS } from '../../src/constants/icons';
 
 const GHOST_COLORS = [
     '#A154F2', '#7C3AED', '#9333EA', '#C084FC', '#6D28D9',
     '#8B5CF6', '#A78BFA', '#B794F4', '#A855F7', '#D8B4FE',
 ];
-const PULSE_ICON_WHITE_URI = 'https://img.icons8.com/?size=100&id=33452&format=png&color=FFFFFF';
+
+const PULSE_ICON_WHITE = ICONS.pulse.white;
 
 function getGhostColor(id: string, index?: number): string {
     const hash = (id + (index ?? '')).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -194,7 +196,7 @@ export default function PulseDetailScreen() {
 
                             <View style={styles.postHeader}>
                                 <View style={[styles.ghostAvatar, { backgroundColor: ghostColor }]}>
-                                    <Image source={{ uri: PULSE_ICON_WHITE_URI }} style={styles.ghostIcon} />
+                                    <Image source={PULSE_ICON_WHITE} style={styles.ghostIcon} />
                                 </View>
                                 <View style={styles.postHeaderInfo}>
                                     <Text style={styles.anonLabel}>{postAlias}</Text>

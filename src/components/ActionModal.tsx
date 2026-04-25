@@ -1,17 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, ScrollView } from 'react-native';
-import { colors, spacing, fonts, radii } from '../constants/theme';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { spacing, fonts } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { useLanguage } from '../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { hapticLight, hapticSelection } from '../utils/haptics';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { hapticLight } from '../utils/haptics';
+import BottomSheet from './BottomSheet';
 
 export interface ActionOption {
     label: string;
-    icon: string;
+    icon: any;
     onPress: () => void;
     destructive?: boolean;
 }
@@ -24,184 +21,92 @@ export interface ActionModalProps {
 }
 
 export default function ActionModal({ visible, onClose, options, title }: ActionModalProps) {
-    const insets = useSafeAreaInsets();
-    const { colors: themeColors } = useTheme();
-    const { t } = useLanguage();
-    const animatedValue = React.useRef(new Animated.Value(0)).current;
-
-    React.useEffect(() => {
-        if (visible) {
-            hapticLight();
-            Animated.spring(animatedValue, {
-                toValue: 1,
-                useNativeDriver: true,
-                tension: 65,
-                friction: 11,
-            }).start();
-        } else {
-            Animated.timing(animatedValue, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: true,
-            }).start();
-        }
-    }, [visible]);
-
-    if (!visible) return null;
-
-    const modalTranslateY = animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [SCREEN_HEIGHT, 0],
-    });
-
-    const backdropOpacity = animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 0.5],
-    });
+    const { colors } = useTheme();
 
     return (
-        <Modal
-            transparent
-            visible={visible}
-            animationType="none"
-            onRequestClose={onClose}
-        >
-            <View style={styles.container}>
-                <TouchableWithoutFeedback onPress={onClose}>
-                    <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-                </TouchableWithoutFeedback>
+        <BottomSheet visible={visible} onClose={onClose}>
+            {title && (
+                <Text style={[styles.title, { color: colors.gray500 }]}>
+                    {title}
+                </Text>
+            )}
 
-                <Animated.View style={[
-                    styles.sheet,
-                    { 
-                        backgroundColor: themeColors.surface,
-                        transform: [{ translateY: modalTranslateY }],
-                        paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl),
-                        maxHeight: SCREEN_HEIGHT * 0.75
-                    }
-                ]}>
-                    <View style={[styles.indicator, { backgroundColor: themeColors.gray200, marginTop: spacing.xs }]} />
-                    
-                    {title && <Text style={[styles.title, { color: themeColors.gray400 }]}>{title}</Text>}
-
-                    <ScrollView 
-                        showsVerticalScrollIndicator={false}
-                        style={styles.scrollArea}
-                        contentContainerStyle={styles.optionsContainer}
-                        bounces={false}
-                    >
-                        {options.map((option, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.optionBtn}
-                                onPress={() => {
-                                    hapticLight();
-                                    onClose();
-                                    option.onPress();
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <View style={[styles.iconFrame, { backgroundColor: themeColors.gray50 }, option.destructive && styles.destructiveIconFrame]}>
-                                    <Ionicons 
-                                        name={option.icon as any} 
-                                        size={22} 
-                                        color={option.destructive ? themeColors.danger : themeColors.black} 
-                                    />
-                                </View>
-                                <Text style={[styles.optionLabel, { color: themeColors.black }, option.destructive && { color: themeColors.danger }]}>
-                                    {option.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: themeColors.gray100, marginTop: spacing.sm }]} onPress={() => {
-                        hapticSelection();
-                        onClose();
-                    }} activeOpacity={0.8}>
-                        <Text style={[styles.cancelText, { color: themeColors.black }]}>{t('cancel_label')}</Text>
-                    </TouchableOpacity>
-                </Animated.View>
+            <View style={[styles.optionsWrapper, { backgroundColor: colors.gray100 }]}>
+                {options.map((option, index) => (
+                    <React.Fragment key={index}>
+                        <TouchableOpacity
+                            style={styles.optionBtn}
+                            onPress={() => {
+                                hapticLight();
+                                onClose();
+                                option.onPress();
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[
+                                styles.optionLabel, 
+                                { color: colors.black }, 
+                                option.destructive && { color: colors.danger }
+                            ]}>
+                                {option.label}
+                            </Text>
+                            {typeof option.icon === 'number' ? (
+                                <Image 
+                                    source={option.icon} 
+                                    style={{ width: 22, height: 22, tintColor: option.destructive ? colors.danger : colors.black }} 
+                                />
+                            ) : (typeof option.icon === 'string' && option.icon.startsWith('http')) ? (
+                                <Image 
+                                    source={{ uri: option.icon }} 
+                                    style={{ width: 22, height: 22, tintColor: option.destructive ? colors.danger : colors.black }} 
+                                />
+                            ) : (
+                                <Ionicons 
+                                    name={option.icon as any} 
+                                    size={22} 
+                                    color={option.destructive ? colors.danger : colors.black} 
+                                />
+                            )}
+                        </TouchableOpacity>
+                        {index < options.length - 1 && (
+                            <View style={[styles.separator, { backgroundColor: colors.gray200 }]} />
+                        )}
+                    </React.Fragment>
+                ))}
             </View>
-        </Modal>
+            {/* Added extra padding for the bottom of the sheet content */}
+            <View style={{ height: spacing.md }} />
+        </BottomSheet>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#000',
-    },
-    sheet: {
-        backgroundColor: colors.white,
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.md,
-    },
-    scrollArea: {
-        flexGrow: 0,
-    },
-    indicator: {
-        width: 40,
-        height: 5,
-        backgroundColor: colors.gray200,
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginBottom: spacing.lg,
-    },
     title: {
-        fontFamily: fonts.bold,
-        fontSize: 16,
-        color: colors.gray400,
+        fontFamily: fonts.medium,
+        fontSize: 13,
         textAlign: 'center',
-        marginBottom: spacing.xl,
+        marginBottom: spacing.md,
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
-    optionsContainer: {
-        gap: 4,
-        marginBottom: spacing.xl,
+    optionsWrapper: {
+        borderRadius: 20,
+        overflow: 'hidden',
+        marginBottom: spacing.md,
     },
     optionBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        gap: 16,
-    },
-    iconFrame: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.gray50,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    destructiveIconFrame: {
-        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: 18,
     },
     optionLabel: {
         fontFamily: fonts.semibold,
         fontSize: 16,
-        color: colors.black,
     },
-    destructiveLabel: {
-        color: colors.danger,
-    },
-    cancelBtn: {
-        backgroundColor: colors.gray100,
-        height: 56,
-        borderRadius: 28,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    cancelText: {
-        fontFamily: fonts.bold,
-        fontSize: 16,
-        color: colors.black,
+    separator: {
+        height: 1,
+        marginHorizontal: spacing.lg,
     },
 });

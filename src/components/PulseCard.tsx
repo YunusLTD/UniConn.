@@ -10,6 +10,7 @@ import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { createPulseAliasSeed, getPulseAlias } from '../utils/pulseAlias';
+import { ICONS } from '../constants/icons';
 
 interface PulseCardProps {
     pulse: any;
@@ -20,7 +21,7 @@ interface PulseCardProps {
 const GHOST_COLORS = [
     '#A154F2', '#8B5CF6', '#9333EA', '#A78BFA',
 ];
-const PULSE_ICON_WHITE_URI = 'https://img.icons8.com/?size=100&id=33452&format=png&color=FFFFFF';
+const PULSE_ICON_WHITE = ICONS.pulse.white;
 
 function getGhostColor(id: string): string {
     const hash = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -97,18 +98,18 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
         } catch (e) { }
     };
 
+
     const actionOptions: ActionOption[] = [
-        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
-        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
-        { label: t('report_option'), icon: 'flag-outline', onPress: () => setReportReasonVisible(true) },
+        { label: t('share_option'), icon: ICONS.share, onPress: handleShare },
+        { label: t('report_option'), icon: ICONS.report, onPress: () => setReportReasonVisible(true) },
     ];
 
     if (pulse.is_mine) {
         const canEdit = new Date().getTime() - new Date(pulse.created_at).getTime() < 30 * 60 * 1000;
         if (canEdit) {
-            actionOptions.unshift({ label: t('edit_label'), icon: 'pencil-outline', onPress: () => router.push(`/pulse/edit?id=${pulse.id}&content=${encodeURIComponent(pulse.content)}`) });
+            actionOptions.unshift({ label: t('edit_label'), icon: ICONS.edit, onPress: () => router.push(`/pulse/edit?id=${pulse.id}&content=${encodeURIComponent(pulse.content)}`) });
         }
-        actionOptions.push({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.push({ label: t('delete_label'), icon: ICONS.delete, onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [
@@ -128,7 +129,7 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
         >
             <View style={styles.header}>
                 <View style={[styles.ghostAvatar, { backgroundColor: ghostColor }]}>
-                    <Image source={{ uri: PULSE_ICON_WHITE_URI }} style={styles.ghostIcon} />
+                    <Image source={PULSE_ICON_WHITE} style={styles.ghostIcon} />
                 </View>
                 <View style={styles.headerInfo}>
                     <Text style={styles.anonLabel}>{authorLabel}</Text>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image, Share, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image, Share, Clipboard, Animated } from 'react-native';
+import { Skeleton } from './ShadowLoader';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +11,7 @@ import { useRouter } from 'expo-router';
 import ActionModal, { ActionOption } from './ActionModal';
 import { useLanguage } from '../context/LanguageContext';
 import { formatTimeAgo } from '../utils/localization';
+import { ICONS } from '../constants/icons';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,12 +31,25 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     const isOwner = user?.id === poll?.created_by;
     const initial = poll?.profiles?.name?.[0]?.toUpperCase() || '?';
 
+    const [isHydrated, setIsHydrated] = useState(!!poll?.profiles?.name);
+    const hydratedAnim = React.useRef(new Animated.Value(poll?.profiles?.name ? 1 : 0)).current;
+
     // Sync from props on mount or change
     React.useEffect(() => {
         const baseOptions = poll?.poll_options || poll?.options || [];
         setLocalOptions(baseOptions);
         setLocalTotalVotes(baseOptions.reduce((sum: number, opt: any) => sum + (Number(opt.votes_count || opt.votes || 0)), 0));
-    }, [poll]);
+        setSelected(poll?.my_vote || poll?.voted_option || null);
+
+        if (poll?.profiles?.name && !isHydrated) {
+            setIsHydrated(true);
+            Animated.timing(hydratedAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [poll.id, poll.my_vote, poll.options, poll.poll_options, poll.profiles?.name]);
 
     const handleVote = async (optionId: string) => {
         if (submitting) return;
@@ -136,14 +151,14 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
         }
     };
 
+
     const actionOptions: ActionOption[] = [
-        { label: t('share_option'), icon: 'share-outline', onPress: handleShare },
-        { label: t('copy_link_option'), icon: 'link-outline', onPress: handleCopyLink },
-        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
+        { label: t('share_option'), icon: ICONS.share, onPress: handleShare },
+        { label: t('report_option'), icon: ICONS.report, onPress: handleReport },
     ];
 
     if (isOwner) {
-        actionOptions.unshift({ label: t('delete_label'), icon: 'trash-outline', onPress: handleDelete, destructive: true });
+        actionOptions.unshift({ label: t('delete_label'), icon: ICONS.delete, onPress: handleDelete, destructive: true });
     }
 
     const reportOptions: ActionOption[] = [
@@ -164,8 +179,10 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                     >
                         {poll?.profiles?.avatar_url ? (
                             <Image source={{ uri: poll.profiles.avatar_url }} style={styles.avatarImg} />
-                        ) : (
+                        ) : !!poll?.profiles?.name ? (
                             <Text style={[styles.avatarText, { color: colors.gray600 }]}>{initial}</Text>
+                        ) : (
+                            <Skeleton width="100%" height="100%" borderRadius={radii.full || 20} />
                         )}
                     </TouchableOpacity>
                     <View style={[styles.threadLine, { backgroundColor: colors.border }]} />
@@ -175,74 +192,94 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                 <View style={styles.rightCol}>
                     <View style={styles.authorRow}>
                         <View style={{ flex: 1 }}>
-                            <View style={styles.nameRow}>
-                                <TouchableOpacity onPress={() => poll.created_by && router.push(`/user/${poll.created_by}`)}>
-                                    <Text style={[styles.name, { color: colors.black }]}>{poll?.profiles?.name || t('anonymous_user')}</Text>
-                                </TouchableOpacity>
-                                <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(poll.created_at, t, language, true)}</Text>
-                            </View>
-                            <View style={styles.typeTag}>
-                                <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('poll_badge')}</Text>
-                                {poll?.communities?.name && (
-                                    <>
-                                        <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
-                                        <Text style={[styles.communityName, { color: colors.gray500 }]}>{poll.communities.name}</Text>
-                                    </>
-                                )}
-                            </View>
+                            {poll?.profiles?.name ? (
+                                <Animated.View style={{ opacity: hydratedAnim }}>
+                                    <View style={styles.nameRow}>
+                                        <TouchableOpacity onPress={() => poll.created_by && router.push(`/user/${poll.created_by}`)}>
+                                            <Text style={[styles.name, { color: colors.black }]}>{poll?.profiles?.name || t('anonymous_user')}</Text>
+                                        </TouchableOpacity>
+                                        <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
+                                        <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(poll.created_at, t, language, true)}</Text>
+                                    </View>
+                                    <View style={styles.typeTag}>
+                                        <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('poll_badge')}</Text>
+                                        {poll?.communities?.name && (
+                                            <>
+                                                <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
+                                                <Text style={[styles.communityName, { color: colors.gray500 }]}>{poll.communities.name}</Text>
+                                            </>
+                                        )}
+                                    </View>
+                                </Animated.View>
+                            ) : (
+                                <View style={{ gap: 6, marginTop: 4 }}>
+                                    <Skeleton width="40%" height={12} borderRadius={6} />
+                                    <Skeleton width="20%" height={10} borderRadius={5} />
+                                </View>
+                            )}
                         </View>
                         <TouchableOpacity onPress={handleMenu} hitSlop={8}>
                             <Ionicons name="ellipsis-horizontal" size={18} color={colors.gray400} />
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={[styles.question, { color: colors.black }]}>{poll?.question}</Text>
+                    {poll?.question ? (
+                        <>
+                            <Text style={[styles.question, { color: colors.black }]}>{poll.question}</Text>
+                            <View style={styles.optionsContainer}>
+                                {localOptions.map((opt: any, index: number) => {
+                                    const optId = opt.id || `opt_${index}`;
+                                    const isVotedByMe = selected === optId;
+                                    const optionVotes = Number(opt.votes_count || opt.votes || 0);
+                                    const percent = localTotalVotes > 0 ? Math.round((optionVotes / localTotalVotes) * 100) : 0;
 
-                    <View style={styles.optionsContainer}>
-                        {localOptions.map((opt: any, index: number) => {
-                            const optId = opt.id || `opt_${index}`;
-                            const isVotedByMe = selected === optId;
-                            const optionVotes = Number(opt.votes_count || opt.votes || 0);
-                            const percent = localTotalVotes > 0 ? Math.round((optionVotes / localTotalVotes) * 100) : 0;
+                                    return (
+                                        <TouchableOpacity
+                                            key={optId}
+                                            style={[
+                                                styles.optionBtn,
+                                                { backgroundColor: colors.surface, borderColor: colors.border },
+                                                selected && [styles.optionBtnLocked, { backgroundColor: colors.background, borderColor: colors.border }],
+                                                isVotedByMe && [styles.optionBtnActive, { borderColor: colors.primary }]
+                                            ]}
+                                            onPress={() => handleVote(optId)}
+                                            activeOpacity={0.7}
+                                            disabled={submitting}
+                                        >
+                                            {selected && (
+                                                <View style={[styles.progressBg, { width: `${percent}%`, backgroundColor: colors.primary + '20' }]} />
+                                            )}
+                                            <View style={styles.optionContent}>
+                                                <Text style={[
+                                                    styles.optionText,
+                                                    { color: colors.black },
+                                                    isVotedByMe && { color: colors.primary },
+                                                    selected && { fontFamily: fonts.semibold }
+                                                ]}>
+                                                    {opt.option_text || opt.text}
+                                                </Text>
 
-                            return (
-                                <TouchableOpacity
-                                    key={optId}
-                                    style={[
-                                        styles.optionBtn,
-                                        { backgroundColor: colors.surface, borderColor: colors.border },
-                                        selected && [styles.optionBtnLocked, { backgroundColor: colors.background, borderColor: colors.border }],
-                                        isVotedByMe && [styles.optionBtnActive, { borderColor: colors.primary }]
-                                    ]}
-                                    onPress={() => handleVote(optId)}
-                                    activeOpacity={0.7}
-                                    disabled={submitting}
-                                >
-                                    {selected && (
-                                        <View style={[styles.progressBg, { width: `${percent}%`, backgroundColor: colors.primary + '20' }]} />
-                                    )}
-                                    <View style={styles.optionContent}>
-                                        <Text style={[
-                                            styles.optionText,
-                                            { color: colors.black },
-                                            isVotedByMe && { color: colors.primary },
-                                            selected && { fontFamily: fonts.semibold }
-                                        ]}>
-                                            {opt.option_text || opt.text}
-                                        </Text>
-
-                                        {selected && (
-                                            <View style={styles.voteStats}>
-                                                {isVotedByMe && <Ionicons name="checkmark-circle" size={14} color={colors.primary} />}
-                                                <Text style={[styles.statPercent, { color: colors.black }]}>{percent}%</Text>
+                                                {selected && (
+                                                    <View style={styles.voteStats}>
+                                                        {isVotedByMe && <Ionicons name="checkmark-circle" size={14} color={colors.primary} />}
+                                                        <Text style={[styles.statPercent, { color: colors.black }]}>{percent}%</Text>
+                                                    </View>
+                                                )}
                                             </View>
-                                        )}
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </>
+                    ) : (
+                        <View style={{ gap: 10, marginTop: 12, marginBottom: 16 }}>
+                            <Skeleton width="100%" height={20} borderRadius={4} />
+                            <View style={{ gap: 8 }}>
+                                <Skeleton width="100%" height={40} borderRadius={16} />
+                                <Skeleton width="100%" height={40} borderRadius={16} />
+                            </View>
+                        </View>
+                    )}
 
                     <View style={styles.footerRow}>
                         <Ionicons name="people-outline" size={13} color={colors.gray400} />

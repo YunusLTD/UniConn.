@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, LayoutAnimation, Platform, UIManager, Animated } from 'react-native';
+import { Skeleton } from './ShadowLoader';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,25 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
     const [isInterested, setIsInterested] = useState(!!event.is_interested);
     const [interestedCount, setInterestedCount] = useState(Number(event.interested_count || 0));
     const [loading, setLoading] = useState(false);
+
+    const [isHydrated, setIsHydrated] = useState(!!event?.profiles?.name);
+    const hydratedAnim = React.useRef(new Animated.Value(event?.profiles?.name ? 1 : 0)).current;
+
+    React.useEffect(() => {
+        setIsInterested(!!event.is_interested);
+        setInterestedCount(Number(event.interested_count || 0));
+    }, [event.is_interested, event.interested_count]);
+
+    React.useEffect(() => {
+        if (event?.profiles?.name && !isHydrated) {
+            setIsHydrated(true);
+            Animated.timing(hydratedAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [event.profiles?.name]);
 
     const isOwner = user?.id === event.created_by;
     const initial = event?.profiles?.name?.[0]?.toUpperCase() || '?';
@@ -94,8 +114,10 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                     >
                         {event?.profiles?.avatar_url ? (
                             <Image source={{ uri: event.profiles.avatar_url }} style={styles.avatarImg} />
-                        ) : (
+                        ) : !!event?.profiles?.name ? (
                             <Text style={[styles.avatarText, { color: colors.gray500 }]}>{initial}</Text>
+                        ) : (
+                            <Skeleton width="100%" height="100%" borderRadius={radii.full || 20} />
                         )}
                     </TouchableOpacity>
                     <View style={[styles.threadLine, { backgroundColor: colors.border }]} />
@@ -105,22 +127,31 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                 <View style={styles.rightCol}>
                     <View style={styles.authorRow}>
                         <View style={{ flex: 1 }}>
-                            <View style={styles.nameRow}>
-                                <TouchableOpacity onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}>
-                                    <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || te('anonymous_user', 'Anonymous')}</Text>
-                                </TouchableOpacity>
-                                <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
-                                <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(event.created_at, t, language, true)}</Text>
-                            </View>
-                            <View style={styles.typeTag}>
-                                <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('event_badge')}</Text>
-                                {event.communities?.name && (
-                                    <>
-                                        <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
-                                        <Text style={[styles.communityName, { color: colors.gray500 }]}>{event.communities.name}</Text>
-                                    </>
-                                )}
-                            </View>
+                            {event?.profiles?.name ? (
+                                <Animated.View style={{ opacity: hydratedAnim }}>
+                                    <View style={styles.nameRow}>
+                                        <TouchableOpacity onPress={() => event.created_by && router.push(`/user/${event.created_by}`)}>
+                                            <Text style={[styles.name, { color: colors.black }]}>{event?.profiles?.name || te('anonymous_user', 'Anonymous')}</Text>
+                                        </TouchableOpacity>
+                                        <Text style={[styles.dot, { color: colors.gray400 }]}>·</Text>
+                                        <Text style={[styles.time, { color: colors.gray400 }]}>{formatTimeAgo(event.created_at, t, language, true)}</Text>
+                                    </View>
+                                    <View style={styles.typeTag}>
+                                        <Text style={[styles.typeTagText, { color: colors.primary }]}>{t('event_badge')}</Text>
+                                        {event.communities?.name && (
+                                            <>
+                                                <Text style={[styles.tagDot, { color: colors.gray300 }]}>·</Text>
+                                                <Text style={[styles.communityName, { color: colors.gray500 }]}>{event.communities.name}</Text>
+                                            </>
+                                        )}
+                                    </View>
+                                </Animated.View>
+                            ) : (
+                                <View style={{ gap: 6, marginTop: 4 }}>
+                                    <Skeleton width="40%" height={12} borderRadius={6} />
+                                    <Skeleton width="20%" height={10} borderRadius={5} />
+                                </View>
+                            )}
                         </View>
                         {isOwner && showDelete && (
                             <TouchableOpacity onPress={handleDelete} hitSlop={8}>
@@ -129,18 +160,20 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                         )}
                     </View>
 
-                    <TouchableOpacity
-                        onPress={() => router.push(`/events/${event.id}`)}
-                        activeOpacity={0.9}
-                    >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <Text style={[styles.title, { color: colors.black, marginBottom: 0 }]} numberOfLines={2}>{event.title}</Text>
-                            {isPassed && (
-                                <View style={[styles.passedBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
-                                    <Text style={styles.passedBadgeText}>{t('event_passed')}</Text>
+                    {event?.title ? (
+                        <>
+                            <TouchableOpacity
+                                onPress={() => router.push(`/events/${event.id}`)}
+                                activeOpacity={0.9}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                    <Text style={[styles.title, { color: colors.black, marginBottom: 0 }]} numberOfLines={2}>{event.title}</Text>
+                                    {isPassed && (
+                                        <View style={[styles.passedBadge, { backgroundColor: isDark ? colors.surface : colors.gray100 }]}>
+                                            <Text style={styles.passedBadgeText}>{t('event_passed')}</Text>
+                                        </View>
+                                    )}
                                 </View>
-                            )}
-                        </View>
 
                         <View style={[styles.eventDetailsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <View style={[styles.dateBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -161,12 +194,19 @@ export default function EventCard({ event, showDelete = false, onDelete }: { eve
                             </View>
                         </View>
 
-                        {event.image_url && (
-                            <View style={styles.bannerContainer}>
-                                <Image source={{ uri: event.image_url }} style={styles.bannerImg} />
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                                {event.image_url && (
+                                    <View style={styles.bannerContainer}>
+                                        <Image source={{ uri: event.image_url }} style={styles.bannerImg} />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <View style={{ gap: 10, marginTop: 12 }}>
+                            <Skeleton width="90%" height={20} borderRadius={4} />
+                            <Skeleton width="100%" height={80} borderRadius={16} />
+                        </View>
+                    )}
 
                     <View style={styles.footerRow}>
                         <TouchableOpacity
