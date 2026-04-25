@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 import { POST_METRICS_CHANGED_EVENT, applyPostMetricsChange } from '../../src/utils/postMetrics';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useScrollToHide } from '../../src/hooks/useScrollToHide';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -402,12 +403,22 @@ export default function HomeScreen() {
         );
     };
 
+    const { onScroll, reset } = useScrollToHide();
+
+    useFocusEffect(
+        useCallback(() => {
+            reset();
+        }, [reset])
+    );
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <FlatList
                 data={posts}
                 keyExtractor={item => `${item.feed_type}_${item.id}`}
                 renderItem={renderItem}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
                 ListHeaderComponent={
                     <>
                         {renderStoriesHeader()}

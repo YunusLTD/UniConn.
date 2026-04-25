@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from 'expo-router';
-import { View, StyleSheet, Platform, TouchableOpacity, Modal, Text, Pressable, Image, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Modal, Text, Pressable, Image, Animated, Dimensions, DeviceEventEmitter } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -91,6 +91,35 @@ export default function TabLayout() {
 
         const isIOS = Platform.OS === 'ios';
 
+        // Animation for hiding/showing tab bar
+        const translateY = useRef(new Animated.Value(0)).current;
+
+        useEffect(() => {
+            const sub = DeviceEventEmitter.addListener('setTabBarVisible', (visible: boolean) => {
+                Animated.spring(translateY, {
+                    toValue: visible ? 0 : 120, // Move down by 120 to fully hide
+                    useNativeDriver: true,
+                    tension: 50,
+                    friction: 10,
+                }).start();
+            });
+
+            // Ensure tab bar is visible when switching tabs
+            const showSub = navigation.addListener('focus', () => {
+                Animated.spring(translateY, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 50,
+                    friction: 10,
+                }).start();
+            });
+
+            return () => {
+                sub.remove();
+                showSub();
+            };
+        }, [navigation]);
+
         const renderTabBarContent = () => (
             <>
                 {visibleRoutes.map((route: any, index: number) => {
@@ -143,7 +172,7 @@ export default function TabLayout() {
         );
 
         return (
-            <View style={s.tabBarContainer}>
+            <Animated.View style={[s.tabBarContainer, { transform: [{ translateY }] }]}>
                 <View style={{
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 8 },
@@ -181,7 +210,7 @@ export default function TabLayout() {
                         </View>
                     )}
                 </View>
-            </View>
+            </Animated.View>
         );
     };
 

@@ -32,6 +32,7 @@ import { ICONS } from '../../src/constants/icons';
 import { POST_COMMENT_COUNT_CHANGED_EVENT, applyPostCommentCountChange } from '../../src/utils/postCommentCount';
 import BottomSheet from '../../src/components/BottomSheet';
 import ActionModal from '../../src/components/ActionModal';
+import { useScrollToHide } from '../../src/hooks/useScrollToHide';
 
 
 type ContentTabType = 'posts' | 'marketplace' | 'polls' | 'events' | 'study';
@@ -193,11 +194,23 @@ export default function ProfileScreen() {
         loadRequestData();
     }, []);
 
+    const { onScroll, reset } = useScrollToHide();
+
+    useFocusEffect(
+        useCallback(() => {
+            reset();
+            loadProfileData();
+            if (activeTabRef.current !== 'settings') {
+                loadTabContent(activeTabRef.current);
+            }
+        }, [reset])
+    );
+
+
     useEffect(() => {
         activeTabRef.current = activeTab;
         loadTabContent(activeTab);
     }, [activeTab]);
-
 
     useEffect(() => {
         const commentCountSub = DeviceEventEmitter.addListener(POST_COMMENT_COUNT_CHANGED_EVENT, (data) => {
@@ -318,7 +331,12 @@ export default function ProfileScreen() {
                     <ShadowLoader type="profile" />
                 </View>
             ) : (
-                <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[]}>
+                <ScrollView 
+                    showsVerticalScrollIndicator={false} 
+                    onScroll={onScroll}
+                    scrollEventThrottle={16}
+                    stickyHeaderIndices={[]}
+                >
                     {/* IG-style header — hidden when settings is active */}
                     {activeTab !== 'settings' && (
                         <View style={styles.header}>

@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, RefreshControl, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { getFeed } from '../../src/api/feed';
 import { listCommunities, getMyCommunities } from '../../src/api/communities';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
-import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { formatMonthDay } from '../../src/utils/localization';
+import { useScrollToHide } from '../../src/hooks/useScrollToHide';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - spacing.lg * 2 - 12) / 2;
@@ -66,10 +66,13 @@ export default function MarketplaceScreen() {
         }
     };
 
+    const { onScroll, reset } = useScrollToHide();
+
     useFocusEffect(
         useCallback(() => {
+            reset();
             loadData();
-        }, [activeCategory, selectedCommunity, activeType])
+        }, [activeCategory, selectedCommunity, activeType, reset])
     );
 
     const onRefresh = () => {
@@ -237,6 +240,8 @@ export default function MarketplaceScreen() {
                     numColumns={2}
                     columnWrapperStyle={styles.gridRow}
                     ListHeaderComponent={renderHeader}
+                    onScroll={onScroll}
+                    scrollEventThrottle={16}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={

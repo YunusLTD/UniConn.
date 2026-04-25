@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import StudyCard from '../../src/components/StudyCard';
 import ShadowLoader, { Skeleton } from '../../src/components/ShadowLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useScrollToHide } from '../../src/hooks/useScrollToHide';
 
 export default function StudyScreen() {
     const router = useRouter();
@@ -72,6 +73,14 @@ export default function StudyScreen() {
         }
     };
 
+    const { onScroll, reset } = useScrollToHide();
+
+    useFocusEffect(
+        useCallback(() => {
+            reset();
+        }, [reset])
+    );
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={[styles.subjectsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.gray100 }]}>
@@ -114,6 +123,8 @@ export default function StudyScreen() {
                             onDelete={(id) => setQuestions(prev => prev.filter(q => q.id !== id))} 
                         />
                     )}
+                    onScroll={onScroll}
+                    scrollEventThrottle={16}
                     refreshing={refreshing}
                     onRefresh={handleRefresh}
                     onEndReached={handleLoadMore}

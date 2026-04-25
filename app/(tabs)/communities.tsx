@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, Alert, TextInput, DeviceEventEmitter } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { spacing, fonts, radii } from '../../src/constants/theme';
 import { useTheme } from '../../src/context/ThemeContext';
 import { listCommunities } from '../../src/api/communities';
@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ShadowLoader from '../../src/components/ShadowLoader';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { getDepartmentLabel } from '../../src/utils/localization';
+import { useScrollToHide } from '../../src/hooks/useScrollToHide';
 
 type ExploreTab = 'communities' | 'students';
 
@@ -24,6 +25,14 @@ export default function CommunitiesScreen() {
     const [friendStatuses, setFriendStatuses] = useState<Record<string, string>>({});
     const router = useRouter();
     const { t } = useLanguage();
+
+    const { onScroll, reset } = useScrollToHide();
+
+    useFocusEffect(
+        useCallback(() => {
+            reset();
+        }, [reset])
+    );
 
     const loadData = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -246,6 +255,8 @@ export default function CommunitiesScreen() {
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.black} colors={[colors.black]} />
                 }
+                onScroll={onScroll}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 ListHeaderComponent={
                     activeTab === 'communities' ? (
