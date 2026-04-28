@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 const LOCAL_IP = '172.20.10.2';
 
 export const API_URL = __DEV__
-    ? (Platform.OS === 'android' ? `http://10.0.2.2:4000/api/v1` : `http://${LOCAL_IP}:4000/api/v1`)
+    ? (Platform.OS === 'android' ? `https://uniconn-be.onrender.com/api/v1` : `https://uniconn-be.onrender.com/api/v1`)
     : 'https://uniconn-be.onrender.com/api/v1';
 
 export const SUPABASE_URL = 'https://njzqtsqvbnssbmsygfsz.supabase.co';
