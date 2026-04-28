@@ -93,15 +93,30 @@ export default function TabLayout() {
 
         // Animation for hiding/showing tab bar
         const translateY = useRef(new Animated.Value(0)).current;
+        const isProgressBannerVisible = useRef(false);
 
         useEffect(() => {
             const sub = DeviceEventEmitter.addListener('setTabBarVisible', (visible: boolean) => {
+                if (!visible && isProgressBannerVisible.current) {
+                    return;
+                }
                 Animated.spring(translateY, {
                     toValue: visible ? 0 : 120, // Move down by 120 to fully hide
                     useNativeDriver: true,
                     tension: 50,
                     friction: 10,
                 }).start();
+            });
+            const bannerSub = DeviceEventEmitter.addListener('progress_banner_visibility', (visible: boolean) => {
+                isProgressBannerVisible.current = !!visible;
+                if (visible) {
+                    Animated.spring(translateY, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                        tension: 50,
+                        friction: 10,
+                    }).start();
+                }
             });
 
             // Ensure tab bar is visible when switching tabs
@@ -116,6 +131,7 @@ export default function TabLayout() {
 
             return () => {
                 sub.remove();
+                bannerSub.remove();
                 showSub();
             };
         }, [navigation]);

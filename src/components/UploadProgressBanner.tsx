@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, ActivityIndicator, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useLanguage } from '../context/LanguageContext';
@@ -75,23 +75,49 @@ const UploadProgressBanner: React.FC = () => {
         return () => listener.remove();
     }, [translateY, opacity]);
 
+    useEffect(() => {
+        DeviceEventEmitter.emit('progress_banner_visibility', !!upload);
+        return () => {
+            DeviceEventEmitter.emit('progress_banner_visibility', false);
+        };
+    }, [upload]);
+
     if (!upload) return null;
 
     const isSuccess = upload.status === 'success';
     const isError = upload.status === 'error';
     
-    // Determine text
+    // Determine text and icon
     const isProcessing = upload.status === 'uploading' || upload.status === 'processing';
     let statusText = '';
+    let iconName = 'document';
     
     if (isProcessing) {
-        if (upload.type === 'delete') statusText = t('deleting_indicator');
-        else if (upload.type === 'send') statusText = t('sending_indicator');
-        else statusText = t('status_uploading');
+        if (upload.type === 'delete') {
+            statusText = t('deleting_indicator');
+            iconName = 'trash';
+        } else if (upload.type === 'send') {
+            statusText = t('sending_indicator');
+            iconName = 'send';
+        } else if (upload.type === 'save') {
+            statusText = t('saving_indicator');
+            iconName = 'bookmark';
+        } else if (upload.type === 'unsave') {
+            statusText = t('unsaving_indicator');
+            iconName = 'bookmark-outline';
+        } else if (upload.type === 'repost') {
+            statusText = t('reposting_indicator');
+            iconName = 'repeat';
+        } else {
+            statusText = t('status_uploading');
+            iconName = 'cloud-upload';
+        }
     } else if (isSuccess) {
         statusText = t('success');
+        iconName = 'checkmark';
     } else if (isError) {
         statusText = upload.message || t('error');
+        iconName = 'close';
     }
 
     return (
@@ -108,14 +134,14 @@ const UploadProgressBanner: React.FC = () => {
         >
             <View style={styles.content}>
                 {isProcessing ? (
-                    <ActivityIndicator size="small" color={isDark ? '#FFF' : '#000'} />
+                    <Ionicons name={iconName} size={20} color={isDark ? '#FFF' : '#000'} />
                 ) : isSuccess ? (
                     <View style={[styles.iconWrap, { backgroundColor: '#10B981' }]}>
-                        <Ionicons name="checkmark" size={12} color="#FFF" />
+                        <Ionicons name="checkmark" size={14} color="#FFF" />
                     </View>
                 ) : (
                     <View style={[styles.iconWrap, { backgroundColor: '#EF4444' }]}>
-                        <Ionicons name="close" size={12} color="#FFF" />
+                        <Ionicons name="close" size={14} color="#FFF" />
                     </View>
                 )}
                 

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { NativeSyntheticEvent, NativeScrollEvent, DeviceEventEmitter } from 'react-native';
 
 /**
@@ -8,8 +8,28 @@ import { NativeSyntheticEvent, NativeScrollEvent, DeviceEventEmitter } from 'rea
 export const useScrollToHide = () => {
     const lastOffset = useRef(0);
     const lastVisible = useRef(true);
+    const isProgressBannerVisible = useRef(false);
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('progress_banner_visibility', (visible: boolean) => {
+            isProgressBannerVisible.current = !!visible;
+            if (visible) {
+                DeviceEventEmitter.emit('setTabBarVisible', true);
+                lastVisible.current = true;
+            }
+        });
+        return () => sub.remove();
+    }, []);
 
     const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (isProgressBannerVisible.current) {
+            if (!lastVisible.current) {
+                DeviceEventEmitter.emit('setTabBarVisible', true);
+                lastVisible.current = true;
+            }
+            return;
+        }
+
         const currentOffset = event.nativeEvent.contentOffset.y;
         
         // Ignore bounces at the top or bottom

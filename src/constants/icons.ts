@@ -2,6 +2,7 @@ export const ICONS = {
     share: require('../../assets/icons/share_black.png'),
     report: require('../../assets/icons/report_black.png'),
     delete: require('../../assets/icons/delete_black.png'),
+    save: require('../../assets/icons/save_black.png'),
     pulse: {
         white: require('../../assets/icons/pulse_white.png'),
         black: require('../../assets/icons/pulse_black.png'),

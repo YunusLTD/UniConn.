@@ -50,59 +50,95 @@ const CarouselVideoItem = ({ url, width, height, isVisible = true }: { url: stri
     const durationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     useEffect(() => {
-        if (player) {
-            player.pause(); // Explicitly start paused
-            player.loop = true;
-            player.muted = isMuted;
+        if (!player) return;
+        
+        try {
+            // Small delay to ensure native module is ready
+            const initTimer = setTimeout(() => {
+                try {
+                    if (player) {
+                        player.pause(); // Explicitly start paused
+                        player.loop = true;
+                        player.muted = isMuted;
+                    }
+                } catch (error) {
+                    console.warn('Error initializing video player:', error);
+                }
+            }, 100);
 
             // Get duration
             const checkDuration = () => {
-                if (player.duration > 0) {
-                    setDuration(player.duration);
-                    setShowDuration(true);
-                    Animated.timing(opacity, {
-                        toValue: 1,
-                        duration: 300,
-                        useNativeDriver: true,
-                    }).start();
-
-                    durationTimerRef.current = setTimeout(() => {
+                try {
+                    if (player && player.duration > 0) {
+                        setDuration(player.duration);
+                        setShowDuration(true);
                         Animated.timing(opacity, {
-                            toValue: 0,
-                            duration: 500,
+                            toValue: 1,
+                            duration: 300,
                             useNativeDriver: true,
-                        }).start(() => setShowDuration(false));
-                    }, 4000);
-                } else {
-                    setTimeout(checkDuration, 500);
+                        }).start();
+
+                        durationTimerRef.current = setTimeout(() => {
+                            Animated.timing(opacity, {
+                                toValue: 0,
+                                duration: 500,
+                                useNativeDriver: true,
+                            }).start(() => setShowDuration(false));
+                        }, 4000);
+                    } else if (player) {
+                        setTimeout(checkDuration, 500);
+                    }
+                } catch (error) {
+                    console.warn('Error getting video duration:', error);
                 }
             };
-            checkDuration();
+
+            const durationTimer = setTimeout(checkDuration, 100);
+
+            return () => {
+                clearTimeout(initTimer);
+                clearTimeout(durationTimer);
+            };
+        } catch (error) {
+            console.warn('Error in video player effect:', error);
+            return () => {
+                if (durationTimerRef.current) clearTimeout(durationTimerRef.current);
+            };
         }
-        return () => {
-            if (durationTimerRef.current) clearTimeout(durationTimerRef.current);
-        };
-    }, [player]);
+    }, [player, isMuted, opacity]);
 
     // Play/pause based on visibility
     useEffect(() => {
         if (!player) return;
-        if (isVisible) {
-            player.play();
-        } else {
-            player.pause();
+        
+        try {
+            if (isVisible) {
+                player.play();
+            } else {
+                player.pause();
+            }
+        } catch (error) {
+            console.warn('Error controlling video playback:', error);
         }
         
         return () => {
-            if (player) player.pause();
+            try {
+                if (player) player.pause();
+            } catch (error) {
+                console.warn('Error pausing video on cleanup:', error);
+            }
         };
     }, [isVisible, player]);
 
     useEffect(() => {
         if (player) {
-            player.muted = isMuted;
+            try {
+                player.muted = isMuted;
+            } catch (error) {
+                console.warn('Error setting mute state:', error);
+            }
         }
-    }, [isMuted]);
+    }, [isMuted, player]);
 
     const toggleMute = (e: any) => {
         e.stopPropagation();
@@ -464,6 +500,8 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
 
     const handleMenu = () => {
         hapticLight();
+        setShareModalVisible(false);
+        setReportReasonVisible(false);
         setActionVisible(true);
     };
 
@@ -478,17 +516,21 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     };
 
     const sendReport = async (reason: string) => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             await submitReport({ target_type: 'post', target_id: post.id, reason });
             hapticSuccess();
             setReportReasonVisible(false);
             if (onDelete) onDelete(post.id);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
 
             Alert.alert(
                 'Reported',
                 'Thank you. We will review this post.'
             );
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Failed to submit report. Please try again.' });
             console.log('Report error', e);
             Alert.alert('Error', 'Failed to submit report. Please try again.');
         }
@@ -603,9 +645,8 @@ function PostCard({ post, showDelete = false, onDelete, onSaveChange, hideNaviga
     };
 
     const actionOptions: ActionOption[] = [
-        { label: isSaved ? 'Unsave' : t('save'), icon: isSaved ? 'bookmark' : 'bookmark-outline', onPress: handleSaveToggle },
-        { label: t('share_option'), icon: 'paper-plane-outline', onPress: handleShare },
-        { label: t('report_option'), icon: 'flag-outline', onPress: handleReport },
+        { label: isSaved ? 'Unsave' : t('save'), icon: ICONS.save, onPress: handleSaveToggle },
+        { label: t('report_option'), icon: ICONS.report, onPress: handleReport },
     ];
 
     if (isOwner) {

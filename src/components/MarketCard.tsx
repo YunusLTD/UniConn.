@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Share, Clipboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Share, Clipboard, Alert, DeviceEventEmitter } from 'react-native';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -31,10 +31,14 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
             {
                 text: 'Delete', style: 'destructive',
                 onPress: async () => {
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
                     try {
                         await deleteMarketplaceListing(item.id);
                         if (onDelete) onDelete(item.id);
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
                     } catch (e) {
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: 'Failed to delete listing.' });
                         Alert.alert('Error', 'Failed to delete listing.');
                     }
                 }
@@ -43,13 +47,17 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     };
 
     const handleShare = async () => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             const shareUrl = `https://uni-platform.app/marketplace/${item.id}`;
             await Share.share({
                 title: item.title,
                 message: `Check out this listing on Uni Marketplace: ${item.title} - ${shareUrl}`,
             });
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Share failed' });
             console.error('Share error', e);
         }
     };
@@ -70,13 +78,17 @@ export default function MarketCard({ item, onDelete }: { item: any, onDelete?: (
     };
 
     const sendReport = async (reason: string) => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             await submitReport({ target_type: 'marketplace_item', target_id: item.id, reason });
             hapticSuccess();
             setReportReasonVisible(false);
             if (onDelete) onDelete(item.id);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
             Alert.alert('Reported', 'Thank you. We will review this item.');
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Failed to submit report.' });
             console.log('Report error', e);
         }
     };

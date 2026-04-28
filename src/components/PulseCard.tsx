@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Share, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Share, Clipboard, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, lightColors } from '../constants/theme';
 import { deletePulse } from '../api/pulse';
@@ -64,10 +64,14 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
             { text: t('cancel_label'), style: 'cancel' },
             {
                 text: t('delete_label'), style: 'destructive', onPress: async () => {
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
                     try {
                         await deletePulse(pulse.id);
                         onDelete?.();
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
                     } catch (e) {
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: t('pulse_failed_to_delete') });
                         Alert.alert(t('error'), t('pulse_failed_to_delete'));
                     }
                 }
@@ -76,10 +80,15 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
     };
 
     const handleShare = async () => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             const shareUrl = `https://uni-platform.app/pulse/${pulse.id}`;
             await Share.share({ message: `${t('pulse_share_prefix')} ${shareUrl}` });
-        } catch (e) { }
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
+        } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Share failed' });
+        }
     };
 
     const handleCopyLink = () => {
@@ -90,12 +99,17 @@ export default function PulseCard({ pulse, onDelete, aliasSeed }: PulseCardProps
     };
 
     const sendReport = async (reason: string) => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             await submitReport({ target_type: 'pulse', target_id: pulse.id, reason });
             hapticSuccess();
             setReportReasonVisible(false);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
             Alert.alert(t('report_option'), t('pulse_report_thanks'));
-        } catch (e) { }
+        } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: t('report_submit_failed') });
+        }
     };
 
 

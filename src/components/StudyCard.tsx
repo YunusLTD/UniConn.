@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Clipboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Clipboard, Alert, DeviceEventEmitter } from 'react-native';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,10 +48,14 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
             {
                 text: 'Delete', style: 'destructive',
                 onPress: async () => {
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
                     try {
                         await deleteStudyQuestion(question.id);
                         if (onDelete) onDelete(question.id);
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
                     } catch (e) {
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: 'Failed to delete question.' });
                         Alert.alert('Error', 'Failed to delete question.');
                     }
                 }
@@ -60,13 +64,17 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
     };
 
     const handleShare = async () => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             const shareUrl = `https://uni-platform.app/study/${question.id}`;
             await Share.share({
                 title: question.title,
                 message: `Can you help with this question: ${question.title} - ${shareUrl}`,
             });
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Share failed' });
             console.error('Share error', e);
         }
     };
@@ -86,12 +94,16 @@ const StudyCard: React.FC<{ question: any, onDelete?: (id: string) => void }> = 
     };
 
     const sendReport = async (reason: string) => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             await submitReport({ target_type: 'study_question', target_id: question.id, reason });
             setReportReasonVisible(false);
             if (onDelete) onDelete(question.id);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
             Alert.alert('Reported', 'Thank you. We will review this question.');
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Failed to submit report.' });
             console.log('Report error', e);
         }
     };

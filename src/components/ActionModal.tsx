@@ -39,7 +39,9 @@ export default function ActionModal({ visible, onClose, options, title }: Action
                             onPress={() => {
                                 hapticLight();
                                 onClose();
-                                option.onPress();
+                                setTimeout(() => {
+                                    option.onPress();
+                                }, 220);
                             }}
                             activeOpacity={0.7}
                         >

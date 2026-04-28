@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image, Share, Clipboard, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Alert, Image, Share, Clipboard, Animated, DeviceEventEmitter } from 'react-native';
 import { Skeleton } from './ShadowLoader';
 import { spacing, fonts, radii } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -103,10 +103,14 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
                 text: 'Delete', style: 'destructive',
                 onPress: async () => {
                     if (!poll?.id) return;
+                    const actionId = Math.random().toString(36).substring(7);
+                    DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'processing' });
                     try {
                         await deletePoll(poll.id);
                         if (onDelete) onDelete(poll.id);
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'success' });
                     } catch (e) {
+                        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'delete', status: 'error', message: 'Failed to delete poll.' });
                         Alert.alert('Error', 'Failed to delete poll.');
                     }
                 }
@@ -115,13 +119,17 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     };
 
     const handleShare = async () => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             const shareUrl = `https://uni-platform.app/poll/${poll.id}`;
             await Share.share({
                 title: 'UniConnect Poll',
                 message: `Vote in this poll on Uni Platform: ${shareUrl}`,
             });
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Share failed' });
             console.error('Share error', e);
         }
     };
@@ -141,12 +149,16 @@ export default function PollCard({ poll, showDelete = false, onDelete }: { poll:
     };
 
     const sendReport = async (reason: string) => {
+        const actionId = Math.random().toString(36).substring(7);
+        DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'processing' });
         try {
             await submitReport({ target_type: 'poll', target_id: poll.id, reason });
             setReportReasonVisible(false);
             if (onDelete && poll.id) onDelete(poll.id);
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'success' });
             Alert.alert('Reported', 'Thank you. We will review this poll.');
         } catch (e) {
+            DeviceEventEmitter.emit('action_status', { id: actionId, type: 'send', status: 'error', message: 'Failed to submit report.' });
             console.log('Report error', e);
         }
     };
